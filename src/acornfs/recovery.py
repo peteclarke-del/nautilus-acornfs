@@ -124,6 +124,12 @@ class RecoveryCheckpoint:
                 f"'acornfs recover {pair.dat_path}' before mounting read-write."
             )
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        # A crash after a clean session removes its manifest may leave harmless
+        # orphan backup files. They are not authoritative and must not prevent
+        # the next exclusive checkpoint from using create-only writes.
+        for name in ("image.dat", "image.dsc"):
+            (directory / name).unlink(missing_ok=True)
+        _fsync_directory(directory)
         info = RecoveryInfo(
             identity=_identity(pair),
             dat_path=str(pair.dat_path),
@@ -151,8 +157,15 @@ class RecoveryCheckpoint:
         return cls(pair, directory, info)
 
     def complete(self) -> None:
-        for name in ("image.dat", "image.dsc", "manifest.json"):
+        # The manifest is the authority for pending recovery. Remove and sync it
+        # first so a crash cannot advertise already-deleted backup images.
+        (self.directory / "manifest.json").unlink(missing_ok=True)
+        if self.directory.exists():
+            _fsync_directory(self.directory)
+        for name in ("image.dat", "image.dsc"):
             (self.directory / name).unlink(missing_ok=True)
+        if self.directory.exists():
+            _fsync_directory(self.directory)
         try:
             self.directory.rmdir()
             self.directory.parent.rmdir()

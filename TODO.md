@@ -19,10 +19,13 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 ## Phase 1: project foundation
 
 - [x] Choose an implementation language and maintained FUSE 3 binding.
-- [ ] Add the project licence, contribution guide and code style configuration.
+- [ ] Add the project licence.
+- [x] Add the contribution guide and code style configuration.
 - [x] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
-- [ ] Add reproducible development and test containers for amd64, arm64 and arm/v7. (amd64 only initially)
-- [ ] Add CI for formatting, static analysis, unit tests, integration tests and architecture builds.
+- [x] Add a reproducible development and test container for amd64.
+- [ ] Add arm64 and arm/v7 development and test containers after the initial amd64 release.
+- [x] Add CI for formatting, static analysis, unit tests, packaging and the amd64 container.
+- [ ] Add privileged live-FUSE integration tests to CI.
 - [x] Add generated test fixtures so private sample images are not required.
 - [x] Define supported Ubuntu and GNOME/Nautilus versions.
 - [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
@@ -77,7 +80,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Advance the ADFS disc ID when required.
 - [x] Rebuild and verify the free-space-map checksum after mutations.
 - [x] Flush all pending metadata before reporting fsync or unmount success.
-- [ ] Prevent partial updates when an operation fails.
+- [x] Prevent partial updates when an operation fails.
 - [x] Add a write-ahead journal or equivalent recovery mechanism.
 - [x] Store recovery state outside the mounted image and identify it by image identity.
 - [x] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
@@ -134,9 +137,9 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Avoid mounting or reparsing the ADFS image for each filesystem call.
 - [ ] Add bounded read caching with sequential-read detection.
 - [ ] Batch compatible metadata updates.
-- [ ] Define and test the concurrency model for simultaneous readers and a single writer.
+- [x] Define and test the concurrency model for simultaneous readers and a single writer.
 - [ ] Invalidate kernel and userspace caches after mutations.
-- [ ] Ensure external image changes are detected rather than overwritten.
+- [x] Ensure external image changes are detected rather than overwritten.
 - [ ] Record throughput and latency regressions in CI artefacts.
 
 ## Phase 9: additional Acorn formats
@@ -175,11 +178,11 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Deep trees, maximum directory entries and boundary-length names.
 - [ ] Locked files and every supported metadata combination.
 - [ ] Interrupted writes, daemon crashes, forced termination and host shutdown.
-- [ ] Concurrent readers and conflicting writers.
-- [ ] External modification while mounted.
-- [ ] Files larger than available image space.
+- [x] Concurrent readers and conflicting writers.
+- [x] External modification while mounted.
+- [x] Files larger than available image space.
 - [ ] Nautilus drag and drop, rename, delete, copy and properties workflows.
-- [ ] Terminal and non-GNOME application access through the same mount.
+- [x] Terminal and non-GNOME application access through the same mount.
 - [ ] Ubuntu on amd64, arm64 and 32-bit arm/v7.
 - [ ] Raspberry Pi 4 and Pi 5 native builds.
 - [ ] Real BeebSCSI hardware after every write-path release candidate.
@@ -191,20 +194,20 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Terminal tools see the same hierarchy and contents.
 - [x] Invalid geometry cannot reach a writable mount.
 - [ ] Writable mounts preserve all existing files and Acorn metadata after create, edit, rename, move and delete operations.
-- [ ] Interrupted mutations are either rolled back or recoverable.
-- [ ] Unmount verifies and flushes the image before reporting success.
+- [x] Interrupted mutations are either rolled back or recoverable.
+- [x] Unmount verifies and flushes the image before reporting success.
 - [ ] An image edited through AcornFS works reliably on real BeebSCSI hardware.
 - [ ] No operation requires running the daemon or Nautilus as root.
 - [ ] Documentation covers installation, use, recovery, limitations and uninstalling.
 
 ## Decisions to record before implementation
 
-- [ ] FUSE binding and implementation language.
-- [ ] Shared-library boundary with Acorn File Forge.
-- [ ] Transaction and recovery format.
-- [ ] POSIX timestamp policy for filesystems without equivalent timestamps.
+- [x] FUSE binding and implementation language.
+- [x] Shared-library boundary with Acorn File Forge.
+- [x] Transaction and recovery format.
+- [x] POSIX timestamp policy for filesystems without equivalent timestamps.
 - [ ] Filename mapping and case-sensitivity policy.
 - [ ] Extended-attribute and optional `.inf` sidecar policy.
 - [ ] MMB directory and write-semantics design.
-- [ ] Supported Ubuntu, GNOME and Nautilus versions.
-- [ ] Minimum supported Raspberry Pi and operating-system architecture.
+- [x] Supported Ubuntu, GNOME and Nautilus versions.
+- [x] Initial operating-system architecture (amd64; Raspberry Pi remains future work).

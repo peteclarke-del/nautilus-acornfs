@@ -19,6 +19,27 @@ parsing, geometry, catalogue and mutation logic belongs upstream in Oaknut;
 AcornFS owns pairing, mount policy, caching, POSIX mapping and FUSE lifecycle.
 No module will import code from the Acorn File Forge application package.
 
+AcornFS pins Oaknut because complete allocation validation and efficient ranged
+I/O currently require a small adapter over its old-ADFS internals. Those private
+calls are isolated in `acornfs.core`; the Nautilus and FUSE layers never depend
+on them directly.
+
+## Writable transaction boundary
+
+A writable session holds exclusive locks on both pair members and retains a
+persistent pre-session checkpoint until clean validation and unmount. Each
+individual mutation additionally captures compact before-images of the two map
+sectors, affected directory blocks, and any existing live file allocation that
+may be overwritten. Failure restores those sectors, runs complete integrity
+validation, flushes them durably, and allows the session to continue only when
+rollback is verified. Newly allocated sectors need no before-image because
+restoring the map makes them free and unreachable.
+
+The same re-entrant lock covers on-disc mutation and the in-memory inode index
+commit. This serialises writers while allowing ordinary reads from the stable
+index. Large files bypass the whole-file LRU cache and read only the requested
+sector range; FUSE growth is capacity-checked before its memory buffer expands.
+
 ## Package boundaries
 
 - `acornfs.core`: untrusted-image parsing, validation and filesystem policy.

@@ -196,8 +196,14 @@ class ReadOnlyOperations(pyfuse3.Operations):
         data = self._write_buffers.get(inode)
         if data is None:
             raise pyfuse3.FUSEError(errno.EBADF)
+        if off < 0:
+            raise pyfuse3.FUSEError(errno.EINVAL)
         end = off + len(buf)
         if end > len(data):
+            try:
+                self.image.preflight_file_size(inode, end)
+            except Exception as exc:
+                self._raise_fuse(exc)
             data.extend(b"\0" * (end - len(data)))
         data[off:end] = buf
         self._dirty.add(inode)
@@ -298,6 +304,10 @@ class ReadOnlyOperations(pyfuse3.Operations):
                 inode, bytearray(self.image.read(inode, 0, node.size))
             )
             new_size = attr.st_size
+            try:
+                self.image.preflight_file_size(inode, new_size)
+            except Exception as exc:
+                self._raise_fuse(exc)
             if new_size < len(data):
                 del data[new_size:]
             elif new_size > len(data):
