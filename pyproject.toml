@@ -46,3 +46,6 @@ python_version = "3.11"
 strict = true
 packages = ["acornfs"]
 
+[[tool.mypy.overrides]]
+module = ["oaknut.*"]
+ignore_missing_imports = true

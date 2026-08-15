@@ -23,7 +23,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
 - [ ] Add reproducible development and test containers for amd64, arm64 and arm/v7. (amd64 only initially)
 - [ ] Add CI for formatting, static analysis, unit tests, integration tests and architecture builds.
-- [ ] Add generated test fixtures so private sample images are not required.
+- [x] Add generated test fixtures so private sample images are not required.
 - [x] Define supported Ubuntu and GNOME/Nautilus versions.
 - [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
 
@@ -36,17 +36,17 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
 - [ ] Detect the ADFS format and target hardware characteristics.
 - [ ] Mount uncertain or damaged images read-only when safe traversal is still possible.
-- [ ] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
-- [ ] Traverse the complete ADFS directory tree.
-- [ ] Return stable inode identities for the life of a mount.
-- [ ] Report meaningful file sizes, ownership, permissions and timestamps.
-- [ ] Cache directory metadata and filesystem structures for the life of the mount.
-- [ ] Bound cache memory and invalidate entries predictably.
+- [x] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
+- [x] Traverse the complete ADFS directory tree.
+- [x] Return stable inode identities for the life of a mount.
+- [x] Report meaningful file sizes, ownership, permissions and timestamps.
+- [x] Cache directory metadata and filesystem structures for the life of the mount.
+- [x] Bound cache memory and invalidate entries predictably.
 - [ ] Provide clean handling for truncated images, broken directories, invalid maps and out-of-range sectors.
-- [ ] Add an `acornfs mount IMAGE MOUNTPOINT` command.
-- [ ] Add `acornfs unmount MOUNTPOINT` and mount-status commands.
-- [ ] Mount with `nosuid`, `nodev` and `noexec` by default.
-- [ ] Restrict a user mount to its owner unless explicitly configured otherwise.
+- [x] Add an `acornfs mount IMAGE MOUNTPOINT` command.
+- [x] Add `acornfs unmount MOUNTPOINT` and mount-status commands.
+- [x] Mount with `nosuid`, `nodev` and `noexec` by default.
+- [x] Restrict a user mount to its owner unless explicitly configured otherwise.
 
 ## Phase 3: Acorn metadata mapping
 
