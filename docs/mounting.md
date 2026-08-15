@@ -68,6 +68,14 @@ replacement. Acorn-locked entries are presented without POSIX write bits and
 reject writes, renames and deletion. Checkpoints use filesystem reflinks when
 the source and state location support them, falling back to a durable copy.
 
+Every file, directory, rename and metadata mutation has a compact sector-level
+before-image in addition to the session checkpoint. If an operation fails after
+partially changing the map or catalogue, AcornFS restores and validates that
+before-image before returning the error. The mount remains writable only after
+the rollback is verified; otherwise it is failed closed and the persistent
+checkpoint is retained for recovery. Oversized writes and truncates are rejected
+before their FUSE memory buffers grow.
+
 Acorn metadata is available through standard Linux extended-attribute tools:
 
 ```shell

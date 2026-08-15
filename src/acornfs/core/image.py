@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 from collections import OrderedDict
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import RLock
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from oaknut.adfs.exceptions import ADFSDiscFullError, ADFSError
 from oaknut.file import AcornMeta
@@ -21,10 +21,10 @@ from acornfs.core.beebscsi import (
     BeebSCSIGeometry,
     BeebSCSIPair,
     discover_pair,
-    inspect_pair,
     open_locked_reader,
     parse_descriptor,
 )
+from acornfs.core.transaction import SectorTransaction
 from acornfs.errors import AcornFSError
 
 if TYPE_CHECKING:
@@ -36,6 +36,7 @@ DEFAULT_CACHE_BYTES = 64 * 1024 * 1024
 DEFAULT_MAX_NODES = 100_000
 DEFAULT_MAX_DEPTH = 256
 ADFS_SECTOR_BYTES = 256
+T = TypeVar("T")
 
 
 class _MutationRolledBack(Exception):
@@ -97,6 +98,7 @@ class ReadOnlyImage:
         closeables: tuple[Any, ...] = (),
         checkpoint: RecoveryCheckpoint | None = None,
         descriptor_geometry: BeebSCSIGeometry,
+        fault_injector: Callable[[str], None] | None = None,
     ) -> None:
         self.pair = pair
         self._reader = reader
@@ -109,6 +111,7 @@ class ReadOnlyImage:
         self._closeables = closeables
         self._checkpoint = checkpoint
         self._descriptor_geometry = descriptor_geometry
+        self._fault_injector = fault_injector
         self._mutation_lock = RLock()
         self._failed = False
         self._cache: OrderedDict[int, bytes] = OrderedDict()
@@ -133,16 +136,17 @@ class ReadOnlyImage:
         max_nodes: int = DEFAULT_MAX_NODES,
         max_depth: int = DEFAULT_MAX_DEPTH,
         writable: bool = False,
+        fault_injector: Callable[[str], None] | None = None,
     ) -> ReadOnlyImage:
         """Validate and open a DAT/DSC image, read-only unless explicitly writable."""
 
-        inspect_pair(selected)
         pair = discover_pair(selected)
         reader: ImageReader | None = None
         mount: Mount | None = None
         try:
-            geometry = geometry_from_dsc(pair.dsc_path.read_bytes())
-            descriptor_geometry = parse_descriptor(pair.dsc_path.read_bytes())
+            descriptor = pair.dsc_path.read_bytes()
+            descriptor_geometry = parse_descriptor(descriptor)
+            geometry = geometry_from_dsc(descriptor)
             reader, closeables = open_locked_reader(pair, writable=writable)
             mount = create_filesystem("adfs").open(reader, geometry)
             if writable:
@@ -159,6 +163,7 @@ class ReadOnlyImage:
                 writable=writable,
                 closeables=closeables,
                 descriptor_geometry=descriptor_geometry,
+                fault_injector=fault_injector,
             )
             if writable:
                 try:
@@ -260,32 +265,50 @@ class ReadOnlyImage:
         node = self.nodes[inode]
         if node.is_dir:
             raise IsADirectoryError(node.acorn_path)
+        if node.size > self._cache_limit:
+            return self._read_range(node, offset, size)
         data = self._cached_file(inode, node)
         return data[offset : offset + size]
+
+    def _read_range(self, node: ImageNode, offset: int, size: int) -> bytes:
+        """Read only the sectors needed for a range of an uncached large file."""
+
+        if offset < 0 or size <= 0 or offset >= node.size:
+            return b""
+        end = min(node.size, offset + size)
+        adfs = cast(Any, self._mount)._adfs
+        _parent, entry = adfs.path(node.acorn_path)._resolve()
+        first_sector = offset // ADFS_SECTOR_BYTES
+        final_sector = (end + ADFS_SECTOR_BYTES - 1) // ADFS_SECTOR_BYTES
+        data = adfs._disc.sector_range(
+            int(entry.start_sector) + first_sector, final_sector - first_sector
+        )
+        start_in_sector = offset % ADFS_SECTOR_BYTES
+        return bytes(data[start_in_sector : start_in_sector + end - offset])
 
     def replace_file(self, inode: int, data: bytes) -> None:
         """Replace one file and make the new data visible immediately."""
 
-        with self._mutation():
-            node = self.nodes[inode]
-            if node.is_dir:
-                raise IsADirectoryError(node.acorn_path)
-            metadata_api = cast(Any, self._mount)
-            metadata = metadata_api.acorn_meta(node.acorn_path)
-            original = cast(bytes, self._mount.read_bytes(node.acorn_path))
-            self._ensure_replace_capacity(node, len(data))
-            try:
-                self._mount.write_bytes(node.acorn_path, data)
-                metadata_api.set_acorn_meta(node.acorn_path, metadata)
-            except Exception as exc:
-                try:
-                    self._mount.write_bytes(node.acorn_path, original)
-                    metadata_api.set_acorn_meta(node.acorn_path, metadata)
-                    self._finish_rollback()
-                except Exception as rollback_exc:
-                    self._failed = True
-                    raise exc from rollback_exc
-                raise _MutationRolledBack(exc) from exc
+        node = self.nodes[inode]
+        if node.is_dir:
+            raise IsADirectoryError(node.acorn_path)
+        metadata_api = cast(Any, self._mount)
+        metadata: AcornMeta | None = None
+
+        def prepare(transaction: SectorTransaction) -> None:
+            nonlocal metadata
+            self._preflight_file_size(node, len(data))
+            metadata = cast(AcornMeta, metadata_api.acorn_meta(node.acorn_path))
+            transaction.capture_parent(node.acorn_path)
+            transaction.capture_file(node.acorn_path)
+
+        def mutate() -> None:
+            self._mount.write_bytes(node.acorn_path, data)
+            if metadata is None:
+                raise AcornFSError("File metadata was not captured before replacement.")
+            metadata_api.set_acorn_meta(node.acorn_path, metadata)
+
+        def commit() -> None:
             self.nodes[inode] = replace(node, size=len(data))
             old_data = self._cache.pop(inode, None)
             if old_data is not None:
@@ -293,9 +316,20 @@ class ReadOnlyImage:
             if len(data) <= self._cache_limit:
                 self._cache[inode] = data
                 self._cache_size += len(data)
-            self._finish_mutation()
 
-    def _ensure_replace_capacity(self, node: ImageNode, new_size: int) -> None:
+        self._run_atomic("replace", prepare=prepare, mutate=mutate, commit=commit)
+
+    def preflight_file_size(self, inode: int, new_size: int) -> None:
+        """Reject a requested file size before a FUSE buffer is expanded."""
+
+        if new_size < 0:
+            raise ValueError("file size cannot be negative")
+        node = self.nodes[inode]
+        if node.is_dir:
+            raise IsADirectoryError(node.acorn_path)
+        self._preflight_file_size(node, new_size)
+
+    def _preflight_file_size(self, node: ImageNode, new_size: int) -> None:
         """Reject an overwrite before Oaknut frees data it cannot reallocate."""
 
         required = (new_size + ADFS_SECTOR_BYTES - 1) // ADFS_SECTOR_BYTES
@@ -348,11 +382,15 @@ class ReadOnlyImage:
         locked: bool | None = None,
         filetype: int | None = None,
     ) -> None:
-        with self._mutation():
-            node = self.nodes[inode]
-            if node.inode == ROOT_INODE:
-                raise ValueError("the filesystem root has no file metadata")
-            api = cast(Any, self._mount)
+        node = self.nodes[inode]
+        if node.inode == ROOT_INODE:
+            raise ValueError("the filesystem root has no file metadata")
+        api = cast(Any, self._mount)
+        access = 0
+        replacement: AcornMeta | None = None
+
+        def prepare(transaction: SectorTransaction) -> None:
+            nonlocal access, replacement
             current = cast(AcornMeta, api.acorn_meta(node.acorn_path))
             access = int(current.access or 0)
             if locked is not None:
@@ -362,20 +400,21 @@ class ReadOnlyImage:
                 exec_address=current.exec_address if exec_address is None else exec_address,
                 access=access,
             )
-            try:
-                api.set_acorn_meta(node.acorn_path, replacement)
-                if filetype is not None:
-                    api.set_filetype(node.acorn_path, filetype)
-            except Exception as exc:
-                try:
-                    api.set_acorn_meta(node.acorn_path, current)
-                    self._finish_rollback()
-                except Exception as rollback_exc:
-                    self._failed = True
-                    raise exc from rollback_exc
-                raise _MutationRolledBack(exc) from exc
-            self.nodes[inode] = replace(node, locked=bool(access & 8))
-            self._finish_mutation()
+            transaction.capture_parent(node.acorn_path)
+
+        def mutate() -> None:
+            if replacement is None:
+                raise AcornFSError("File metadata was not captured before mutation.")
+            api.set_acorn_meta(node.acorn_path, replacement)
+            if filetype is not None:
+                api.set_filetype(node.acorn_path, filetype)
+
+        self._run_atomic(
+            "metadata",
+            prepare=prepare,
+            mutate=mutate,
+            commit=lambda: self.nodes.__setitem__(inode, replace(node, locked=bool(access & 8))),
+        )
 
     def filetype(self, inode: int) -> int | None:
         node = self.nodes[inode]
@@ -436,36 +475,40 @@ class ReadOnlyImage:
         return node
 
     def create_file(self, parent_inode: int, name: bytes) -> ImageNode:
-        with self._mutation():
-            decoded = self._new_name(name)
-            path = self._child_path(parent_inode, decoded)
-            self._mount.write_bytes(path, b"")
-            node = self._add_node(parent_inode, decoded, is_dir=False)
-            self._finish_mutation()
-            return node
+        decoded = self._new_name(name)
+        path = self._child_path(parent_inode, decoded)
+        return self._run_atomic(
+            "create",
+            prepare=lambda transaction: transaction.capture_parent(path),
+            mutate=lambda: self._mount.write_bytes(path, b""),
+            commit=lambda: self._add_node(parent_inode, decoded, is_dir=False),
+        )
 
     def make_directory(self, parent_inode: int, name: bytes) -> ImageNode:
-        with self._mutation():
-            decoded = self._new_name(name)
-            path = self._child_path(parent_inode, decoded)
-            maker = cast(Any, self._mount).make_directory
-            maker(path)
-            node = self._add_node(parent_inode, decoded, is_dir=True)
-            self._finish_mutation()
-            return node
+        decoded = self._new_name(name)
+        path = self._child_path(parent_inode, decoded)
+        maker = cast(Any, self._mount).make_directory
+        return self._run_atomic(
+            "mkdir",
+            prepare=lambda transaction: transaction.capture_parent(path),
+            mutate=lambda: maker(path),
+            commit=lambda: self._add_node(parent_inode, decoded, is_dir=True),
+        )
 
     def remove(self, parent_inode: int, name: bytes, *, directory: bool) -> None:
-        with self._mutation():
-            node = self.lookup(parent_inode, name)
-            if node is None:
-                raise FileNotFoundError(name)
-            if node.is_dir != directory:
-                if node.is_dir:
-                    raise IsADirectoryError(node.acorn_path)
-                raise NotADirectoryError(node.acorn_path)
-            self._mount.remove(node.acorn_path)
-            self._drop_node(node)
-            self._finish_mutation()
+        node = self.lookup(parent_inode, name)
+        if node is None:
+            raise FileNotFoundError(name)
+        if node.is_dir != directory:
+            if node.is_dir:
+                raise IsADirectoryError(node.acorn_path)
+            raise NotADirectoryError(node.acorn_path)
+        self._run_atomic(
+            "rmdir" if directory else "unlink",
+            prepare=lambda transaction: transaction.capture_parent(node.acorn_path),
+            mutate=lambda: self._mount.remove(node.acorn_path),
+            commit=lambda: self._drop_node(node),
+        )
 
     def _drop_node(self, node: ImageNode) -> None:
         self.children[node.parent_inode] = tuple(
@@ -482,71 +525,103 @@ class ReadOnlyImage:
     def rename(
         self, old_parent: int, old_name: bytes, new_parent: int, new_name: bytes
     ) -> ImageNode:
-        with self._mutation():
-            node = self.lookup(old_parent, old_name)
-            if node is None:
-                raise FileNotFoundError(old_name)
-            if node.locked:
-                raise PermissionError(f"{node.acorn_path} is locked")
-            if node.is_dir and self._is_descendant_or_self(new_parent, node.inode):
-                raise ValueError("a directory cannot be moved inside itself")
-            decoded = self._new_name(new_name)
-            new_path = self._child_path(new_parent, decoded)
-            old_path = node.acorn_path
-            destination = self.lookup(new_parent, new_name)
-            if destination is node:
-                return node
-            destination_data: bytes | None = None
-            destination_metadata: Any = None
+        node = self.lookup(old_parent, old_name)
+        if node is None:
+            raise FileNotFoundError(old_name)
+        if node.locked:
+            raise PermissionError(f"{node.acorn_path} is locked")
+        if node.is_dir and self._is_descendant_or_self(new_parent, node.inode):
+            raise ValueError("a directory cannot be moved inside itself")
+        decoded = self._new_name(new_name)
+        new_path = self._child_path(new_parent, decoded)
+        old_path = node.acorn_path
+        destination = self.lookup(new_parent, new_name)
+        if destination is node:
+            return node
+        if destination is not None:
+            if destination.locked:
+                raise PermissionError(f"{destination.acorn_path} is locked")
+            if destination.is_dir != node.is_dir:
+                if destination.is_dir:
+                    raise IsADirectoryError(destination.acorn_path)
+                raise NotADirectoryError(destination.acorn_path)
+
+        destination_parent_sector = 0
+
+        def prepare(transaction: SectorTransaction) -> None:
+            nonlocal destination_parent_sector
+            transaction.capture_parent(old_path)
+            destination_parent_sector = transaction.capture_parent(new_path)
+            if node.is_dir:
+                transaction.capture_directory(old_path)
+
+        def mutate() -> None:
             if destination is not None:
-                if destination.locked:
-                    raise PermissionError(f"{destination.acorn_path} is locked")
-                if destination.is_dir != node.is_dir:
-                    if destination.is_dir:
-                        raise IsADirectoryError(destination.acorn_path)
-                    raise NotADirectoryError(destination.acorn_path)
-                if not destination.is_dir:
-                    destination_data = self._mount.read_bytes(destination.acorn_path)
-                    destination_metadata = cast(Any, self._mount).acorn_meta(destination.acorn_path)
                 self._mount.remove(destination.acorn_path)
-            try:
-                self._mount.rename(old_path, new_path)
-            except Exception:
-                self._failed = True
-                if destination is not None:
-                    try:
-                        if destination.is_dir:
-                            cast(Any, self._mount).make_directory(destination.acorn_path)
-                        else:
-                            self._mount.write_bytes(destination.acorn_path, destination_data or b"")
-                            cast(Any, self._mount).set_acorn_meta(
-                                destination.acorn_path, destination_metadata
-                            )
-                    except Exception:
-                        pass
-                raise
-            if destination is not None:
-                self._drop_node(destination)
-            self.children[old_parent] = tuple(
-                inode for inode in self.children[old_parent] if inode != node.inode
-            )
-            self.children_by_name[old_parent].pop(node.name, None)
-            new_encoded = _display_name(decoded)
-            self.children[new_parent] = (*self.children.get(new_parent, ()), node.inode)
-            self.children_by_name.setdefault(new_parent, {})[new_encoded] = node.inode
-            self.nodes[node.inode] = replace(
+                self._fault("rename.destination_removed")
+            self._mount.rename(old_path, new_path)
+            if node.is_dir:
+                self._set_directory_identity(
+                    new_path,
+                    name=decoded,
+                    parent_sector=destination_parent_sector if old_parent != new_parent else None,
+                )
+
+        def commit() -> ImageNode:
+            return self._commit_rename(
                 node,
-                parent_inode=new_parent,
-                name=new_encoded,
-                acorn_path=new_path,
+                destination,
+                old_parent=old_parent,
+                new_parent=new_parent,
+                decoded=decoded,
+                old_path=old_path,
+                new_path=new_path,
             )
-            prefix = f"{old_path}."
-            for inode, descendant in tuple(self.nodes.items()):
-                if descendant.acorn_path.startswith(prefix):
-                    suffix = descendant.acorn_path[len(old_path) :]
-                    self.nodes[inode] = replace(descendant, acorn_path=f"{new_path}{suffix}")
-            self._finish_mutation()
-            return self.nodes[node.inode]
+
+        return self._run_atomic("rename", prepare=prepare, mutate=mutate, commit=commit)
+
+    def _commit_rename(
+        self,
+        node: ImageNode,
+        destination: ImageNode | None,
+        *,
+        old_parent: int,
+        new_parent: int,
+        decoded: str,
+        old_path: str,
+        new_path: str,
+    ) -> ImageNode:
+        if destination is not None:
+            self._drop_node(destination)
+        self.children[old_parent] = tuple(
+            inode for inode in self.children[old_parent] if inode != node.inode
+        )
+        self.children_by_name[old_parent].pop(node.name, None)
+        new_encoded = _display_name(decoded)
+        self.children[new_parent] = (*self.children.get(new_parent, ()), node.inode)
+        self.children_by_name.setdefault(new_parent, {})[new_encoded] = node.inode
+        self.nodes[node.inode] = replace(
+            node,
+            parent_inode=new_parent,
+            name=new_encoded,
+            acorn_path=new_path,
+        )
+        prefix = f"{old_path}."
+        for inode, descendant in tuple(self.nodes.items()):
+            if descendant.acorn_path.startswith(prefix):
+                suffix = descendant.acorn_path[len(old_path) :]
+                self.nodes[inode] = replace(descendant, acorn_path=f"{new_path}{suffix}")
+        return self.nodes[node.inode]
+
+    def _set_directory_identity(self, path: str, *, name: str, parent_sector: int | None) -> None:
+        adfs = cast(Any, self._mount)._adfs
+        _parent, entry = adfs.path(path)._resolve()
+        sector = int(entry.start_sector)
+        directory = adfs._read_directory_at(sector)
+        replacement = replace(directory, name=name)
+        if parent_sector is not None:
+            replacement = replace(replacement, parent_address=parent_sector)
+        adfs._write_directory_at(replacement, sector)
 
     def _is_descendant_or_self(self, inode: int, ancestor_inode: int) -> bool:
         cursor = inode
@@ -577,6 +652,41 @@ class ReadOnlyImage:
         if self._current_signature() != self._expected_signature:
             self._failed = True
             raise AcornFSError("The DAT image changed outside AcornFS; further writes are blocked.")
+
+    def _fault(self, stage: str) -> None:
+        if self._fault_injector is not None:
+            self._fault_injector(stage)
+
+    def _run_atomic(
+        self,
+        operation: str,
+        *,
+        prepare: Callable[[SectorTransaction], object],
+        mutate: Callable[[], object],
+        commit: Callable[[], T],
+    ) -> T:
+        """Run one mutation with a compact sector before-image and rollback."""
+
+        with self._mutation():
+            transaction = SectorTransaction(self._mount, self._closeables[0])
+            prepare(transaction)
+            try:
+                self._fault(f"{operation}.before")
+                mutate()
+                self._fault(f"{operation}.after")
+                self._finish_mutation()
+            except Exception as exc:
+                try:
+                    transaction.restore()
+                    self._finish_rollback()
+                except Exception as rollback_exc:
+                    self._failed = True
+                    raise AcornFSError(
+                        f"{operation} failed and its sector rollback could not be verified; "
+                        "unmount and restore the recovery checkpoint."
+                    ) from rollback_exc
+                raise _MutationRolledBack(exc) from exc
+            return commit()
 
     @contextmanager
     def _mutation(self) -> Iterator[None]:

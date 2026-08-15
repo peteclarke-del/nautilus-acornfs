@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import mmap
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -51,20 +52,21 @@ def open_locked_reader(
 
     mode = "r+b" if writable else "rb"
     lock_mode = fcntl.LOCK_EX if writable else fcntl.LOCK_SH
-    dat_lock = pair.dat_path.open(mode)
-    dsc_lock = pair.dsc_path.open(mode)
-    mapping_handle = pair.dat_path.open(mode)
+    stack = ExitStack()
     try:
+        dat_lock = stack.enter_context(pair.dat_path.open(mode))
+        dsc_lock = stack.enter_context(pair.dsc_path.open(mode))
+        mapping_handle = stack.enter_context(pair.dat_path.open(mode))
         fcntl.flock(dat_lock, lock_mode | fcntl.LOCK_NB)
         fcntl.flock(dsc_lock, lock_mode | fcntl.LOCK_NB)
         access = mmap.ACCESS_WRITE if writable else mmap.ACCESS_COPY
         mapping = mmap.mmap(mapping_handle.fileno(), 0, access=access)
+        stack.callback(mapping.close)
+        reader = ImageReader(mapping, suffix=pair.dat_path.suffix, writable=True)
     except Exception:
-        mapping_handle.close()
-        dat_lock.close()
-        dsc_lock.close()
+        stack.close()
         raise
-    reader = ImageReader(mapping, suffix=pair.dat_path.suffix, writable=True)
+    stack.pop_all()
     return reader, (mapping, mapping_handle, dat_lock, dsc_lock)
 
 

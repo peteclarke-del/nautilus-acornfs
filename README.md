@@ -11,6 +11,10 @@ pair locks, persistent pre-write checkpoints, external-change detection and
 complete pre-write and post-write ADFS integrity validation. Fatal geometry,
 map, directory or allocation findings refuse writable access before a checkpoint
 is created, while safe warnings and compatibility advice remain non-blocking.
+Each mutation also uses a compact sector before-image, so a partially failed map
+or catalogue update is rolled back and verified without sacrificing the rest of
+the writable session. Oversized writes are rejected before their FUSE buffers
+consume the unavailable capacity.
 Acorn load/execute addresses, filetypes, lock state, source filesystem and
 original paths are available as extended attributes. See [TODO.md](TODO.md) for
 the remaining lifecycle and format work.
@@ -25,6 +29,7 @@ the remaining lifecycle and format work.
 - Mount a validated ADFS image read-only or read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
+- Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Mount read-write, mount read-only, validate, recover and unmount from Nautilus context menus.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
 
@@ -39,6 +44,14 @@ python3 -m venv .venv
 sudo apt install fuse3 libfuse3-dev pkg-config
 python -m pip install -e '.[dev,fuse]'
 pytest
+```
+
+The suite includes a real writable FUSE lifecycle test and runs it automatically
+when `/dev/fuse` and `fusermount3` are available; restricted containers skip only
+that test. Run it explicitly on a Linux host with:
+
+```shell
+pytest tests/test_live_fuse.py
 ```
 
 Install the per-user Nautilus extension and restart Files:
