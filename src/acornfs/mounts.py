@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tempfile
 import time
 from contextlib import suppress
 from dataclasses import asdict, dataclass, replace
@@ -37,7 +38,16 @@ class MountRecord:
 
 def runtime_root() -> Path:
     configured = os.environ.get("XDG_RUNTIME_DIR")
-    root = Path(configured) if configured else Path("/run/user") / str(os.getuid())
+    if configured:
+        root = Path(configured)
+    else:
+        root = Path("/run/user") / str(os.getuid())
+        if not root.is_dir():
+            root = Path(tempfile.gettempdir()) / f"acornfs-runtime-{os.getuid()}"
+            root.mkdir(mode=0o700, exist_ok=True)
+            stat = root.stat(follow_symlinks=False)
+            if stat.st_uid != os.getuid() or stat.st_mode & 0o077:
+                raise AcornFSError(f"The fallback runtime directory is not private: {root}")
     if not root.is_dir():
         raise AcornFSError("The session runtime directory is unavailable.")
     return root / "acornfs"

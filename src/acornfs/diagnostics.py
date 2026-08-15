@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
-import os
 import platform
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
+from acornfs.fuse_adapter.availability import fuse_device_accessible
 from acornfs.mounts import MountRecord, active_mounts
 
 
@@ -40,7 +40,7 @@ def diagnostic_report() -> dict[str, Any]:
         },
         "fuse": {
             "device_present": Path("/dev/fuse").exists(),
-            "device_accessible": os.access("/dev/fuse", os.R_OK | os.W_OK),
+            "device_accessible": fuse_device_accessible(),
             "fusermount3_available": shutil.which("fusermount3") is not None,
         },
         "mounts": [
