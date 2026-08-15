@@ -13,8 +13,8 @@ from pathlib import Path
 
 from acornfs.core import FindingSeverity, inspect_pair, validate_image_report
 from acornfs.errors import AcornFSError
-from acornfs.mounts import active_mounts
-from acornfs.recovery import recover_image
+from acornfs.mounts import active_mounts, mount_at, wait_for_mount_shutdown
+from acornfs.recovery import pending_recovery, recover_image
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -47,6 +47,10 @@ def _parser() -> argparse.ArgumentParser:
     status_parser = subparsers.add_parser("status", help="show AcornFS mount status")
     status_parser.add_argument("mountpoint", nargs="?", help="optionally limit output to one path")
     status_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    diagnostics_parser = subparsers.add_parser(
+        "diagnostics", help="print privacy-safe support diagnostics"
+    )
+    diagnostics_parser.add_argument("--json", action="store_true", help="emit JSON")
     install_parser = subparsers.add_parser(
         "install-nautilus", help="install the per-user Nautilus context-menu extension"
     )
@@ -125,6 +129,18 @@ def _validate(args: argparse.Namespace) -> int:
 
 def _unmount(args: argparse.Namespace) -> int:
     target = Path(args.mountpoint).expanduser().resolve()
+    record = mount_at(target)
+    if record is None:
+        raise AcornFSError(f"No active AcornFS mount was found at {target}.")
+    if record.read_write is None:
+        raise AcornFSError(
+            "The mount has no lifecycle identity record; its write mode and safe shutdown "
+            "cannot be verified."
+        )
+    if args.lazy and record.read_write:
+        raise AcornFSError(
+            "Lazy unmount is allowed only for a registry-confirmed read-only AcornFS mount."
+        )
     command = ["fusermount3", "-u"]
     if args.lazy:
         command.append("-z")
@@ -138,6 +154,15 @@ def _unmount(args: argparse.Namespace) -> int:
     if result.returncode:
         detail = result.stderr.strip() or "fusermount3 failed"
         raise AcornFSError(f"Could not unmount {target}: {detail}")
+    if record.read_write:
+        if not wait_for_mount_shutdown(target):
+            raise AcornFSError(
+                "The mount detached but its daemon did not confirm final flush and validation."
+            )
+        if record.image_path is not None and pending_recovery(record.image_path) is not None:
+            raise AcornFSError(
+                "The mount detached but final validation left a recovery checkpoint pending."
+            )
     return 0
 
 
@@ -153,6 +178,32 @@ def _status(args: argparse.Namespace) -> int:
             print(f"{mount.source} on {mount.mountpoint} ({mount.options})")
     else:
         print("No AcornFS mounts found.")
+    return 0
+
+
+def _diagnostics(args: argparse.Namespace) -> int:
+    from acornfs.diagnostics import diagnostic_report
+
+    report = diagnostic_report()
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        runtime = report["runtime"]
+        fuse = report["fuse"]
+        mounts = report["mounts"]
+        print(
+            f"AcornFS {runtime['acornfs']} on {runtime['platform']} {runtime['architecture']} "
+            f"(Python {runtime['python']})"
+        )
+        print(
+            f"FUSE device: {'accessible' if fuse['device_accessible'] else 'unavailable'}; "
+            f"fusermount3: {'available' if fuse['fusermount3_available'] else 'unavailable'}"
+        )
+        print(f"Active mounts: {len(mounts)}")
+        for mount in mounts:
+            mode = "read-write" if mount["read_write"] else "read-only/unknown"
+            print(f"- {mount['source_name']} as {mount['mount_name']} ({mode})")
+        print(report["privacy"])
     return 0
 
 
@@ -211,6 +262,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "mount": _mount,
         "unmount": _unmount,
         "status": _status,
+        "diagnostics": _diagnostics,
         "install-nautilus": _install_nautilus,
         "uninstall-nautilus": _uninstall_nautilus,
         "desktop-mount": _desktop_mount,

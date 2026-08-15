@@ -109,12 +109,12 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 ## Phase 6: lifecycle and desktop service
 
 - [x] Run desktop mount daemons as collected transient systemd user services when available.
-- [ ] Track active mounts by canonical image path, device and inode.
+- [x] Track active mounts by canonical image path, device and inode.
 - [x] Detect and detach stale FUSE endpoints before remounting.
-- [ ] Refuse to unmount while writes cannot be safely flushed.
+- [x] Refuse to unmount while writes cannot be safely flushed.
 - [x] Support graceful logout and shutdown handling through systemd `SIGINT` cleanup.
 - [x] Record systemd-managed mount output in the user journal.
-- [ ] Add diagnostics that can be exported without including image contents.
+- [x] Add diagnostics that can be exported without including image contents.
 - [ ] Provide configurable per-user mount locations under `/run/user/$UID/acornfs`.
 - [x] Avoid requiring global `/etc/fuse.conf` changes for ordinary operation.
 

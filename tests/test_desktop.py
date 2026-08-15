@@ -6,9 +6,11 @@ from acornfs.desktop import (
     _systemd_mount_command,
     cleanup_stale_mountpoint,
     desktop_recover,
+    desktop_unmount,
     desktop_validate,
     mountpoint_for_image,
 )
+from acornfs.mounts import MountRecord
 from tests.image_fixture import create_beebscsi_image
 
 
@@ -97,3 +99,43 @@ def test_desktop_validation_shows_finite_problem_report(tmp_path: Path) -> None:
     assert "geometry.dat_short" in run.call_args.kwargs["input"]
     assert "Run 'acornfs validate'" not in run.call_args.kwargs["input"]
     notify.assert_not_called()
+
+
+def test_writable_desktop_unmount_waits_for_safe_finalisation(tmp_path: Path) -> None:
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+    record = MountRecord(
+        mountpoint=str(mountpoint),
+        source="scsi0.dat",
+        options="rw",
+        image_path=str(tmp_path / "scsi0.dat"),
+        read_write=True,
+    )
+    result = SimpleNamespace(returncode=0, stderr="")
+    with (
+        patch("acornfs.desktop.mount_at", return_value=record),
+        patch("acornfs.desktop.wait_for_mount_shutdown", return_value=True),
+        patch("acornfs.desktop.pending_recovery", return_value=None),
+        patch("acornfs.desktop.subprocess.run", return_value=result) as run,
+        patch("acornfs.desktop._notify") as notify,
+    ):
+        assert desktop_unmount(mountpoint) == 0
+
+    assert run.call_args.args[0] == ["fusermount3", "-u", str(mountpoint)]
+    notify.assert_called_once_with(
+        "AcornFS image unmounted", f"{mountpoint.name} was flushed and validated safely."
+    )
+
+
+def test_read_only_desktop_unmount_can_detach_lazily(tmp_path: Path) -> None:
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+    record = MountRecord(str(mountpoint), "scsi0.dat", "ro", read_write=False)
+    result = SimpleNamespace(returncode=0, stderr="")
+    with (
+        patch("acornfs.desktop.mount_at", return_value=record),
+        patch("acornfs.desktop.subprocess.run", return_value=result) as run,
+        patch("acornfs.desktop._notify"),
+    ):
+        assert desktop_unmount(mountpoint) == 0
+    assert run.call_args.args[0] == ["fusermount3", "-u", "-z", str(mountpoint)]
