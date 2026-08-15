@@ -15,7 +15,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import discover_pair, validate_image_report
+from acornfs.core import IntegrityReport, discover_pair, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.mounts import is_mounted
 from acornfs.recovery import recover_image
@@ -148,6 +148,30 @@ def _open_folder(path: Path) -> None:
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
+
+
+def _show_validation_report(name: str, report: IntegrityReport) -> bool:
+    """Show complete findings in a finite dialog; return false without Zenity."""
+
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        return False
+    subprocess.run(
+        [
+            dialog,
+            "--text-info",
+            f"--title=AcornFS validation — {name}",
+            "--width=760",
+            "--height=520",
+            "--ok-label=Close",
+        ],
+        input=report.format_text(),
+        text=True,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return True
 
 
 def background_mount(
@@ -309,13 +333,15 @@ def desktop_validate(image_path: str | Path) -> int:
         raise
     name = discover_pair(image_path).dat_path.name
     if report.fatal_findings or report.warning_findings:
-        _notify(
-            "AcornFS validation found problems",
-            f"{name}: {len(report.fatal_findings)} fatal and "
-            f"{len(report.warning_findings)} warning finding(s). "
-            "Run 'acornfs validate' for details.",
-            error=True,
-        )
+        if not _show_validation_report(name, report):
+            first = (*report.fatal_findings, *report.warning_findings)[0]
+            remaining = len(report.findings) - 1
+            suffix = f" (+{remaining} more)" if remaining else ""
+            _notify(
+                "AcornFS validation found problems",
+                f"{name}: [{first.severity.value.upper()}] {first.code}: {first.message}{suffix}",
+                error=True,
+            )
         return 1
     _notify("AcornFS validation passed", f"{name} has no reported ADFS problems.")
     return 0

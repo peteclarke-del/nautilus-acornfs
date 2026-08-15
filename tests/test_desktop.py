@@ -78,3 +78,22 @@ def test_desktop_validation_reports_clean_image(tmp_path: Path) -> None:
         "AcornFS validation passed",
         "scsi0.dat has no reported ADFS problems.",
     )
+
+
+def test_desktop_validation_shows_finite_problem_report(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with dat_path.open("r+b") as handle:
+        handle.truncate(512)
+    dialog_result = SimpleNamespace(returncode=0)
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.run", return_value=dialog_result) as run,
+        patch("acornfs.desktop._notify") as notify,
+    ):
+        assert desktop_validate(dat_path) == 1
+
+    arguments = run.call_args.args[0]
+    assert arguments[:2] == ["/usr/bin/zenity", "--text-info"]
+    assert "geometry.dat_short" in run.call_args.kwargs["input"]
+    assert "Run 'acornfs validate'" not in run.call_args.kwargs["input"]
+    notify.assert_not_called()
