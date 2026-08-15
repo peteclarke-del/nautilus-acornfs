@@ -15,7 +15,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import discover_pair, validate_image
+from acornfs.core import discover_pair, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.mounts import is_mounted
 from acornfs.recovery import recover_image
@@ -303,15 +303,17 @@ def desktop_validate(image_path: str | Path) -> int:
     """Validate an image structure read-only and report the result on the desktop."""
 
     try:
-        problems = validate_image(image_path)
+        report = validate_image_report(image_path)
     except AcornFSError as exc:
         _notify("AcornFS validation failed", str(exc), error=True)
         raise
     name = discover_pair(image_path).dat_path.name
-    if problems:
+    if report.fatal_findings or report.warning_findings:
         _notify(
             "AcornFS validation found problems",
-            f"{name}: {len(problems)} problem(s). Run 'acornfs validate' for details.",
+            f"{name}: {len(report.fatal_findings)} fatal and "
+            f"{len(report.warning_findings)} warning finding(s). "
+            "Run 'acornfs validate' for details.",
             error=True,
         )
         return 1

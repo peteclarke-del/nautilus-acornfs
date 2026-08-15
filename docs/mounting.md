@@ -56,6 +56,13 @@ each completed mutation, and validates ADFS before a clean unmount removes that
 checkpoint. Names must obey old-ADFS rules: 7-bit ASCII, at most 10 bytes, with
 no `.`, `:` or carriage return.
 
+Before creating that checkpoint, AcornFS validates the descriptor and DAT
+geometry, ADFS map and directory structures, and every used and free sector
+extent. A fatal finding refuses writable access. Warnings describe unusual but
+safe structures, and compatibility advice records details such as intentionally
+reserved capacity; neither blocks a writable mount. A read-only mount remains
+available when the directory tree can still be traversed safely.
+
 Existing load address, execute address and access/lock metadata survive content
 replacement. Acorn-locked entries are presented without POSIX write bits and
 reject writes, renames and deletion. Checkpoints use filesystem reflinks when
@@ -91,6 +98,12 @@ Validate the ADFS structure without mounting or modifying the image:
 acornfs validate /path/to/scsi0.dat
 acornfs validate --json /path/to/scsi0.dat
 ```
+
+Human output groups findings by `FATAL`, `WARNING`, and `ADVICE`. JSON output
+contains stable finding codes, optional Acorn paths, capacity/accounting totals,
+and a `safe_for_write` boolean for scripts. The command exits non-zero for fatal
+findings or warnings so unattended validation can use a strict policy; advice
+alone is successful. Validation never repairs or modifies the image.
 
 ## Status and unmounting
 
