@@ -51,9 +51,6 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _unmount(self, _menu: Any, mountpoint: Path) -> None:
         _launch("desktop-unmount", str(mountpoint))
 
-    def _open(self, _menu: Any, mountpoint: Path) -> None:
-        _launch("desktop-open", str(mountpoint))
-
     def _unmount_item(self, mountpoint: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Unmount",
@@ -80,14 +77,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         except AcornFSError:
             return []
         if is_mounted(mountpoint):
-            open_item = Nautilus.MenuItem(
-                name="AcornFS::Open",
-                label="Open mounted Acorn image",
-                tip=f"Open {mountpoint.name}",
-                icon="folder-open-symbolic",
-            )
-            open_item.connect("activate", self._open, mountpoint)
-            return [open_item, self._unmount_item(mountpoint)]
+            return [self._unmount_item(mountpoint)]
         mount_item = Nautilus.MenuItem(
             name="AcornFS::Mount",
             label="Mount Acorn image",

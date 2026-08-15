@@ -44,8 +44,6 @@ def _parser() -> argparse.ArgumentParser:
     desktop_mount_parser.add_argument("image")
     desktop_unmount_parser = subparsers.add_parser("desktop-unmount")
     desktop_unmount_parser.add_argument("mountpoint")
-    desktop_open_parser = subparsers.add_parser("desktop-open")
-    desktop_open_parser.add_argument("mountpoint")
     return parser
 
 
@@ -143,12 +141,6 @@ def _desktop_unmount(args: argparse.Namespace) -> int:
     return desktop_unmount(args.mountpoint)
 
 
-def _desktop_open(args: argparse.Namespace) -> int:
-    from acornfs.desktop import desktop_open
-
-    return desktop_open(args.mountpoint)
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     handlers = {
@@ -160,7 +152,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "uninstall-nautilus": _uninstall_nautilus,
         "desktop-mount": _desktop_mount,
         "desktop-unmount": _desktop_unmount,
-        "desktop-open": _desktop_open,
     }
     try:
         return handlers[args.command](args)

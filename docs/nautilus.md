@@ -23,17 +23,19 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 1. Right-click either file.
 2. Select **Mount Acorn image**.
 3. Wait for the completion notification; the mounted root opens automatically.
-4. Browse directories and open files normally.
+4. Browse directories and open files normally. The image appears in the Files
+   sidebar while it remains mounted.
 5. Right-click the DAT/DSC and select **Unmount Acorn image**, or use that action
    from the background menu at the mounted root.
 
-An active image also offers **Open mounted Acorn image**. Mounts are always
-read-only and carry `nodev`, `nosuid`, and `noexec`.
+Mounts are always read-only and carry `nodev`, `nosuid`, and `noexec`.
 
-Each image receives a stable location under
-`$XDG_RUNTIME_DIR/acornfs/IMAGE-HASH`. The extension starts the mount in a
-detached process so it survives after the context-menu callback returns. A
-systemd user service will replace this initial lifecycle mechanism later.
+Each image receives a stable location under `~/AcornFS Mounts/IMAGE-HASH`.
+GNOME deliberately exposes user FUSE mounts below the home directory in the
+Files sidebar. Runtime locks and logs remain under `$XDG_RUNTIME_DIR/acornfs`.
+The extension starts the mount in a detached process so it survives after the
+context-menu callback returns. A systemd user service will replace this initial
+lifecycle mechanism later.
 
 ## Troubleshooting
 

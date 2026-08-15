@@ -5,11 +5,13 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import os
+import pwd
 import re
 import shutil
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 from acornfs.core import discover_pair
@@ -27,12 +29,22 @@ def runtime_root() -> Path:
     return root / "acornfs"
 
 
+def mount_root() -> Path:
+    """Return a non-hidden home path which GLib exposes as a user FUSE mount."""
+
+    configured = os.environ.get("ACORNFS_MOUNT_ROOT")
+    if configured:
+        return Path(configured).expanduser()
+    home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    return home / "AcornFS Mounts"
+
+
 def mountpoint_for_image(image_path: str | Path) -> Path:
     pair = discover_pair(image_path)
     identity = str(pair.dat_path).encode("utf-8", "surrogateescape")
     digest = hashlib.sha256(identity).hexdigest()[:10]
     stem = re.sub(r"[^A-Za-z0-9._-]+", "-", pair.dat_path.stem).strip(".-") or "image"
-    return runtime_root() / f"{stem}-{digest}"
+    return mount_root() / f"{stem}-{digest}"
 
 
 def _notify(summary: str, body: str, *, error: bool = False) -> None:
@@ -68,8 +80,9 @@ def background_mount(
 
     pair = discover_pair(image_path)
     mountpoint = mountpoint_for_image(pair.dat_path)
-    root = mountpoint.parent
+    root = runtime_root()
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    mountpoint.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     mountpoint.mkdir(mode=0o700, exist_ok=True)
     lock_path = root / f".{mountpoint.name}.lock"
     log_path = root / f"{mountpoint.name}.log"
@@ -141,23 +154,19 @@ def desktop_unmount(mountpoint: str | Path) -> int:
         detail = result.stderr.strip() or "fusermount3 failed"
         _notify("AcornFS unmount failed", detail, error=True)
         raise AcornFSError(f"Could not unmount {target}: {detail}")
+    with suppress(OSError):
+        target.rmdir()
+    with suppress(OSError):
+        target.parent.rmdir()
     _notify("AcornFS image unmounted", target.name)
-    return 0
-
-
-def desktop_open(mountpoint: str | Path) -> int:
-    target = Path(mountpoint).expanduser().resolve()
-    if not is_mounted(target):
-        raise AcornFSError(f"AcornFS mount is no longer available: {target}")
-    _open_folder(target)
     return 0
 
 
 __all__ = [
     "background_mount",
     "desktop_mount",
-    "desktop_open",
     "desktop_unmount",
     "mountpoint_for_image",
+    "mount_root",
     "runtime_root",
 ]
