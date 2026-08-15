@@ -58,6 +58,19 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _recover(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-recover", str(image_path))
 
+    def _validate(self, _menu: Any, image_path: Path) -> None:
+        _launch("desktop-validate", str(image_path))
+
+    def _validate_item(self, path: Path) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::Validate",
+            label="Validate Acorn image",
+            tip=f"Check {path.name} without modifying it",
+            icon="emblem-default-symbolic",
+        )
+        item.connect("activate", self._validate, path)
+        return item
+
     def _read_only_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::MountReadOnly",
@@ -107,7 +120,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                 icon="document-revert-symbolic",
             )
             recovery_item.connect("activate", self._recover, path)
-            return [recovery_item, self._read_only_item(path)]
+            return [recovery_item, self._read_only_item(path), self._validate_item(path)]
         writable_item = Nautilus.MenuItem(
             name="AcornFS::MountReadWrite",
             label="Mount Acorn image read-write",
@@ -115,7 +128,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             icon="drive-harddisk-symbolic",
         )
         writable_item.connect("activate", self._mount_read_write, path)
-        return [writable_item, self._read_only_item(path)]
+        return [writable_item, self._read_only_item(path), self._validate_item(path)]
 
     def get_background_items(self, current_folder: Any) -> list[Any]:
         path = _local_path(current_folder)

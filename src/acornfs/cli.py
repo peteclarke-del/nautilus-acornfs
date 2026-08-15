@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import inspect_pair
+from acornfs.core import inspect_pair, validate_image
 from acornfs.errors import AcornFSError
 from acornfs.mounts import active_mounts
 from acornfs.recovery import recover_image
@@ -23,6 +23,11 @@ def _parser() -> argparse.ArgumentParser:
     inspect_parser = subparsers.add_parser("inspect", help="validate basic image metadata")
     inspect_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     inspect_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    validate_parser = subparsers.add_parser(
+        "validate", help="validate the ADFS structure without modifying it"
+    )
+    validate_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    validate_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     mount_parser = subparsers.add_parser(
         "mount", help="mount an image with FUSE 3 (read-only by default)"
     )
@@ -31,7 +36,7 @@ def _parser() -> argparse.ArgumentParser:
     mount_parser.add_argument(
         "--read-write",
         action="store_true",
-        help="enable experimental durable writes to existing files",
+        help="enable checkpointed file and directory writes",
     )
     mount_parser.add_argument("--debug", action="store_true", help="enable FUSE debug logging")
     unmount_parser = subparsers.add_parser("unmount", help="unmount an AcornFS mount")
@@ -57,6 +62,8 @@ def _parser() -> argparse.ArgumentParser:
     desktop_unmount_parser.add_argument("mountpoint")
     desktop_recover_parser = subparsers.add_parser("desktop-recover")
     desktop_recover_parser.add_argument("image")
+    desktop_validate_parser = subparsers.add_parser("desktop-validate")
+    desktop_validate_parser.add_argument("image")
     recover_parser = subparsers.add_parser(
         "recover", help="inspect or resolve an interrupted writable session"
     )
@@ -105,6 +112,19 @@ def _mount(args: argparse.Namespace) -> int:
         with suppress(OSError):
             target.parent.rmdir()
     return 0
+
+
+def _validate(args: argparse.Namespace) -> int:
+    problems = validate_image(args.image)
+    if args.json:
+        print(json.dumps({"image": str(Path(args.image).expanduser()), "problems": problems}))
+    elif problems:
+        print(f"Validation found {len(problems)} problem(s):")
+        for problem in problems:
+            print(f"- {problem}")
+    else:
+        print("ADFS validation passed with no problems.")
+    return 1 if problems else 0
 
 
 def _unmount(args: argparse.Namespace) -> int:
@@ -176,6 +196,12 @@ def _desktop_recover(args: argparse.Namespace) -> int:
     return desktop_recover(args.image)
 
 
+def _desktop_validate(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_validate
+
+    return desktop_validate(args.image)
+
+
 def _recover(args: argparse.Namespace) -> int:
     print(recover_image(args.image, restore=args.restore, discard=args.discard))
     return 0
@@ -185,6 +211,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     handlers = {
         "inspect": _inspect,
+        "validate": _validate,
         "mount": _mount,
         "unmount": _unmount,
         "status": _status,
@@ -193,6 +220,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-mount": _desktop_mount,
         "desktop-unmount": _desktop_unmount,
         "desktop-recover": _desktop_recover,
+        "desktop-validate": _desktop_validate,
         "recover": _recover,
     }
     try:
