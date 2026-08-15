@@ -18,21 +18,21 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 ## Phase 1: project foundation
 
-- [ ] Choose an implementation language and maintained FUSE 3 binding.
+- [x] Choose an implementation language and maintained FUSE 3 binding.
 - [ ] Add the project licence, contribution guide and code style configuration.
-- [ ] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
-- [ ] Add reproducible development and test containers for amd64, arm64 and arm/v7.
+- [x] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
+- [x] Add reproducible development and test containers for amd64, arm64 and arm/v7.
 - [ ] Add CI for formatting, static analysis, unit tests, integration tests and architecture builds.
 - [ ] Add generated test fixtures so private sample images are not required.
-- [ ] Define supported Ubuntu and GNOME/Nautilus versions.
-- [ ] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
+- [x] Define supported Ubuntu and GNOME/Nautilus versions.
+- [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
 
 ## Phase 2: read-only BeebSCSI mounting
 
-- [ ] Implement DAT and DSC pair discovery using matching basenames.
-- [ ] Permit selection of either member and automatically locate its partner.
-- [ ] Reject ambiguous pairs and explain how to resolve them.
-- [ ] Parse and validate DSC geometry before opening the DAT image.
+- [x] Implement DAT and DSC pair discovery using matching basenames.
+- [x] Permit selection of either member and automatically locate its partner.
+- [x] Reject ambiguous pairs and explain how to resolve them.
+- [x] Parse and validate DSC geometry before opening the DAT image.
 - [ ] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
 - [ ] Detect the ADFS format and target hardware characteristics.
 - [ ] Mount uncertain or damaged images read-only when safe traversal is still possible.
