@@ -18,6 +18,11 @@ python3 -m venv .venv
 python -m pip install -e '.[fuse]'
 ```
 
+To exercise the real kernel FUSE lifecycle rather than the in-process adapter
+tests, use `make test-live`. This is deliberately opt-in because an exposed
+`/dev/fuse` device alone does not prove that a container or CI runner has mount
+permission.
+
 ## Mount and browse
 
 For normal desktop use, install the Nautilus extension and mount from the file's
