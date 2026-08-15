@@ -276,10 +276,28 @@ def test_writable_fuse_reports_adfs_capacity_as_enospc(tmp_path: Path) -> None:
     context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
     with ReadOnlyImage.open(dat_path, writable=True) as image:
         operations = ReadOnlyOperations(image)
-        info, _created = run_async(
+        info, created = run_async(
             operations.create, ROOT_INODE, b"TOOBIG", 0o644, os.O_WRONLY, context
         )
-        run_async(operations.write, info.fh, 0, b"x" * (image.free_bytes + 256))
         with pytest.raises(pyfuse3.FUSEError) as full:
-            run_async(operations.fsync, info.fh, False)
+            run_async(operations.write, info.fh, 0, b"x" * (image.free_bytes + 256))
         assert full.value.errno == errno.ENOSPC
+        assert len(operations._write_buffers[created.st_ino]) == 0
+
+
+def test_writable_fuse_rejects_oversized_truncate_before_buffer_growth(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        fields = SimpleNamespace(
+            update_size=True,
+            update_uid=False,
+            update_gid=False,
+        )
+        attributes = SimpleNamespace(st_size=image.free_bytes + readme.st_size + 256)
+        with pytest.raises(pyfuse3.FUSEError) as full:
+            run_async(operations.setattr, readme.st_ino, attributes, fields, None, context)
+        assert full.value.errno == errno.ENOSPC
+        assert len(operations._write_buffers[readme.st_ino]) == readme.st_size

@@ -124,7 +124,7 @@ def test_replacing_contents_preserves_acorn_metadata(tmp_path: Path) -> None:
         assert image._mount.acorn_meta(readme.acorn_path) == expected  # type: ignore[attr-defined]
 
 
-def test_unexpected_mutation_failure_blocks_session_and_retains_recovery(tmp_path: Path) -> None:
+def test_unexpected_mutation_failure_rolls_back_and_keeps_session_usable(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     image = ReadOnlyImage.open(dat_path, writable=True)
     with (
@@ -132,10 +132,9 @@ def test_unexpected_mutation_failure_blocks_session_and_retains_recovery(tmp_pat
         pytest.raises(RuntimeError, match="injected failure"),
     ):
         image.create_file(ROOT_INODE, b"FAIL")
-    with pytest.raises(AcornFSError, match="session has failed"):
-        image.create_file(ROOT_INODE, b"BLOCKED")
+    assert image.lookup(ROOT_INODE, b"FAIL") is None
+    image.create_file(ROOT_INODE, b"STILLGOOD")
     image.close()
-    assert recover_image(dat_path, discard=True) == "Recovery checkpoint discarded."
 
 
 def test_oversized_overwrite_is_rejected_before_freeing_original_file(tmp_path: Path) -> None:
@@ -176,7 +175,7 @@ def test_metadata_failure_rolls_back_and_keeps_session_usable(tmp_path: Path) ->
             image.set_acorn_metadata(readme.inode, filetype=0xFFD)
 
 
-def test_failed_cross_directory_rename_blocks_further_writes(tmp_path: Path) -> None:
+def test_failed_cross_directory_rename_rolls_back_and_keeps_session_usable(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     image = ReadOnlyImage.open(dat_path, writable=True)
     docs = image.lookup(ROOT_INODE, b"DOCS")
@@ -186,10 +185,10 @@ def test_failed_cross_directory_rename_blocks_further_writes(tmp_path: Path) -> 
         pytest.raises(RuntimeError, match="injected"),
     ):
         image.rename(ROOT_INODE, b"README", docs.inode, b"README")
-    with pytest.raises(AcornFSError, match="session has failed"):
-        image.create_file(ROOT_INODE, b"BLOCKED")
+    assert image.lookup(ROOT_INODE, b"README") is not None
+    assert image.lookup(docs.inode, b"README") is None
+    image.create_file(ROOT_INODE, b"STILLGOOD")
     image.close()
-    assert recover_image(dat_path, discard=True) == "Recovery checkpoint discarded."
 
 
 def test_directory_cannot_be_moved_inside_itself(tmp_path: Path) -> None:
@@ -201,3 +200,19 @@ def test_directory_cannot_be_moved_inside_itself(tmp_path: Path) -> None:
             image.rename(ROOT_INODE, b"PARENT", child.inode, b"PARENT")
         assert image.lookup(ROOT_INODE, b"PARENT") == parent
         image.create_file(ROOT_INODE, b"STILLGOOD")
+
+
+def test_large_uncached_reads_fetch_only_the_requested_sector_range(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    contents = bytes(range(256)) * 16
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        large = image.create_file(ROOT_INODE, b"LARGE")
+        image.replace_file(large.inode, contents)
+
+    with ReadOnlyImage.open(dat_path, cache_bytes=64) as image:
+        large = image.lookup(ROOT_INODE, b"LARGE")
+        assert large is not None
+        with patch.object(
+            image._mount, "read_bytes", side_effect=AssertionError("whole-file read")
+        ):
+            assert image.read(large.inode, 510, 9) == contents[510:519]
