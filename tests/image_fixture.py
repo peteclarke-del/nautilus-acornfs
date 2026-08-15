@@ -7,9 +7,9 @@ from pathlib import Path
 from oaknut.filesystem import create_filesystem, reader_for, winchester_geometry
 
 
-def create_beebscsi_image(directory: Path) -> tuple[Path, Path]:
-    dat_path = directory / "scsi0.dat"
-    dsc_path = directory / "scsi0.dsc"
+def create_beebscsi_image(directory: Path, *, stem: str = "scsi0") -> tuple[Path, Path]:
+    dat_path = directory / f"{stem}.dat"
+    dsc_path = directory / f"{stem}.dsc"
     geometry = winchester_geometry(cylinders=80, heads=2, sectors_per_track=33)
     create_filesystem("adfs").create(dat_path, geometry, title="ACORNFS")
 

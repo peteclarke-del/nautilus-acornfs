@@ -17,6 +17,7 @@ rules mature. See [TODO.md](TODO.md) for the roadmap.
 - Report pair metadata through `acornfs inspect`.
 - Mount a validated ADFS image read-only through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
+- Mount, open, and unmount paired images from Nautilus context menus.
 
 ## Development
 
@@ -31,15 +32,32 @@ python -m pip install -e '.[dev,fuse]'
 pytest
 ```
 
-Create an empty mountpoint, mount either member of a pair, and open it in Nautilus:
+Install the per-user Nautilus extension and restart Files:
+
+```shell
+acornfs install-nautilus --restart
+```
+
+Right-click either member of a valid pair and select **Mount Acorn image**. The
+image is mounted read-only in the user runtime directory and opened in Nautilus.
+Right-click the DAT/DSC again to open or unmount it; **Unmount Acorn image** is
+also available from the mounted folder's background menu.
+
+To remove the integration:
+
+```shell
+acornfs uninstall-nautilus --restart
+```
+
+For terminal use, create an empty mountpoint and mount either member manually:
 
 ```shell
 mkdir -p "$HOME/AcornFS/scsi0"
 acornfs mount /path/to/scsi0.dat "$HOME/AcornFS/scsi0"
 ```
 
-The mount command remains in the foreground so failures stay visible. In a
-second terminal:
+The manual mount command remains in the foreground so failures stay visible. In
+a second terminal:
 
 ```shell
 nautilus "$HOME/AcornFS/scsi0"

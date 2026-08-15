@@ -12,7 +12,7 @@ def test_inspect_error_is_concise(tmp_path: Path, capsys: object) -> None:
 
 
 def test_status_reports_no_mounts(capsys: object) -> None:
-    with patch("acornfs.cli._mounts", return_value=[]):
+    with patch("acornfs.cli.active_mounts", return_value=[]):
         assert main(["status"]) == 0
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     assert captured.out == "No AcornFS mounts found.\n"

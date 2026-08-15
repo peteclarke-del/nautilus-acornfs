@@ -89,10 +89,10 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 - [ ] Register MIME types for BeebSCSI DAT and DSC files without claiming unrelated generic DAT files.
 - [ ] Add a desktop application and URI handler for opening Acorn images.
-- [ ] Implement a Nautilus 4 extension using current model-based APIs.
-- [ ] Add `Mount Acorn image` to suitable DAT and DSC files.
+- [x] Implement a Nautilus 4 extension using current model-based APIs.
+- [x] Add `Mount Acorn image` to suitable DAT and DSC files.
 - [ ] Add `Mount read-only`.
-- [ ] Add `Unmount` for mounted images.
+- [x] Add `Unmount` for mounted images.
 - [ ] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
 - [ ] Add `Create BeebSCSI image` where appropriate.

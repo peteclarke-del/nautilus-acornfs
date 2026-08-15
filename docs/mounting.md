@@ -20,6 +20,10 @@ python -m pip install -e '.[fuse]'
 
 ## Mount and browse
 
+For normal desktop use, install the Nautilus extension and mount from the file's
+context menu as described in [nautilus.md](nautilus.md). The commands below are
+the foreground terminal workflow.
+
 ```shell
 mkdir -p "$HOME/AcornFS/scsi0"
 acornfs inspect /path/to/scsi0.dsc
@@ -55,7 +59,8 @@ acornfs unmount --lazy "$HOME/AcornFS/scsi0"
 
 ## Current limits
 
-- The mount process is foreground-only; a user service comes later.
+- Manual mounts are foreground processes; Nautilus actions launch a detached process until a
+  systemd user service is implemented.
 - Acorn extended attributes are not exposed yet.
 - All entries currently use the DAT file's modification time as their POSIX time.
 - Unsafe, malformed, ambiguous, or non-ADFS pairs are rejected rather than repaired.

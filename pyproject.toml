@@ -47,5 +47,9 @@ strict = true
 packages = ["acornfs"]
 
 [[tool.mypy.overrides]]
-module = ["oaknut.*"]
+module = ["gi", "gi.*", "oaknut.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "acornfs_nautilus.extension"
+disable_error_code = ["misc"]

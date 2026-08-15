@@ -11,6 +11,7 @@ from pathlib import Path
 
 from acornfs.core import inspect_pair
 from acornfs.errors import AcornFSError
+from acornfs.mounts import active_mounts
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -31,6 +32,20 @@ def _parser() -> argparse.ArgumentParser:
     status_parser = subparsers.add_parser("status", help="show AcornFS mount status")
     status_parser.add_argument("mountpoint", nargs="?", help="optionally limit output to one path")
     status_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    install_parser = subparsers.add_parser(
+        "install-nautilus", help="install the per-user Nautilus context-menu extension"
+    )
+    install_parser.add_argument("--restart", action="store_true", help="restart Nautilus now")
+    uninstall_parser = subparsers.add_parser(
+        "uninstall-nautilus", help="remove the per-user Nautilus extension"
+    )
+    uninstall_parser.add_argument("--restart", action="store_true", help="restart Nautilus now")
+    desktop_mount_parser = subparsers.add_parser("desktop-mount")
+    desktop_mount_parser.add_argument("image")
+    desktop_unmount_parser = subparsers.add_parser("desktop-unmount")
+    desktop_unmount_parser.add_argument("mountpoint")
+    desktop_open_parser = subparsers.add_parser("desktop-open")
+    desktop_open_parser.add_argument("mountpoint")
     return parser
 
 
@@ -83,53 +98,70 @@ def _unmount(args: argparse.Namespace) -> int:
     return 0
 
 
-def _decode_mount_field(value: str) -> str:
-    return value.replace("\\040", " ").replace("\\011", "\t").replace("\\012", "\n")
-
-
-def _mounts() -> list[dict[str, str]]:
-    mounts: list[dict[str, str]] = []
-    try:
-        lines = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        raise AcornFSError(f"Cannot read mount status: {exc}") from exc
-    for line in lines:
-        fields = line.split()
-        try:
-            separator = fields.index("-")
-        except ValueError:
-            continue
-        filesystem = fields[separator + 1]
-        if filesystem != "fuse.acornfs":
-            continue
-        mounts.append(
-            {
-                "mountpoint": _decode_mount_field(fields[4]),
-                "source": _decode_mount_field(fields[separator + 2]),
-                "options": fields[5],
-            }
-        )
-    return mounts
-
-
 def _status(args: argparse.Namespace) -> int:
-    mounts = _mounts()
+    mounts = active_mounts()
     if args.mountpoint:
         target = str(Path(args.mountpoint).expanduser().resolve())
-        mounts = [mount for mount in mounts if mount["mountpoint"] == target]
+        mounts = [mount for mount in mounts if mount.mountpoint == target]
     if args.json:
-        print(json.dumps(mounts, indent=2, sort_keys=True))
+        print(json.dumps([mount.as_dict() for mount in mounts], indent=2, sort_keys=True))
     elif mounts:
         for mount in mounts:
-            print(f"{mount['source']} on {mount['mountpoint']} ({mount['options']})")
+            print(f"{mount.source} on {mount.mountpoint} ({mount.options})")
     else:
         print("No AcornFS mounts found.")
     return 0
 
 
+def _install_nautilus(args: argparse.Namespace) -> int:
+    from acornfs.nautilus_install import install_extension
+
+    target = install_extension(restart=args.restart)
+    print(f"Installed Nautilus extension: {target}")
+    if not args.restart:
+        print("Restart Nautilus to load it: nautilus --quit")
+    return 0
+
+
+def _uninstall_nautilus(args: argparse.Namespace) -> int:
+    from acornfs.nautilus_install import uninstall_extension
+
+    target = uninstall_extension(restart=args.restart)
+    print(f"Removed Nautilus extension: {target}")
+    return 0
+
+
+def _desktop_mount(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_mount
+
+    return desktop_mount(args.image)
+
+
+def _desktop_unmount(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_unmount
+
+    return desktop_unmount(args.mountpoint)
+
+
+def _desktop_open(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_open
+
+    return desktop_open(args.mountpoint)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    handlers = {"inspect": _inspect, "mount": _mount, "unmount": _unmount, "status": _status}
+    handlers = {
+        "inspect": _inspect,
+        "mount": _mount,
+        "unmount": _unmount,
+        "status": _status,
+        "install-nautilus": _install_nautilus,
+        "uninstall-nautilus": _uninstall_nautilus,
+        "desktop-mount": _desktop_mount,
+        "desktop-unmount": _desktop_unmount,
+        "desktop-open": _desktop_open,
+    }
     try:
         return handlers[args.command](args)
     except AcornFSError as exc:
