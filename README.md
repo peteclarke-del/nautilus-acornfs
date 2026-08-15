@@ -37,3 +37,5 @@ python -m pip install -e '.[dev,fuse]'
 
 No mount operation is implemented yet.
 
+The initial development and CI container target is amd64. Native arm64 and
+arm/v7 container builds remain on the roadmap.

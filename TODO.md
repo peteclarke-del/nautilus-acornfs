@@ -21,7 +21,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Choose an implementation language and maintained FUSE 3 binding.
 - [ ] Add the project licence, contribution guide and code style configuration.
 - [x] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
-- [x] Add reproducible development and test containers for amd64, arm64 and arm/v7.
+- [ ] Add reproducible development and test containers for amd64, arm64 and arm/v7. (amd64 only initially)
 - [ ] Add CI for formatting, static analysis, unit tests, integration tests and architecture builds.
 - [ ] Add generated test fixtures so private sample images are not required.
 - [x] Define supported Ubuntu and GNOME/Nautilus versions.
