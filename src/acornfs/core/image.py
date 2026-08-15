@@ -1,9 +1,12 @@
-"""Cached, read-only view of an Acorn filesystem image."""
+"""Cached view of an Acorn filesystem image, read-only unless explicitly writable."""
 
 from __future__ import annotations
 
+import fcntl
 import mmap
+import os
 from collections import OrderedDict
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -55,21 +58,26 @@ def _display_name(name: str) -> bytes:
     return result.encode("utf-8")
 
 
-def _private_reader(path: Path) -> ImageReader:
-    """Map an image copy-on-write: demand-paged, mutable to Oaknut, safe on disk."""
+def _locked_reader(pair: BeebSCSIPair, *, writable: bool) -> tuple[ImageReader, tuple[Any, ...]]:
+    """Lock both pair members and map the DAT for the requested access mode."""
 
-    handle = path.open("rb")
+    mode = "r+b" if writable else "rb"
+    lock_mode = fcntl.LOCK_EX if writable else fcntl.LOCK_SH
+    dat_lock = pair.dat_path.open(mode)
+    dsc_lock = pair.dsc_path.open(mode)
+    mapping_handle = pair.dat_path.open(mode)
     try:
-        mapping = mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_COPY)
+        fcntl.flock(dat_lock, lock_mode | fcntl.LOCK_NB)
+        fcntl.flock(dsc_lock, lock_mode | fcntl.LOCK_NB)
+        access = mmap.ACCESS_WRITE if writable else mmap.ACCESS_COPY
+        mapping = mmap.mmap(mapping_handle.fileno(), 0, access=access)
     except Exception:
-        handle.close()
+        mapping_handle.close()
+        dat_lock.close()
+        dsc_lock.close()
         raise
-    return ImageReader(
-        mapping,
-        suffix=path.suffix,
-        writable=True,
-        _closeables=(mapping, handle),
-    )
+    reader = ImageReader(mapping, suffix=pair.dat_path.suffix, writable=True)
+    return reader, (mapping, mapping_handle, dat_lock, dsc_lock)
 
 
 class ReadOnlyImage:
@@ -84,6 +92,8 @@ class ReadOnlyImage:
         cache_bytes: int = DEFAULT_CACHE_BYTES,
         max_nodes: int = DEFAULT_MAX_NODES,
         max_depth: int = DEFAULT_MAX_DEPTH,
+        writable: bool = False,
+        closeables: tuple[Any, ...] = (),
     ) -> None:
         self.pair = pair
         self._reader = reader
@@ -91,6 +101,8 @@ class ReadOnlyImage:
         self._cache_limit = cache_bytes
         self._max_nodes = max_nodes
         self._max_depth = max_depth
+        self.writable = writable
+        self._closeables = closeables
         self._cache: OrderedDict[int, bytes] = OrderedDict()
         self._cache_size = 0
         self._closed = False
@@ -110,8 +122,9 @@ class ReadOnlyImage:
         cache_bytes: int = DEFAULT_CACHE_BYTES,
         max_nodes: int = DEFAULT_MAX_NODES,
         max_depth: int = DEFAULT_MAX_DEPTH,
+        writable: bool = False,
     ) -> ReadOnlyImage:
-        """Validate and open a DAT/DSC image without granting write access."""
+        """Validate and open a DAT/DSC image, read-only unless explicitly writable."""
 
         inspect_pair(selected)
         pair = discover_pair(selected)
@@ -119,7 +132,7 @@ class ReadOnlyImage:
         mount: Mount | None = None
         try:
             geometry = geometry_from_dsc(pair.dsc_path.read_bytes())
-            reader = _private_reader(pair.dat_path)
+            reader, closeables = _locked_reader(pair, writable=writable)
             mount = create_filesystem("adfs").open(reader, geometry)
             return cls(
                 pair=pair,
@@ -128,6 +141,8 @@ class ReadOnlyImage:
                 cache_bytes=cache_bytes,
                 max_nodes=max_nodes,
                 max_depth=max_depth,
+                writable=writable,
+                closeables=closeables,
             )
         except AcornFSError:
             raise
@@ -136,6 +151,9 @@ class ReadOnlyImage:
                 cls._close_oaknut_mount(mount)
             if reader is not None:
                 reader.close()
+            for closeable in closeables if "closeables" in locals() else ():
+                with suppress(Exception):
+                    closeable.close()
             raise AcornFSError(f"The ADFS image could not be opened safely: {exc}") from exc
 
     def _index_tree(self) -> None:
@@ -204,6 +222,40 @@ class ReadOnlyImage:
         data = self._cached_file(inode, node)
         return data[offset : offset + size]
 
+    def replace_file(self, inode: int, data: bytes) -> None:
+        """Replace one file and make the new data visible immediately."""
+
+        if not self.writable:
+            raise PermissionError("image is read-only")
+        node = self.nodes[inode]
+        if node.is_dir:
+            raise IsADirectoryError(node.acorn_path)
+        self._mount.write_bytes(node.acorn_path, data)
+        self.nodes[inode] = ImageNode(
+            inode=node.inode,
+            parent_inode=node.parent_inode,
+            name=node.name,
+            acorn_path=node.acorn_path,
+            is_dir=False,
+            size=len(data),
+        )
+        old_data = self._cache.pop(inode, None)
+        if old_data is not None:
+            self._cache_size -= len(old_data)
+        if len(data) <= self._cache_limit:
+            self._cache[inode] = data
+            self._cache_size += len(data)
+
+    def sync(self) -> None:
+        """Flush writable image changes through to stable storage."""
+
+        if not self.writable:
+            return
+        mapping = self._closeables[0]
+        mapping.flush()
+        mapping_handle = self._closeables[1]
+        os.fsync(mapping_handle.fileno())
+
     def _cached_file(self, inode: int, node: ImageNode) -> bytes:
         cached = self._cache.pop(inode, None)
         if cached is not None:
@@ -240,6 +292,12 @@ class ReadOnlyImage:
         self._cache_size = 0
         self._close_oaknut_mount(self._mount)
         self._reader.close()
+        if self.writable:
+            self.sync()
+        for closeable in self._closeables:
+            with suppress(Exception):
+                closeable.close()
+        self._closeables = ()
         self._closed = True
 
     def __enter__(self) -> ReadOnlyImage:

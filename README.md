@@ -69,8 +69,10 @@ If Nautilus still holds the location open, close that window and retry. For a
 read-only mount that must disappear immediately, use `acornfs unmount --lazy
 MOUNTPOINT`; existing handles finish in the background.
 
-Mounts are always read-only and use `nodev`, `nosuid`, and `noexec`. Selection
-of either the DAT or DSC member is supported. The mountpoint must already exist
+Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`.
+Experimental replacement and truncation of existing files is available from the
+CLI with `acornfs mount --read-write`; it is not exposed in Nautilus yet.
+Selection of either DAT or DSC is supported. The mountpoint must already exist
 and be empty.
 
 The initial development and CI container target is amd64. Native arm64 and

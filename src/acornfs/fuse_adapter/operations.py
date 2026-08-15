@@ -1,4 +1,4 @@
-"""pyfuse3 operations for a read-only Acorn image."""
+"""pyfuse3 operations for Acorn images, read-only unless explicitly writable."""
 
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
     def __init__(self, image: ReadOnlyImage) -> None:
         super().__init__()
         self.image = image
+        self._write_buffers: dict[int, bytearray] = {}
+        self._dirty: set[int] = set()
 
     def _node(self, inode: int) -> ImageNode:
         try:
@@ -35,7 +37,10 @@ class ReadOnlyOperations(pyfuse3.Operations):
         attributes.generation = 0
         attributes.entry_timeout = CACHE_TIMEOUT
         attributes.attr_timeout = CACHE_TIMEOUT
-        attributes.st_mode = (stat.S_IFDIR | 0o555) if node.is_dir else (stat.S_IFREG | 0o444)
+        if node.is_dir:
+            attributes.st_mode = stat.S_IFDIR | (0o755 if self.image.writable else 0o555)
+        else:
+            attributes.st_mode = stat.S_IFREG | (0o644 if self.image.writable else 0o444)
         attributes.st_nlink = 2 if node.is_dir else 1
         attributes.st_uid = os.getuid()
         attributes.st_gid = os.getgid()
@@ -92,11 +97,24 @@ class ReadOnlyOperations(pyfuse3.Operations):
         node = self._node(inode)
         if node.is_dir:
             raise pyfuse3.FUSEError(errno.EISDIR)
-        if flags & os.O_ACCMODE != os.O_RDONLY or flags & (os.O_TRUNC | os.O_APPEND):
+        wants_write = flags & os.O_ACCMODE != os.O_RDONLY
+        if wants_write and not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
+        if wants_write:
+            try:
+                data = bytearray(self.image.read(inode, 0, node.size))
+            except Exception as exc:
+                raise pyfuse3.FUSEError(errno.EIO) from exc
+            if flags & os.O_TRUNC:
+                data.clear()
+                self._dirty.add(inode)
+            self._write_buffers[inode] = data
         return pyfuse3.FileInfo(fh=inode)
 
     async def read(self, fh: int, off: int, size: int) -> bytes:
+        buffered = self._write_buffers.get(fh)
+        if buffered is not None:
+            return bytes(buffered[off : off + size])
         try:
             return self.image.read(fh, off, size)
         except KeyError as exc:
@@ -106,12 +124,71 @@ class ReadOnlyOperations(pyfuse3.Operations):
         except Exception as exc:
             raise pyfuse3.FUSEError(errno.EIO) from exc
 
+    async def write(self, fh: int, off: int, buf: bytes) -> int:
+        if not self.image.writable:
+            raise pyfuse3.FUSEError(errno.EROFS)
+        data = self._write_buffers.get(fh)
+        if data is None:
+            raise pyfuse3.FUSEError(errno.EBADF)
+        end = off + len(buf)
+        if end > len(data):
+            data.extend(b"\0" * (end - len(data)))
+        data[off:end] = buf
+        self._dirty.add(fh)
+        return len(buf)
+
+    async def setattr(
+        self,
+        inode: int,
+        attr: pyfuse3.EntryAttributes,
+        fields: pyfuse3.SetattrFields,
+        fh: int | None,
+        ctx: pyfuse3.RequestContext,
+    ) -> pyfuse3.EntryAttributes:
+        del fh, ctx
+        node = self._node(inode)
+        if not self.image.writable:
+            raise pyfuse3.FUSEError(errno.EROFS)
+        if fields.update_size:
+            if node.is_dir:
+                raise pyfuse3.FUSEError(errno.EISDIR)
+            data = self._write_buffers.setdefault(
+                inode, bytearray(self.image.read(inode, 0, node.size))
+            )
+            new_size = attr.st_size
+            if new_size < len(data):
+                del data[new_size:]
+            elif new_size > len(data):
+                data.extend(b"\0" * (new_size - len(data)))
+            self._dirty.add(inode)
+        unsupported = fields.update_mode or fields.update_uid or fields.update_gid
+        if unsupported:
+            raise pyfuse3.FUSEError(errno.ENOTSUP)
+        if fields.update_size:
+            await self.flush(inode)
+        return self._attributes(self._node(inode))
+
+    async def flush(self, fh: int) -> None:
+        if fh not in self._dirty:
+            return
+        try:
+            self.image.replace_file(fh, bytes(self._write_buffers[fh]))
+            self.image.sync()
+        except Exception as exc:
+            raise pyfuse3.FUSEError(errno.EIO) from exc
+        self._dirty.discard(fh)
+
+    async def fsync(self, fh: int, datasync: bool) -> None:
+        del datasync
+        await self.flush(fh)
+
     async def release(self, fh: int) -> None:
-        return None
+        await self.flush(fh)
+        self._write_buffers.pop(fh, None)
 
     async def access(self, inode: int, mode: int, ctx: pyfuse3.RequestContext) -> bool:
         self._node(inode)
-        if mode & os.W_OK:
+        if mode & os.W_OK and not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
         return True
 

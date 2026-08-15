@@ -62,8 +62,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 ## Phase 4: safe write support
 
-- [ ] Add an explicit `--read-write` mount option while retaining read-only as the default.
-- [ ] Obtain exclusive locks on both DAT and DSC files for writable mounts.
+- [x] Add an explicit `--read-write` mount option while retaining read-only as the default.
+- [x] Obtain exclusive locks on both DAT and DSC files for writable mounts.
 - [ ] Detect an already mounted or externally modified image.
 - [ ] Implement create, write, truncate, flush, fsync and release.
 - [ ] Implement mkdir and rmdir.

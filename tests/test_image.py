@@ -1,6 +1,9 @@
 from pathlib import Path
 
+import pytest
+
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
+from acornfs.errors import AcornFSError
 from tests.image_fixture import create_beebscsi_image
 
 
@@ -32,3 +35,21 @@ def test_open_is_read_only(tmp_path: Path) -> None:
         assert readme is not None
         assert image.read(readme.inode, 0, 1024) == b"Hello from AcornFS\r"
     assert dat_path.read_bytes() == before
+
+
+def test_writable_open_persists_replacement_and_locks_pair(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        image.replace_file(readme.inode, b"Changed through AcornFS\r")
+        image.sync()
+        with pytest.raises(AcornFSError, match="could not be opened safely"):
+            ReadOnlyImage.open(dat_path, writable=True)
+        with pytest.raises(AcornFSError, match="could not be opened safely"):
+            ReadOnlyImage.open(dat_path)
+
+    with ReadOnlyImage.open(dat_path) as image:
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        assert image.read(readme.inode, 0, 1024) == b"Changed through AcornFS\r"

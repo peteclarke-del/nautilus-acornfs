@@ -21,7 +21,13 @@ def _contains_keyboard_interrupt(error: BaseException) -> bool:
     return False
 
 
-def mount_read_only(image_path: str | Path, mountpoint: str | Path, *, debug: bool = False) -> None:
+def mount_image(
+    image_path: str | Path,
+    mountpoint: str | Path,
+    *,
+    read_write: bool = False,
+    debug: bool = False,
+) -> None:
     """Mount one image in the foreground until interrupted or unmounted."""
 
     target = Path(mountpoint).expanduser().resolve()
@@ -33,12 +39,11 @@ def mount_read_only(image_path: str | Path, mountpoint: str | Path, *, debug: bo
     except OSError as exc:
         raise AcornFSError(f"Cannot inspect mountpoint {target}: {exc}") from exc
 
-    with ReadOnlyImage.open(image_path) as image:
+    with ReadOnlyImage.open(image_path, writable=read_write) as image:
         operations = ReadOnlyOperations(image)
         options = set(pyfuse3.default_options)
         options.update(
             {
-                "ro",
                 "nodev",
                 "nosuid",
                 "noexec",
@@ -46,6 +51,8 @@ def mount_read_only(image_path: str | Path, mountpoint: str | Path, *, debug: bo
                 f"fsname={image.pair.dat_path.name}",
             }
         )
+        if not read_write:
+            options.add("ro")
         if debug:
             logging.basicConfig(level=logging.DEBUG)
             options.add("debug")
@@ -60,3 +67,9 @@ def mount_read_only(image_path: str | Path, mountpoint: str | Path, *, debug: bo
                 raise
         else:
             pyfuse3.close()
+
+
+def mount_read_only(image_path: str | Path, mountpoint: str | Path, *, debug: bool = False) -> None:
+    """Compatibility wrapper for an explicitly read-only mount."""
+
+    mount_image(image_path, mountpoint, debug=debug)

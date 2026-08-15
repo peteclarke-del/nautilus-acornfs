@@ -1,4 +1,4 @@
-# Read-only mounting
+# Mounting
 
 ## Requirements
 
@@ -38,9 +38,22 @@ find "$HOME/AcornFS/scsi0" -maxdepth 3
 nautilus "$HOME/AcornFS/scsi0"
 ```
 
-Files and directories are presented as mode `0444` and `0555`. The kernel mount
-also carries `ro,nodev,nosuid,noexec`; AcornFS implements no mutating FUSE
-operations.
+Files and directories are presented as mode `0444` and `0555`. The default
+kernel mount carries `ro,nodev,nosuid,noexec` and rejects mutations.
+
+## Experimental writable mount
+
+Writable mounting is currently limited to replacing or truncating existing files:
+
+```shell
+acornfs mount --read-write /path/to/scsi0.dat /path/to/mountpoint
+```
+
+Read-only remains the default. A writable session takes exclusive advisory locks
+on both the DAT and DSC; read-only sessions take shared locks and refuse to start
+while a writer is active. Creating, deleting, moving, or renaming entries is not
+implemented yet, and writable mounting is deliberately not exposed in Nautilus
+until checkpoint and recovery support is complete.
 
 ## Status and unmounting
 

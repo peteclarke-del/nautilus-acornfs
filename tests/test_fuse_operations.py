@@ -1,4 +1,5 @@
 import asyncio
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -39,3 +40,21 @@ def test_write_access_is_rejected(operations: ReadOnlyOperations) -> None:
     readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
     with pytest.raises(pyfuse3.FUSEError):
         run_async(operations.open, readme.st_ino, 1, context)
+
+
+def test_writable_operation_flushes_existing_file(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        info = run_async(operations.open, readme.st_ino, os.O_WRONLY | os.O_TRUNC, context)
+        assert run_async(operations.write, info.fh, 0, b"New contents\r") == 13
+        run_async(operations.fsync, info.fh, False)
+        run_async(operations.release, info.fh)
+        assert run_async(operations.read, readme.st_ino, 0, 1024) == b"New contents\r"
+
+    with ReadOnlyImage.open(dat_path) as image:
+        readme_node = image.lookup(ROOT_INODE, b"README")
+        assert readme_node is not None
+        assert image.read(readme_node.inode, 0, 1024) == b"New contents\r"

@@ -20,9 +20,16 @@ def _parser() -> argparse.ArgumentParser:
     inspect_parser = subparsers.add_parser("inspect", help="validate basic image metadata")
     inspect_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     inspect_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    mount_parser = subparsers.add_parser("mount", help="mount an image read-only with FUSE 3")
+    mount_parser = subparsers.add_parser(
+        "mount", help="mount an image with FUSE 3 (read-only by default)"
+    )
     mount_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     mount_parser.add_argument("mountpoint", help="an existing empty directory")
+    mount_parser.add_argument(
+        "--read-write",
+        action="store_true",
+        help="enable experimental durable writes to existing files",
+    )
     mount_parser.add_argument("--debug", action="store_true", help="enable FUSE debug logging")
     unmount_parser = subparsers.add_parser("unmount", help="unmount an AcornFS mount")
     unmount_parser.add_argument("mountpoint", help="the mounted directory")
@@ -68,13 +75,14 @@ def _inspect(args: argparse.Namespace) -> int:
 
 def _mount(args: argparse.Namespace) -> int:
     try:
-        from acornfs.fuse_adapter.runner import mount_read_only
+        from acornfs.fuse_adapter.runner import mount_image
     except ImportError as exc:
         raise AcornFSError(
             "FUSE support is unavailable; install the 'fuse' package extra and FUSE 3 runtime."
         ) from exc
-    print(f"Mounting {args.image} at {args.mountpoint} read-only; press Ctrl-C to stop.")
-    mount_read_only(args.image, args.mountpoint, debug=args.debug)
+    mode = "read-write" if args.read_write else "read-only"
+    print(f"Mounting {args.image} at {args.mountpoint} {mode}; press Ctrl-C to stop.")
+    mount_image(args.image, args.mountpoint, read_write=args.read_write, debug=args.debug)
     return 0
 
 
