@@ -58,6 +58,23 @@ To remove the integration:
 acornfs uninstall-nautilus --restart
 ```
 
+## Validate an image
+
+Validation is read-only and accepts either member of the pair:
+
+```shell
+acornfs validate /path/to/scsi0.dat
+acornfs validate --json /path/to/scsi0.dsc
+```
+
+The complete report checks DSC/DAT geometry, ADFS map and directory structures,
+and all used and free sector extents. Findings are classified as `FATAL`,
+`WARNING`, or `ADVICE`; JSON includes stable finding codes, sector totals, and a
+`safe_for_write` flag. Fatal findings prevent a read-write mount before its
+recovery checkpoint is created. Warnings and compatibility advice do not block
+mounting, although warnings make the validation command exit non-zero for
+strict unattended checks. Validation does not repair or modify the image.
+
 For terminal use, create an empty mountpoint and mount either member manually:
 
 ```shell
