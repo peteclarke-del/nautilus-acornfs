@@ -118,19 +118,8 @@ def _validate(args: argparse.Namespace) -> int:
     report = validate_image_report(args.image)
     if args.json:
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
-    elif report.findings:
-        summary = report.as_dict()["summary"]
-        print(
-            f"Validation found {summary['fatal']} fatal, {summary['warning']} warning, "
-            f"and {summary['advice']} advice finding(s):"
-        )
-        for finding in report.findings:
-            location = f" {finding.path}" if finding.path else ""
-            print(
-                f"- [{finding.severity.value.upper()}] {finding.code}{location}: {finding.message}"
-            )
     else:
-        print("ADFS validation passed with no problems.")
+        print(report.format_text())
     return 1 if any(item.severity is not FindingSeverity.ADVICE for item in report.findings) else 0
 
 

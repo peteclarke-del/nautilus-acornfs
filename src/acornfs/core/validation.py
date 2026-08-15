@@ -85,6 +85,23 @@ class IntegrityReport:
             "findings": [item.as_dict() for item in self.findings],
         }
 
+    def format_text(self) -> str:
+        """Return the same complete, readable report for CLI and desktop UIs."""
+
+        if not self.findings:
+            return "ADFS validation passed with no problems."
+        lines = [
+            f"Validation found {len(self.fatal_findings)} fatal, "
+            f"{len(self.warning_findings)} warning, and "
+            f"{len(self.advice_findings)} advice finding(s):"
+        ]
+        for finding in self.findings:
+            location = f" {finding.path}" if finding.path else ""
+            lines.append(
+                f"- [{finding.severity.value.upper()}] {finding.code}{location}: {finding.message}"
+            )
+        return "\n".join(lines)
+
 
 @dataclass(frozen=True, slots=True)
 class _Extent:
