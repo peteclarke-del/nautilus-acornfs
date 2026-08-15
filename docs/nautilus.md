@@ -34,6 +34,14 @@ mounting or modifying the pair. The result is reported as a desktop notification
 fatal and warning totals are included when attention is needed. `acornfs validate
 IMAGE` provides the complete report.
 
+Open **Properties** on either image member to see the detected old-map ADFS and
+directory formats, compatibility profile, title, disc cycle ID, boot option,
+DSC geometry, capacity, ADFS used/free space, reserved tail and current validation
+state. Open **Properties** on an entry inside a mounted image to see its original
+ADFS pathname and, for files, load address, execute address, RISC OS filetype and
+locked state. Image properties perform complete read-only validation and may take
+longer to appear for a very large or deeply populated image.
+
 The same complete check runs before a read-write mount. Fatal geometry,
 directory, map, or sector-allocation findings prevent the mount before its
 checkpoint is created. Warnings and compatibility advice do not prevent access.

@@ -16,6 +16,7 @@ def test_installs_and_removes_user_extension(tmp_path: Path, monkeypatch: object
     assert repr(sys.executable) in content
     assert str(sysconfig.get_path("purelib")) in content
     assert "AcornFSMenuProvider" in content
+    assert "AcornFSPropertiesModelProvider" in content
     assert uninstall_extension() == target
     assert not target.exists()
 

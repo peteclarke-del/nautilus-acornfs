@@ -673,6 +673,7 @@ class ReadOnlyImage:
             try:
                 self._fault(f"{operation}.before")
                 mutate()
+                transaction.advance_disc_id()
                 self._fault(f"{operation}.after")
                 self._finish_mutation()
             except Exception as exc:

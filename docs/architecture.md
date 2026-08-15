@@ -35,6 +35,13 @@ validation, flushes them durably, and allows the session to continue only when
 rollback is verified. Newly allocated sectors need no before-image because
 restoring the map makes them free and unreachable.
 
+Immediately after one logical mutation succeeds, AcornFS increments the 16-bit
+old-map disc cycle ID modulo 65536 and asks Oaknut to regenerate both map
+checksums. The ID update occurs inside the same sector transaction, after the
+catalogue/data mutation and before durable flush, so a failed operation cannot
+leave an observable cycle change. Multiple sector writes within one FUSE
+operation do not produce multiple ID increments.
+
 The same re-entrant lock covers on-disc mutation and the in-memory inode index
 commit. This serialises writers while allowing ordinary reads from the stable
 index. Large files bypass the whole-file LRU cache and read only the requested

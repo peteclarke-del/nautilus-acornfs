@@ -144,6 +144,27 @@ def test_successful_mutations_avoid_full_validation_until_unmount(tmp_path: Path
     image.close()
 
 
+def test_disc_cycle_id_advances_once_per_committed_mutation(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    faults = FaultController()
+    with ReadOnlyImage.open(dat_path, writable=True, fault_injector=faults) as image:
+        free_space_map = image._mount._adfs._fsm  # type: ignore[attr-defined]
+        original = free_space_map.disc_id
+
+        created = image.create_file(ROOT_INODE, b"CYCLE")
+        assert free_space_map.disc_id == (original + 1) & 0xFFFF
+
+        image.replace_file(created.inode, b"one logical write")
+        committed = (original + 2) & 0xFFFF
+        assert free_space_map.disc_id == committed
+
+        faults.arm("metadata.after")
+        with pytest.raises(RuntimeError, match="metadata.after"):
+            image.set_acorn_metadata(created.inode, locked=True)
+        assert free_space_map.disc_id == committed
+        assert image.integrity_report().safe_for_write
+
+
 def test_unverifiable_rollback_fails_closed_and_retains_checkpoint(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     faults = FaultController()
