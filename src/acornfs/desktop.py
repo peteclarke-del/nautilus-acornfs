@@ -17,19 +17,17 @@ from pathlib import Path
 
 from acornfs.core import IntegrityReport, discover_pair, validate_image_report
 from acornfs.errors import AcornFSError
-from acornfs.mounts import is_mounted
-from acornfs.recovery import recover_image
+from acornfs.mounts import (
+    is_mounted,
+    mount_at,
+    mount_for_image,
+    runtime_root,
+    wait_for_mount_shutdown,
+)
+from acornfs.recovery import pending_recovery, recover_image
 
 MOUNT_TIMEOUT = 15.0
 WRITABLE_MOUNT_TIMEOUT = 300.0
-
-
-def runtime_root() -> Path:
-    configured = os.environ.get("XDG_RUNTIME_DIR")
-    root = Path(configured) if configured else Path("/run/user") / str(os.getuid())
-    if not root.is_dir():
-        raise AcornFSError("The desktop session runtime directory is unavailable.")
-    return root / "acornfs"
 
 
 def mount_root() -> Path:
@@ -198,7 +196,13 @@ def background_mount(
     with lock_path.open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         cleanup_stale_mountpoint(mountpoint)
-        if not is_mounted(mountpoint):
+        existing = mount_at(mountpoint)
+        if existing is not None and mount_for_image(pair.dat_path) is None:
+            raise AcornFSError(
+                "The image's mount location is occupied by a different file identity. "
+                "Unmount that location before mounting the replacement image."
+            )
+        if existing is None:
             command = [sys.executable, "-m", "acornfs.cli", "mount"]
             if read_write:
                 command.append("--read-write")
@@ -228,7 +232,7 @@ def background_mount(
                     )
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
-                if is_mounted(mountpoint):
+                if mount_for_image(pair.dat_path) is not None:
                     break
                 if process is not None and process.poll() is not None:
                     detail = _last_log_line(log_path)
@@ -276,13 +280,25 @@ def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:
 
 def desktop_unmount(mountpoint: str | Path) -> int:
     target = Path(mountpoint).expanduser().resolve()
-    if not is_mounted(target):
+    record = mount_at(target)
+    if record is None:
         with suppress(OSError):
             target.rmdir()
         _notify("AcornFS image unmounted", f"{target.name} was already detached.")
         return 0
+    if record.read_write is None:
+        detail = (
+            "This mount has no lifecycle identity record, so AcornFS cannot prove its write "
+            "mode or final flush state. Unmount it from a terminal before remounting it."
+        )
+        _notify("AcornFS unmount refused", detail, error=True)
+        raise AcornFSError(detail)
+    command = ["fusermount3", "-u"]
+    if record.read_write is False:
+        command.append("-z")
+    command.append(str(target))
     result = subprocess.run(
-        ["fusermount3", "-u", "-z", str(target)],
+        command,
         check=False,
         capture_output=True,
         text=True,
@@ -291,11 +307,29 @@ def desktop_unmount(mountpoint: str | Path) -> int:
         detail = result.stderr.strip() or "fusermount3 failed"
         _notify("AcornFS unmount failed", detail, error=True)
         raise AcornFSError(f"Could not unmount {target}: {detail}")
+    if record.read_write:
+        if not wait_for_mount_shutdown(target):
+            detail = (
+                "The image detached but its writable daemon has not confirmed a safe flush. "
+                "Do not reuse the image until the daemon has exited."
+            )
+            _notify("AcornFS unmount not confirmed", detail, error=True)
+            raise AcornFSError(detail)
+        if record.image_path is not None and pending_recovery(record.image_path) is not None:
+            detail = (
+                "The image detached but final validation did not complete safely; "
+                "resolve its recovery checkpoint before mounting it read-write again."
+            )
+            _notify("AcornFS final validation failed", detail, error=True)
+            raise AcornFSError(detail)
     with suppress(OSError):
         target.rmdir()
     with suppress(OSError):
         target.parent.rmdir()
-    _notify("AcornFS image detached", f"{target.name} is completing final validation.")
+    if record.read_write:
+        _notify("AcornFS image unmounted", f"{target.name} was flushed and validated safely.")
+    else:
+        _notify("AcornFS image detached", f"{target.name} was detached read-only.")
     return 0
 
 

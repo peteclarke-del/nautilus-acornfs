@@ -36,6 +36,9 @@ the remaining lifecycle and format work.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
+- Track mounted pairs by canonical path and DAT/DSC device/inode identity.
+- Wait for writable flush and final validation before confirming unmount success.
+- Export privacy-safe support information through `acornfs diagnostics --json`.
 
 ## Development
 
@@ -113,6 +116,13 @@ acornfs unmount "$HOME/AcornFS/scsi0"
 If Nautilus still holds the location open, close that window and retry. For a
 read-only mount that must disappear immediately, use `acornfs unmount --lazy
 MOUNTPOINT`; existing handles finish in the background.
+
+To capture environment and mount state for a bug report without including image
+contents or absolute paths:
+
+```shell
+acornfs diagnostics --json > acornfs-diagnostics.json
+```
 
 Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`. Pass
 `--read-write` for complete file and directory mutation support. Selection of

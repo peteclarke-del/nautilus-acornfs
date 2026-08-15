@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from acornfs.cli import main
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
+from acornfs.mounts import MountRecord
 from tests.image_fixture import create_beebscsi_image
 
 
@@ -18,6 +19,52 @@ def test_status_reports_no_mounts(capsys: object) -> None:
         assert main(["status"]) == 0
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     assert captured.out == "No AcornFS mounts found.\n"
+
+
+def test_diagnostics_json_is_exportable(capsys: object) -> None:
+    report = {
+        "privacy": "No image contents or absolute paths are included.",
+        "runtime": {},
+        "fuse": {},
+        "mounts": [],
+    }
+    with patch("acornfs.diagnostics.diagnostic_report", return_value=report):
+        assert main(["diagnostics", "--json"]) == 0
+    assert '"privacy"' in capsys.readouterr().out  # type: ignore[attr-defined]
+
+
+def test_lazy_unmount_is_refused_for_writable_image(tmp_path: Path, capsys: object) -> None:
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+    record = MountRecord(str(mountpoint), "scsi0.dat", "rw", read_write=True)
+    with (
+        patch("acornfs.cli.mount_at", return_value=record),
+        patch("acornfs.cli.subprocess.run") as run,
+    ):
+        assert main(["unmount", "--lazy", str(mountpoint)]) == 2
+    run.assert_not_called()
+    assert "read-only" in capsys.readouterr().err  # type: ignore[attr-defined]
+
+
+def test_writable_cli_unmount_confirms_finalisation(tmp_path: Path) -> None:
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+    record = MountRecord(
+        str(mountpoint),
+        "scsi0.dat",
+        "rw",
+        image_path=str(tmp_path / "scsi0.dat"),
+        read_write=True,
+    )
+    result = type("Result", (), {"returncode": 0, "stderr": ""})()
+    with (
+        patch("acornfs.cli.mount_at", return_value=record),
+        patch("acornfs.cli.subprocess.run", return_value=result),
+        patch("acornfs.cli.wait_for_mount_shutdown", return_value=True) as wait,
+        patch("acornfs.cli.pending_recovery", return_value=None),
+    ):
+        assert main(["unmount", str(mountpoint)]) == 0
+    wait.assert_called_once_with(mountpoint.resolve())
 
 
 def test_recover_command_reports_and_restores_checkpoint(tmp_path: Path, capsys: object) -> None:

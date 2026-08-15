@@ -9,9 +9,8 @@ from typing import Any
 import gi
 
 from acornfs.core import read_image_properties
-from acornfs.desktop import mountpoint_for_image
 from acornfs.errors import AcornFSError
-from acornfs.mounts import is_mounted
+from acornfs.mounts import is_mounted, mount_for_image
 from acornfs.recovery import pending_recovery
 from acornfs_nautilus.logic import (
     image_property_rows,
@@ -108,11 +107,11 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if not is_supported_image(path):
             return []
         try:
-            mountpoint = mountpoint_for_image(path)
+            mounted = mount_for_image(path)
         except AcornFSError:
             return []
-        if is_mounted(mountpoint):
-            return [self._unmount_item(mountpoint)]
+        if mounted is not None:
+            return [self._unmount_item(Path(mounted.mountpoint))]
         try:
             recovery = pending_recovery(path)
         except AcornFSError:
@@ -161,8 +160,7 @@ class AcornFSPropertiesModelProvider(GObject.GObject, Nautilus.PropertiesModelPr
         if is_supported_image(path):
             try:
                 properties = read_image_properties(path)
-                mountpoint = mountpoint_for_image(path)
-                mount_state = "Mounted" if is_mounted(mountpoint) else "Not mounted"
+                mount_state = "Mounted" if mount_for_image(path) is not None else "Not mounted"
                 rows = (*image_property_rows(properties), ("Mount state", mount_state))
             except AcornFSError as exc:
                 rows = (("Status", f"Unavailable: {exc}"),)
