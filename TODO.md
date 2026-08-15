@@ -18,88 +18,88 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 ## Phase 1: project foundation
 
-- [ ] Choose an implementation language and maintained FUSE 3 binding.
+- [x] Choose an implementation language and maintained FUSE 3 binding.
 - [ ] Add the project licence, contribution guide and code style configuration.
-- [ ] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
-- [ ] Add reproducible development and test containers for amd64, arm64 and arm/v7.
+- [x] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
+- [ ] Add reproducible development and test containers for amd64, arm64 and arm/v7. (amd64 only initially)
 - [ ] Add CI for formatting, static analysis, unit tests, integration tests and architecture builds.
-- [ ] Add generated test fixtures so private sample images are not required.
-- [ ] Define supported Ubuntu and GNOME/Nautilus versions.
-- [ ] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
+- [x] Add generated test fixtures so private sample images are not required.
+- [x] Define supported Ubuntu and GNOME/Nautilus versions.
+- [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
 
 ## Phase 2: read-only BeebSCSI mounting
 
-- [ ] Implement DAT and DSC pair discovery using matching basenames.
-- [ ] Permit selection of either member and automatically locate its partner.
-- [ ] Reject ambiguous pairs and explain how to resolve them.
-- [ ] Parse and validate DSC geometry before opening the DAT image.
+- [x] Implement DAT and DSC pair discovery using matching basenames.
+- [x] Permit selection of either member and automatically locate its partner.
+- [x] Reject ambiguous pairs and explain how to resolve them.
+- [x] Parse and validate DSC geometry before opening the DAT image.
 - [ ] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
 - [ ] Detect the ADFS format and target hardware characteristics.
 - [ ] Mount uncertain or damaged images read-only when safe traversal is still possible.
-- [ ] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
-- [ ] Traverse the complete ADFS directory tree.
-- [ ] Return stable inode identities for the life of a mount.
-- [ ] Report meaningful file sizes, ownership, permissions and timestamps.
-- [ ] Cache directory metadata and filesystem structures for the life of the mount.
-- [ ] Bound cache memory and invalidate entries predictably.
+- [x] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
+- [x] Traverse the complete ADFS directory tree.
+- [x] Return stable inode identities for the life of a mount.
+- [x] Report meaningful file sizes, ownership, permissions and timestamps.
+- [x] Cache directory metadata and filesystem structures for the life of the mount.
+- [x] Bound cache memory and invalidate entries predictably.
 - [ ] Provide clean handling for truncated images, broken directories, invalid maps and out-of-range sectors.
-- [ ] Add an `acornfs mount IMAGE MOUNTPOINT` command.
-- [ ] Add `acornfs unmount MOUNTPOINT` and mount-status commands.
-- [ ] Mount with `nosuid`, `nodev` and `noexec` by default.
-- [ ] Restrict a user mount to its owner unless explicitly configured otherwise.
+- [x] Add an `acornfs mount IMAGE MOUNTPOINT` command.
+- [x] Add `acornfs unmount MOUNTPOINT` and mount-status commands.
+- [x] Mount with `nosuid`, `nodev` and `noexec` by default.
+- [x] Restrict a user mount to its owner unless explicitly configured otherwise.
 
 ## Phase 3: Acorn metadata mapping
 
-- [ ] Define extended attributes for `user.acorn.load`.
-- [ ] Define extended attributes for `user.acorn.execute`.
-- [ ] Define extended attributes for `user.acorn.filetype`.
-- [ ] Define extended attributes for `user.acorn.locked`.
-- [ ] Define extended attributes for source filesystem and original pathname information.
-- [ ] Implement getxattr and listxattr in read-only mode.
-- [ ] Map Acorn locked files to a sensible read-only POSIX presentation.
+- [x] Define extended attributes for `user.acorn.load`.
+- [x] Define extended attributes for `user.acorn.execute`.
+- [x] Define extended attributes for `user.acorn.filetype`.
+- [x] Define extended attributes for `user.acorn.locked`.
+- [x] Define extended attributes for source filesystem and original pathname information.
+- [x] Implement getxattr and listxattr in read-only mode.
+- [x] Map Acorn locked files to a sensible read-only POSIX presentation.
 - [ ] Decide whether optional `.inf` sidecars should be exposed, generated on export, or hidden by default.
 - [ ] Document lossy and lossless metadata mappings.
 
 ## Phase 4: safe write support
 
-- [ ] Add an explicit `--read-write` mount option while retaining read-only as the default.
-- [ ] Obtain exclusive locks on both DAT and DSC files for writable mounts.
-- [ ] Detect an already mounted or externally modified image.
-- [ ] Implement create, write, truncate, flush, fsync and release.
-- [ ] Implement mkdir and rmdir.
-- [ ] Implement rename and unlink.
-- [ ] Implement setattr for writable Acorn metadata.
-- [ ] Enforce ADFS filename, directory-entry and capacity restrictions.
-- [ ] Return clear POSIX errors for invalid names, full directories and insufficient space.
-- [ ] Never silently truncate or sanitise an invalid filename during a filesystem call.
-- [ ] Serialise mutations within each mounted image.
-- [ ] Maintain old-ADFS directory sequence fields correctly.
+- [x] Add an explicit `--read-write` mount option while retaining read-only as the default.
+- [x] Obtain exclusive locks on both DAT and DSC files for writable mounts.
+- [x] Detect an already mounted or externally modified image.
+- [x] Implement create, write, truncate, flush, fsync and release.
+- [x] Implement mkdir and rmdir.
+- [x] Implement rename and unlink.
+- [x] Implement writable Acorn metadata through extended attributes.
+- [x] Enforce ADFS filename, directory-entry and capacity restrictions.
+- [x] Return clear POSIX errors for invalid names, full directories and insufficient space.
+- [x] Never silently truncate or sanitise an invalid filename during a filesystem call.
+- [x] Serialise mutations within each mounted image.
+- [x] Maintain old-ADFS directory sequence fields correctly.
 - [ ] Advance the ADFS disc ID when required.
-- [ ] Rebuild and verify the free-space-map checksum after mutations.
-- [ ] Flush all pending metadata before reporting fsync or unmount success.
+- [x] Rebuild and verify the free-space-map checksum after mutations.
+- [x] Flush all pending metadata before reporting fsync or unmount success.
 - [ ] Prevent partial updates when an operation fails.
-- [ ] Add a write-ahead journal or equivalent recovery mechanism.
-- [ ] Store recovery state outside the mounted image and identify it by image identity.
-- [ ] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
-- [ ] Provide an optional pre-write checkpoint.
-- [ ] Use reflinks or sparse copies where available instead of blindly duplicating a complete large DAT file.
+- [x] Add a write-ahead journal or equivalent recovery mechanism.
+- [x] Store recovery state outside the mounted image and identify it by image identity.
+- [x] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
+- [x] Provide a mandatory pre-write checkpoint.
+- [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
 - [ ] Add safe cancellation boundaries for long validation and recovery operations.
 
 ## Phase 5: Nautilus integration
 
 - [ ] Register MIME types for BeebSCSI DAT and DSC files without claiming unrelated generic DAT files.
 - [ ] Add a desktop application and URI handler for opening Acorn images.
-- [ ] Implement a Nautilus 4 extension using current model-based APIs.
-- [ ] Add `Mount Acorn image` to suitable DAT and DSC files.
-- [ ] Add `Mount read-only`.
-- [ ] Add `Unmount` for mounted images.
+- [x] Implement a Nautilus 4 extension using current model-based APIs.
+- [x] Add `Mount Acorn image` to suitable DAT and DSC files.
+- [x] Add `Mount read-only`.
+- [x] Add `Unmount` for mounted images.
 - [ ] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
 - [ ] Add `Create BeebSCSI image` where appropriate.
 - [ ] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile and mount state.
 - [ ] Add file properties for load address, execute address, RISC OS filetype and lock state.
-- [ ] Make mounted images appear in Nautilus Places or the sidebar with a recognisable Acorn icon.
-- [ ] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
+- [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
+- [x] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
 - [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
 - [ ] Test light mode, dark mode, narrow windows and 200 percent scaling.
 
