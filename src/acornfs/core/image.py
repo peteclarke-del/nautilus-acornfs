@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import fcntl
-import mmap
 import os
 from collections import OrderedDict
 from collections.abc import Iterator
@@ -19,10 +17,18 @@ from oaknut.filesystem import create_filesystem, geometry_from_dsc
 from oaknut.filesystem.capabilities import Mount
 from oaknut.filesystem.reader import ImageReader
 
-from acornfs.core.beebscsi import BeebSCSIPair, discover_pair, inspect_pair
+from acornfs.core.beebscsi import (
+    BeebSCSIGeometry,
+    BeebSCSIPair,
+    discover_pair,
+    inspect_pair,
+    open_locked_reader,
+    parse_descriptor,
+)
 from acornfs.errors import AcornFSError
 
 if TYPE_CHECKING:
+    from acornfs.core.validation import IntegrityReport
     from acornfs.recovery import RecoveryCheckpoint
 
 ROOT_INODE = 1
@@ -75,28 +81,6 @@ def _display_name(name: str) -> bytes:
     return result.encode("utf-8")
 
 
-def _locked_reader(pair: BeebSCSIPair, *, writable: bool) -> tuple[ImageReader, tuple[Any, ...]]:
-    """Lock both pair members and map the DAT for the requested access mode."""
-
-    mode = "r+b" if writable else "rb"
-    lock_mode = fcntl.LOCK_EX if writable else fcntl.LOCK_SH
-    dat_lock = pair.dat_path.open(mode)
-    dsc_lock = pair.dsc_path.open(mode)
-    mapping_handle = pair.dat_path.open(mode)
-    try:
-        fcntl.flock(dat_lock, lock_mode | fcntl.LOCK_NB)
-        fcntl.flock(dsc_lock, lock_mode | fcntl.LOCK_NB)
-        access = mmap.ACCESS_WRITE if writable else mmap.ACCESS_COPY
-        mapping = mmap.mmap(mapping_handle.fileno(), 0, access=access)
-    except Exception:
-        mapping_handle.close()
-        dat_lock.close()
-        dsc_lock.close()
-        raise
-    reader = ImageReader(mapping, suffix=pair.dat_path.suffix, writable=True)
-    return reader, (mapping, mapping_handle, dat_lock, dsc_lock)
-
-
 class ReadOnlyImage:
     """An eagerly indexed ADFS tree backed by one long-lived Oaknut mount."""
 
@@ -112,6 +96,7 @@ class ReadOnlyImage:
         writable: bool = False,
         closeables: tuple[Any, ...] = (),
         checkpoint: RecoveryCheckpoint | None = None,
+        descriptor_geometry: BeebSCSIGeometry,
     ) -> None:
         self.pair = pair
         self._reader = reader
@@ -123,6 +108,7 @@ class ReadOnlyImage:
         self.writable = writable
         self._closeables = closeables
         self._checkpoint = checkpoint
+        self._descriptor_geometry = descriptor_geometry
         self._mutation_lock = RLock()
         self._failed = False
         self._cache: OrderedDict[int, bytes] = OrderedDict()
@@ -156,8 +142,13 @@ class ReadOnlyImage:
         mount: Mount | None = None
         try:
             geometry = geometry_from_dsc(pair.dsc_path.read_bytes())
-            reader, closeables = _locked_reader(pair, writable=writable)
+            descriptor_geometry = parse_descriptor(pair.dsc_path.read_bytes())
+            reader, closeables = open_locked_reader(pair, writable=writable)
             mount = create_filesystem("adfs").open(reader, geometry)
+            if writable:
+                from acornfs.core.validation import require_safe_for_write, validate_open_mount
+
+                require_safe_for_write(validate_open_mount(pair, mount, descriptor_geometry))
             image = cls(
                 pair=pair,
                 reader=reader,
@@ -167,6 +158,7 @@ class ReadOnlyImage:
                 max_depth=max_depth,
                 writable=writable,
                 closeables=closeables,
+                descriptor_geometry=descriptor_geometry,
             )
             if writable:
                 try:
@@ -612,11 +604,11 @@ class ReadOnlyImage:
         self.free_bytes = self._reported_free_space()
 
     def _finish_rollback(self) -> None:
-        validator = getattr(self._mount, "validate", None)
-        problems = validator() if callable(validator) else []
-        if problems:
+        report = self.integrity_report()
+        if report.fatal_findings:
             raise AcornFSError(
-                f"Rollback validation found {len(problems)} ADFS problem(s); recovery is required."
+                f"Rollback validation found {len(report.fatal_findings)} fatal ADFS problem(s); "
+                "recovery is required."
             )
         self.sync()
         self.free_bytes = self._reported_free_space()
@@ -654,6 +646,13 @@ class ReadOnlyImage:
         reporter = getattr(self._mount, "free_bytes", None)
         return int(reporter()) if callable(reporter) else 0
 
+    def integrity_report(self) -> IntegrityReport:
+        """Return a full integrity report for the currently locked image."""
+
+        from acornfs.core.validation import validate_open_mount
+
+        return validate_open_mount(self.pair, self._mount, self._descriptor_geometry)
+
     @staticmethod
     def _close_oaknut_mount(mount: Mount) -> None:
         adfs = getattr(mount, "_adfs", None)
@@ -668,12 +667,12 @@ class ReadOnlyImage:
         if self.writable:
             try:
                 self.sync()
-                validator = getattr(self._mount, "validate", None)
-                problems = validator() if clean and callable(validator) else []
-                if problems:
+                report = self.integrity_report() if clean else None
+                fatal = report.fatal_findings if report is not None else ()
+                if fatal:
                     self._failed = True
                     close_error = AcornFSError(
-                        f"Post-write ADFS validation found {len(problems)} problem(s); "
+                        f"Post-write ADFS validation found {len(fatal)} fatal problem(s); "
                         "the recovery checkpoint was retained."
                     )
             except Exception as exc:
@@ -705,30 +704,12 @@ class ReadOnlyImage:
 
 
 def validate_image(selected: str | Path) -> tuple[str, ...]:
-    """Run Oaknut's read-only ADFS structural validation for one image pair."""
+    """Compatibility wrapper returning human-readable integrity findings."""
 
-    inspect_pair(selected)
-    pair = discover_pair(selected)
-    reader: ImageReader | None = None
-    mount: Mount | None = None
-    closeables: tuple[Any, ...] = ()
-    try:
-        geometry = geometry_from_dsc(pair.dsc_path.read_bytes())
-        reader, closeables = _locked_reader(pair, writable=False)
-        mount = create_filesystem("adfs").open(reader, geometry)
-        validator = getattr(mount, "validate", None)
-        if not callable(validator):
-            raise AcornFSError("The selected filesystem does not provide structural validation.")
-        return tuple(str(problem) for problem in validator())
-    except AcornFSError:
-        raise
-    except Exception as exc:
-        raise AcornFSError(f"The ADFS structural validation could not run safely: {exc}") from exc
-    finally:
-        if mount is not None:
-            ReadOnlyImage._close_oaknut_mount(mount)
-        if reader is not None:
-            reader.close()
-        for closeable in closeables:
-            with suppress(Exception):
-                closeable.close()
+    from acornfs.core.validation import validate_image_report
+
+    report = validate_image_report(selected)
+    return tuple(
+        f"{finding.severity.value}: {finding.code}: {finding.message}"
+        for finding in report.findings
+    )

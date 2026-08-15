@@ -8,9 +8,12 @@ application.
 
 Read-only mounting remains the default. Opt-in writable mounts use exclusive
 pair locks, persistent pre-write checkpoints, external-change detection and
-post-write ADFS validation. Acorn load/execute addresses, filetypes, lock state,
-source filesystem and original paths are available as extended attributes. See
-[TODO.md](TODO.md) for the remaining lifecycle and format work.
+complete pre-write and post-write ADFS integrity validation. Fatal geometry,
+map, directory or allocation findings refuse writable access before a checkpoint
+is created, while safe warnings and compatibility advice remain non-blocking.
+Acorn load/execute addresses, filetypes, lock state, source filesystem and
+original paths are available as extended attributes. See [TODO.md](TODO.md) for
+the remaining lifecycle and format work.
 
 ## Current functionality
 
@@ -18,6 +21,7 @@ source filesystem and original paths are available as extended attributes. See
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
+- Validate geometry, maps, directories and used/free sector allocation with typed reports.
 - Mount a validated ADFS image read-only or read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.

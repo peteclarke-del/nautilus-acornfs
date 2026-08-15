@@ -33,7 +33,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Permit selection of either member and automatically locate its partner.
 - [x] Reject ambiguous pairs and explain how to resolve them.
 - [x] Parse and validate DSC geometry before opening the DAT image.
-- [ ] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
+- [x] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
 - [ ] Detect the ADFS format and target hardware characteristics.
 - [ ] Mount uncertain or damaged images read-only when safe traversal is still possible.
 - [x] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
@@ -118,8 +118,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 ## Phase 7: validation and repair tooling
 
 - [x] Add `acornfs inspect IMAGE` with machine-readable and human-readable output.
-- [ ] Validate geometry, directory sequences, map checksums, free-space extents and file extents.
-- [ ] Distinguish fatal errors, safe warnings and compatibility advice.
+- [x] Validate geometry, directory sequences, map checksums, free-space extents and file extents.
+- [x] Distinguish fatal errors, safe warnings and compatibility advice.
 - [ ] Add a dry-run repair plan.
 - [ ] Require explicit confirmation before applying any repair.
 - [ ] Create a checkpoint before every repair.
@@ -166,7 +166,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 ## Test matrix
 
-- [ ] Empty, lightly populated, nearly full and full images.
+- [x] Empty, lightly populated, nearly full and full images.
 - [ ] Valid DAT/DSC pairs across supported geometries.
 - [ ] Missing, mismatched, truncated and corrupt DSC files.
 - [ ] Truncated, oversized, sparse and corrupt DAT files.
@@ -189,7 +189,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Selecting either member of a valid DAT/DSC pair mounts the ADFS root read-only.
 - [ ] Nautilus can traverse every valid directory and open every valid file.
 - [ ] Terminal tools see the same hierarchy and contents.
-- [ ] Invalid geometry cannot reach a writable mount.
+- [x] Invalid geometry cannot reach a writable mount.
 - [ ] Writable mounts preserve all existing files and Acorn metadata after create, edit, rename, move and delete operations.
 - [ ] Interrupted mutations are either rolled back or recoverable.
 - [ ] Unmount verifies and flushes the image before reporting success.
