@@ -21,7 +21,8 @@ source filesystem and original paths are available as extended attributes. See
 - Mount a validated ADFS image read-only or read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
-- Mount read-write, mount read-only, recover and unmount from Nautilus context menus.
+- Mount read-write, mount read-only, validate, recover and unmount from Nautilus context menus.
+- Run desktop mounts as collected systemd user services with graceful logout cleanup.
 
 ## Development
 

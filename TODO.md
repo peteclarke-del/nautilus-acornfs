@@ -93,7 +93,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Add `Mount Acorn image` to suitable DAT and DSC files.
 - [x] Add `Mount read-only`.
 - [x] Add `Unmount` for mounted images.
-- [ ] Add `Validate image`.
+- [x] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
 - [ ] Add `Create BeebSCSI image` where appropriate.
 - [ ] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile and mount state.
@@ -105,19 +105,19 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 ## Phase 6: lifecycle and desktop service
 
-- [ ] Add a systemd user service for mount-daemon lifecycle management.
+- [x] Run desktop mount daemons as collected transient systemd user services when available.
 - [ ] Track active mounts by canonical image path, device and inode.
-- [ ] Clean up stale mountpoints after crashes.
+- [x] Detect and detach stale FUSE endpoints before remounting.
 - [ ] Refuse to unmount while writes cannot be safely flushed.
-- [ ] Support graceful logout and shutdown handling.
-- [ ] Add structured logs through the user journal.
+- [x] Support graceful logout and shutdown handling through systemd `SIGINT` cleanup.
+- [x] Record systemd-managed mount output in the user journal.
 - [ ] Add diagnostics that can be exported without including image contents.
 - [ ] Provide configurable per-user mount locations under `/run/user/$UID/acornfs`.
-- [ ] Avoid requiring global `/etc/fuse.conf` changes for ordinary operation.
+- [x] Avoid requiring global `/etc/fuse.conf` changes for ordinary operation.
 
 ## Phase 7: validation and repair tooling
 
-- [ ] Add `acornfs inspect IMAGE` with machine-readable and human-readable output.
+- [x] Add `acornfs inspect IMAGE` with machine-readable and human-readable output.
 - [ ] Validate geometry, directory sequences, map checksums, free-space extents and file extents.
 - [ ] Distinguish fatal errors, safe warnings and compatibility advice.
 - [ ] Add a dry-run repair plan.

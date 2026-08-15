@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import hashlib
 import os
@@ -14,7 +15,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import discover_pair
+from acornfs.core import discover_pair, validate_image
 from acornfs.errors import AcornFSError
 from acornfs.mounts import is_mounted
 from acornfs.recovery import recover_image
@@ -47,6 +48,84 @@ def mountpoint_for_image(image_path: str | Path) -> Path:
     digest = hashlib.sha256(identity).hexdigest()[:10]
     stem = re.sub(r"[^A-Za-z0-9._-]+", "-", pair.dat_path.stem).strip(".-") or "image"
     return mount_root() / f"{stem}-{digest}"
+
+
+def _unit_for_mountpoint(mountpoint: Path) -> str:
+    digest = hashlib.sha256(str(mountpoint).encode("utf-8", "surrogateescape")).hexdigest()[:16]
+    return f"acornfs-mount-{digest}.service"
+
+
+def _systemd_user_available() -> bool:
+    if os.environ.get("ACORNFS_NO_SYSTEMD") == "1":
+        return False
+    if shutil.which("systemd-run") is None or shutil.which("systemctl") is None:
+        return False
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "show-environment"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
+def _systemd_mount_command(unit: str, command: list[str]) -> list[str]:
+    result = [
+        "systemd-run",
+        "--user",
+        "--quiet",
+        "--collect",
+        f"--unit={unit}",
+        "--service-type=exec",
+        "--property=KillMode=mixed",
+        "--property=KillSignal=SIGINT",
+        "--property=TimeoutStopSec=30s",
+        "--setenv=ACORNFS_DESKTOP_MOUNT=1",
+    ]
+    for name in (
+        "XDG_STATE_HOME",
+        "XDG_RUNTIME_DIR",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+    ):
+        value = os.environ.get(name)
+        if value is not None:
+            result.append(f"--setenv={name}={value}")
+    return [*result, "--", *command]
+
+
+def _unit_active(unit: str) -> bool:
+    result = subprocess.run(
+        ["systemctl", "--user", "is-active", "--quiet", unit],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def _unit_log_line(unit: str) -> str:
+    result = subprocess.run(
+        ["journalctl", "--user", "--unit", unit, "--lines=1", "--no-pager", "--output=cat"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+
+
+def _stop_unit(unit: str) -> None:
+    subprocess.run(
+        ["systemctl", "--user", "stop", unit],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def _notify(summary: str, body: str, *, error: bool = False) -> None:
@@ -94,31 +173,53 @@ def background_mount(
 
     with lock_path.open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        cleanup_stale_mountpoint(mountpoint)
         if not is_mounted(mountpoint):
-            with log_path.open("ab") as log:
-                command = [sys.executable, "-m", "acornfs.cli", "mount"]
-                if read_write:
-                    command.append("--read-write")
-                command.extend((str(pair.dat_path), str(mountpoint)))
-                process = subprocess.Popen(
-                    command,
-                    env={**os.environ, "ACORNFS_DESKTOP_MOUNT": "1"},
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    start_new_session=True,
+            command = [sys.executable, "-m", "acornfs.cli", "mount"]
+            if read_write:
+                command.append("--read-write")
+            command.extend((str(pair.dat_path), str(mountpoint)))
+            process: subprocess.Popen[bytes] | None = None
+            unit: str | None = None
+            if _systemd_user_available():
+                unit = _unit_for_mountpoint(mountpoint)
+                launch = subprocess.run(
+                    _systemd_mount_command(unit, command),
+                    check=False,
+                    capture_output=True,
+                    text=True,
                 )
+                if launch.returncode:
+                    detail = launch.stderr.strip() or "systemd-run failed"
+                    raise AcornFSError(f"Could not start the AcornFS user service: {detail}")
+            else:
+                with log_path.open("ab") as log:
+                    process = subprocess.Popen(
+                        command,
+                        env={**os.environ, "ACORNFS_DESKTOP_MOUNT": "1"},
+                        stdin=subprocess.DEVNULL,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
                 if is_mounted(mountpoint):
                     break
-                return_code = process.poll()
-                if return_code is not None:
+                if process is not None and process.poll() is not None:
                     detail = _last_log_line(log_path)
-                    raise AcornFSError(detail or f"Mount process exited with status {return_code}.")
+                    raise AcornFSError(
+                        detail or f"Mount process exited with status {process.returncode}."
+                    )
+                if unit is not None and not _unit_active(unit):
+                    detail = _unit_log_line(unit)
+                    raise AcornFSError(detail or "The AcornFS user service exited before mounting.")
                 time.sleep(0.1)
             else:
-                process.terminate()
+                if process is not None:
+                    process.terminate()
+                if unit is not None:
+                    _stop_unit(unit)
                 raise AcornFSError(f"Timed out mounting {pair.dat_path.name}.")
 
     if open_folder:
@@ -151,6 +252,11 @@ def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:
 
 def desktop_unmount(mountpoint: str | Path) -> int:
     target = Path(mountpoint).expanduser().resolve()
+    if not is_mounted(target):
+        with suppress(OSError):
+            target.rmdir()
+        _notify("AcornFS image unmounted", f"{target.name} was already detached.")
+        return 0
     result = subprocess.run(
         ["fusermount3", "-u", "-z", str(target)],
         check=False,
@@ -166,6 +272,50 @@ def desktop_unmount(mountpoint: str | Path) -> int:
     with suppress(OSError):
         target.parent.rmdir()
     _notify("AcornFS image detached", f"{target.name} is completing final validation.")
+    return 0
+
+
+def cleanup_stale_mountpoint(mountpoint: str | Path) -> bool:
+    """Detach a dead FUSE endpoint, leaving healthy mounts untouched."""
+
+    target = Path(mountpoint).expanduser().resolve()
+    if not is_mounted(target):
+        return False
+    try:
+        os.listdir(target)
+    except OSError as exc:
+        if exc.errno not in {errno.ENOTCONN, errno.EIO, errno.ESTALE}:
+            raise AcornFSError(f"Could not inspect mounted image {target}: {exc}") from exc
+        result = subprocess.run(
+            ["fusermount3", "-u", "-z", str(target)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode:
+            detail = result.stderr.strip() or "fusermount3 failed"
+            raise AcornFSError(f"Could not clean up stale mount {target}: {detail}") from exc
+        return True
+    return False
+
+
+def desktop_validate(image_path: str | Path) -> int:
+    """Validate an image structure read-only and report the result on the desktop."""
+
+    try:
+        problems = validate_image(image_path)
+    except AcornFSError as exc:
+        _notify("AcornFS validation failed", str(exc), error=True)
+        raise
+    name = discover_pair(image_path).dat_path.name
+    if problems:
+        _notify(
+            "AcornFS validation found problems",
+            f"{name}: {len(problems)} problem(s). Run 'acornfs validate' for details.",
+            error=True,
+        )
+        return 1
+    _notify("AcornFS validation passed", f"{name} has no reported ADFS problems.")
     return 0
 
 
@@ -218,9 +368,11 @@ def notify_mount_failure(message: str) -> None:
 
 __all__ = [
     "background_mount",
+    "cleanup_stale_mountpoint",
     "desktop_mount",
     "desktop_recover",
     "desktop_unmount",
+    "desktop_validate",
     "mountpoint_for_image",
     "mount_root",
     "notify_mount_failure",

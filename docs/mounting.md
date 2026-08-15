@@ -85,6 +85,13 @@ acornfs recover /path/to/scsi0.dat --restore  # undo the interrupted session
 acornfs recover /path/to/scsi0.dat --discard  # accept the current image
 ```
 
+Validate the ADFS structure without mounting or modifying the image:
+
+```shell
+acornfs validate /path/to/scsi0.dat
+acornfs validate --json /path/to/scsi0.dat
+```
+
 ## Status and unmounting
 
 ```shell
@@ -102,8 +109,8 @@ acornfs unmount --lazy "$HOME/AcornFS/scsi0"
 
 ## Current limits
 
-- Manual mounts are foreground processes; Nautilus actions launch a detached process until a
-  systemd user service is implemented.
+- Manual mounts are foreground processes. Nautilus actions use a collected transient systemd
+  user service when the desktop session provides one, with a detached-process fallback.
 - POSIX timestamp changes are accepted for application compatibility but are not persisted.
 - All entries currently use the DAT file's modification time as their POSIX time.
 - Unsafe, malformed, ambiguous, or non-ADFS pairs are rejected rather than repaired.

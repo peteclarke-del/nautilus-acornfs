@@ -2,7 +2,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from acornfs.desktop import desktop_recover, mountpoint_for_image
+from acornfs.desktop import (
+    _systemd_mount_command,
+    cleanup_stale_mountpoint,
+    desktop_recover,
+    mountpoint_for_image,
+)
 from tests.image_fixture import create_beebscsi_image
 
 
@@ -30,3 +35,35 @@ def test_desktop_recovery_requires_explicit_dialog_choice() -> None:
     ):
         assert desktop_recover("/image.dat") == 0
     recover.assert_called_once_with("/image.dat", restore=True)
+
+
+def test_dead_fuse_endpoint_is_detached_before_mounting(tmp_path: Path) -> None:
+    target = tmp_path / "stale"
+    target.mkdir()
+    detached = SimpleNamespace(returncode=0, stderr="")
+    with (
+        patch("acornfs.desktop.is_mounted", return_value=True),
+        patch("acornfs.desktop.os.listdir", side_effect=OSError(107, "not connected")),
+        patch("acornfs.desktop.subprocess.run", return_value=detached) as run,
+    ):
+        assert cleanup_stale_mountpoint(target)
+    run.assert_called_once_with(
+        ["fusermount3", "-u", "-z", str(target)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_systemd_mount_uses_graceful_sigint_and_collection() -> None:
+    command = _systemd_mount_command("acornfs-test.service", ["python", "-m", "acornfs.cli"])
+    assert command[:5] == [
+        "systemd-run",
+        "--user",
+        "--quiet",
+        "--collect",
+        "--unit=acornfs-test.service",
+    ]
+    assert "--property=KillSignal=SIGINT" in command
+    assert "--property=TimeoutStopSec=30s" in command
+    assert command[-3:] == ["python", "-m", "acornfs.cli"]
