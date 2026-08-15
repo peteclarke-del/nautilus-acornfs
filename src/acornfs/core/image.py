@@ -13,7 +13,7 @@ from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, Any, cast
 
-from oaknut.adfs.exceptions import ADFSError
+from oaknut.adfs.exceptions import ADFSDiscFullError, ADFSError
 from oaknut.file import AcornMeta
 from oaknut.filesystem import create_filesystem, geometry_from_dsc
 from oaknut.filesystem.capabilities import Mount
@@ -29,6 +29,15 @@ ROOT_INODE = 1
 DEFAULT_CACHE_BYTES = 64 * 1024 * 1024
 DEFAULT_MAX_NODES = 100_000
 DEFAULT_MAX_DEPTH = 256
+ADFS_SECTOR_BYTES = 256
+
+
+class _MutationRolledBack(Exception):
+    """Carry the original failure through the mutation guard after rollback."""
+
+    def __init__(self, original: Exception) -> None:
+        super().__init__(str(original))
+        self.original = original
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,8 +280,20 @@ class ReadOnlyImage:
                 raise IsADirectoryError(node.acorn_path)
             metadata_api = cast(Any, self._mount)
             metadata = metadata_api.acorn_meta(node.acorn_path)
-            self._mount.write_bytes(node.acorn_path, data)
-            metadata_api.set_acorn_meta(node.acorn_path, metadata)
+            original = cast(bytes, self._mount.read_bytes(node.acorn_path))
+            self._ensure_replace_capacity(node, len(data))
+            try:
+                self._mount.write_bytes(node.acorn_path, data)
+                metadata_api.set_acorn_meta(node.acorn_path, metadata)
+            except Exception as exc:
+                try:
+                    self._mount.write_bytes(node.acorn_path, original)
+                    metadata_api.set_acorn_meta(node.acorn_path, metadata)
+                    self._finish_rollback()
+                except Exception as rollback_exc:
+                    self._failed = True
+                    raise exc from rollback_exc
+                raise _MutationRolledBack(exc) from exc
             self.nodes[inode] = replace(node, size=len(data))
             old_data = self._cache.pop(inode, None)
             if old_data is not None:
@@ -281,6 +302,44 @@ class ReadOnlyImage:
                 self._cache[inode] = data
                 self._cache_size += len(data)
             self._finish_mutation()
+
+    def _ensure_replace_capacity(self, node: ImageNode, new_size: int) -> None:
+        """Reject an overwrite before Oaknut frees data it cannot reallocate."""
+
+        required = (new_size + ADFS_SECTOR_BYTES - 1) // ADFS_SECTOR_BYTES
+        if required == 0:
+            return
+        try:
+            adfs = cast(Any, self._mount)._adfs
+            _parent, entry = adfs.path(node.acorn_path)._resolve()
+            extents = [
+                (start // ADFS_SECTOR_BYTES, length // ADFS_SECTOR_BYTES)
+                for start, length in adfs._fsm.free_space_entries()
+            ]
+            old_sectors = (node.size + ADFS_SECTOR_BYTES - 1) // ADFS_SECTOR_BYTES
+            if old_sectors:
+                extents.append((int(entry.start_sector), old_sectors))
+        except Exception as exc:
+            self._failed = True
+            raise AcornFSError(f"Could not preflight the ADFS allocation safely: {exc}") from exc
+
+        largest = 0
+        current_start = -1
+        current_end = -1
+        for start, length in sorted(extents):
+            end = start + length
+            if current_start < 0 or start > current_end:
+                if current_start >= 0:
+                    largest = max(largest, current_end - current_start)
+                current_start, current_end = start, end
+            else:
+                current_end = max(current_end, end)
+        if current_start >= 0:
+            largest = max(largest, current_end - current_start)
+        if required > largest:
+            raise ADFSDiscFullError(
+                f"No contiguous extent can hold {required} sectors; largest available is {largest}"
+            )
 
     def acorn_metadata(self, inode: int) -> AcornMeta:
         node = self.nodes[inode]
@@ -311,9 +370,18 @@ class ReadOnlyImage:
                 exec_address=current.exec_address if exec_address is None else exec_address,
                 access=access,
             )
-            api.set_acorn_meta(node.acorn_path, replacement)
-            if filetype is not None:
-                api.set_filetype(node.acorn_path, filetype)
+            try:
+                api.set_acorn_meta(node.acorn_path, replacement)
+                if filetype is not None:
+                    api.set_filetype(node.acorn_path, filetype)
+            except Exception as exc:
+                try:
+                    api.set_acorn_meta(node.acorn_path, current)
+                    self._finish_rollback()
+                except Exception as rollback_exc:
+                    self._failed = True
+                    raise exc from rollback_exc
+                raise _MutationRolledBack(exc) from exc
             self.nodes[inode] = replace(node, locked=bool(access & 8))
             self._finish_mutation()
 
@@ -426,6 +494,10 @@ class ReadOnlyImage:
             node = self.lookup(old_parent, old_name)
             if node is None:
                 raise FileNotFoundError(old_name)
+            if node.locked:
+                raise PermissionError(f"{node.acorn_path} is locked")
+            if node.is_dir and self._is_descendant_or_self(new_parent, node.inode):
+                raise ValueError("a directory cannot be moved inside itself")
             decoded = self._new_name(new_name)
             new_path = self._child_path(new_parent, decoded)
             old_path = node.acorn_path
@@ -435,6 +507,8 @@ class ReadOnlyImage:
             destination_data: bytes | None = None
             destination_metadata: Any = None
             if destination is not None:
+                if destination.locked:
+                    raise PermissionError(f"{destination.acorn_path} is locked")
                 if destination.is_dir != node.is_dir:
                     if destination.is_dir:
                         raise IsADirectoryError(destination.acorn_path)
@@ -446,6 +520,7 @@ class ReadOnlyImage:
             try:
                 self._mount.rename(old_path, new_path)
             except Exception:
+                self._failed = True
                 if destination is not None:
                     try:
                         if destination.is_dir:
@@ -456,7 +531,7 @@ class ReadOnlyImage:
                                 destination.acorn_path, destination_metadata
                             )
                     except Exception:
-                        self._failed = True
+                        pass
                 raise
             if destination is not None:
                 self._drop_node(destination)
@@ -480,6 +555,16 @@ class ReadOnlyImage:
                     self.nodes[inode] = replace(descendant, acorn_path=f"{new_path}{suffix}")
             self._finish_mutation()
             return self.nodes[node.inode]
+
+    def _is_descendant_or_self(self, inode: int, ancestor_inode: int) -> bool:
+        cursor = inode
+        while True:
+            if cursor == ancestor_inode:
+                return True
+            node = self.nodes[cursor]
+            if node.inode == ROOT_INODE or node.parent_inode == node.inode:
+                return False
+            cursor = node.parent_inode
 
     def _current_signature(self) -> tuple[int, int, int, int, int]:
         open_stat = os.fstat(self._closeables[1].fileno())
@@ -507,6 +592,8 @@ class ReadOnlyImage:
             self._prepare_mutation()
             try:
                 yield
+            except _MutationRolledBack as exc:
+                raise exc.original.with_traceback(exc.original.__traceback__) from exc
             except (
                 ADFSError,
                 FileNotFoundError,
@@ -521,6 +608,16 @@ class ReadOnlyImage:
                 raise
 
     def _finish_mutation(self) -> None:
+        self.sync()
+        self.free_bytes = self._reported_free_space()
+
+    def _finish_rollback(self) -> None:
+        validator = getattr(self._mount, "validate", None)
+        problems = validator() if callable(validator) else []
+        if problems:
+            raise AcornFSError(
+                f"Rollback validation found {len(problems)} ADFS problem(s); recovery is required."
+            )
         self.sync()
         self.free_bytes = self._reported_free_space()
 
@@ -605,3 +702,33 @@ class ReadOnlyImage:
         except Exception:
             if exc_info[0] is None:
                 raise
+
+
+def validate_image(selected: str | Path) -> tuple[str, ...]:
+    """Run Oaknut's read-only ADFS structural validation for one image pair."""
+
+    inspect_pair(selected)
+    pair = discover_pair(selected)
+    reader: ImageReader | None = None
+    mount: Mount | None = None
+    closeables: tuple[Any, ...] = ()
+    try:
+        geometry = geometry_from_dsc(pair.dsc_path.read_bytes())
+        reader, closeables = _locked_reader(pair, writable=False)
+        mount = create_filesystem("adfs").open(reader, geometry)
+        validator = getattr(mount, "validate", None)
+        if not callable(validator):
+            raise AcornFSError("The selected filesystem does not provide structural validation.")
+        return tuple(str(problem) for problem in validator())
+    except AcornFSError:
+        raise
+    except Exception as exc:
+        raise AcornFSError(f"The ADFS structural validation could not run safely: {exc}") from exc
+    finally:
+        if mount is not None:
+            ReadOnlyImage._close_oaknut_mount(mount)
+        if reader is not None:
+            reader.close()
+        for closeable in closeables:
+            with suppress(Exception):
+                closeable.close()

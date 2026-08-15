@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from oaknut.adfs.exceptions import ADFSDiscFullError
 from oaknut.file import AcornMeta
 
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
@@ -135,3 +136,68 @@ def test_unexpected_mutation_failure_blocks_session_and_retains_recovery(tmp_pat
         image.create_file(ROOT_INODE, b"BLOCKED")
     image.close()
     assert recover_image(dat_path, discard=True) == "Recovery checkpoint discarded."
+
+
+def test_oversized_overwrite_is_rejected_before_freeing_original_file(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        original = image.read(readme.inode, 0, readme.size)
+        with pytest.raises(ADFSDiscFullError, match="contiguous extent"):
+            image.replace_file(readme.inode, b"x" * (image.free_bytes + 512))
+        assert image.read(readme.inode, 0, readme.size) == original
+        created = image.create_file(ROOT_INODE, b"STILLGOOD")
+        image.replace_file(created.inode, b"safe after rejected overwrite")
+
+    with ReadOnlyImage.open(dat_path) as image:
+        validator = image._mount.validate  # type: ignore[attr-defined]
+        assert validator() == []
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        assert image.read(readme.inode, 0, readme.size) == b"Hello from AcornFS\r"
+        assert image.lookup(ROOT_INODE, b"STILLGOOD") is not None
+
+
+def test_metadata_failure_rolls_back_and_keeps_session_usable(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        original = image.acorn_metadata(readme.inode)
+        setter = image._mount.set_filetype  # type: ignore[attr-defined]
+        with (
+            patch.object(image._mount, "set_filetype", side_effect=RuntimeError("injected")),
+            pytest.raises(RuntimeError, match="injected"),
+        ):
+            image.set_acorn_metadata(readme.inode, load_address=0x12345678, filetype=0xFFD)
+        assert image.acorn_metadata(readme.inode) == original
+        with patch.object(image._mount, "set_filetype", side_effect=setter):
+            image.set_acorn_metadata(readme.inode, filetype=0xFFD)
+
+
+def test_failed_cross_directory_rename_blocks_further_writes(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    image = ReadOnlyImage.open(dat_path, writable=True)
+    docs = image.lookup(ROOT_INODE, b"DOCS")
+    assert docs is not None
+    with (
+        patch.object(image._mount, "rename", side_effect=RuntimeError("injected")),
+        pytest.raises(RuntimeError, match="injected"),
+    ):
+        image.rename(ROOT_INODE, b"README", docs.inode, b"README")
+    with pytest.raises(AcornFSError, match="session has failed"):
+        image.create_file(ROOT_INODE, b"BLOCKED")
+    image.close()
+    assert recover_image(dat_path, discard=True) == "Recovery checkpoint discarded."
+
+
+def test_directory_cannot_be_moved_inside_itself(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        parent = image.make_directory(ROOT_INODE, b"PARENT")
+        child = image.make_directory(parent.inode, b"CHILD")
+        with pytest.raises(ValueError, match="inside itself"):
+            image.rename(ROOT_INODE, b"PARENT", child.inode, b"PARENT")
+        assert image.lookup(ROOT_INODE, b"PARENT") == parent
+        image.create_file(ROOT_INODE, b"STILLGOOD")

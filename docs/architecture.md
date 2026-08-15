@@ -26,5 +26,6 @@ No module will import code from the Acorn File Forge application package.
 - `acornfs.cli`: commands that call the same application services as FUSE.
 - `acornfs_nautilus`: thin Nautilus menu and properties integration.
 
-The Nautilus extension must communicate with the CLI or future user service. It
-must not hold writable images open or implement filesystem parsing itself.
+The Nautilus extension communicates with the CLI, which runs desktop mounts as
+collected transient systemd user services when available. It must not hold
+writable images open or implement filesystem parsing itself.
