@@ -21,14 +21,36 @@ recreating that environment.
 Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 
 1. Right-click either file.
-2. Select **Mount Acorn image**.
+2. Select **Mount Acorn image read-write**, or choose **Mount Acorn image
+   read-only** when no changes should be possible.
 3. Wait for the completion notification; the mounted root opens automatically.
 4. Browse directories and open files normally. The image appears in the Files
    sidebar while it remains mounted.
 5. Right-click the DAT/DSC and select **Unmount Acorn image**, or use that action
    from the background menu at the mounted root.
 
-Mounts are always read-only and carry `nodev`, `nosuid`, and `noexec`.
+Desktop unmount detaches the sidebar entry immediately so an open Files window
+cannot keep it busy. Existing handles finish in the background; the daemon then
+flushes and validates the image before deleting its checkpoint.
+
+Both modes carry `nodev`, `nosuid`, and `noexec`. A writable mount creates a
+persistent pre-write checkpoint before appearing in Files, so a large non-reflink
+image can take longer to mount.
+
+## Interrupted writes and recovery
+
+A clean unmount flushes pending data, validates the ADFS structure, and removes
+the checkpoint. If the mount process crashes or validation fails, AcornFS keeps
+the checkpoint and refuses another writable mount. First unmount any stale
+sidebar entry, then right-click the DAT/DSC and select **Resolve interrupted
+Acorn write…**. Choose either:
+
+- **Restore image to the pre-mount checkpoint** to undo the interrupted session.
+- **Keep the current image and discard the checkpoint** after independently
+  checking that the current image is acceptable.
+
+The equivalent terminal commands are `acornfs recover IMAGE`, `acornfs recover
+IMAGE --restore`, and `acornfs recover IMAGE --discard`.
 
 Each image receives a stable location under `~/AcornFS Mounts/IMAGE-HASH`.
 GNOME deliberately exposes user FUSE mounts below the home directory in the

@@ -47,6 +47,7 @@ def mount_image(
                 "nodev",
                 "nosuid",
                 "noexec",
+                "auto_unmount",
                 "subtype=acornfs",
                 f"fsname={image.pair.dat_path.name}",
             }

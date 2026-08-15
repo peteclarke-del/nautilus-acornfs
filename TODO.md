@@ -50,13 +50,13 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 ## Phase 3: Acorn metadata mapping
 
-- [ ] Define extended attributes for `user.acorn.load`.
-- [ ] Define extended attributes for `user.acorn.execute`.
-- [ ] Define extended attributes for `user.acorn.filetype`.
-- [ ] Define extended attributes for `user.acorn.locked`.
-- [ ] Define extended attributes for source filesystem and original pathname information.
-- [ ] Implement getxattr and listxattr in read-only mode.
-- [ ] Map Acorn locked files to a sensible read-only POSIX presentation.
+- [x] Define extended attributes for `user.acorn.load`.
+- [x] Define extended attributes for `user.acorn.execute`.
+- [x] Define extended attributes for `user.acorn.filetype`.
+- [x] Define extended attributes for `user.acorn.locked`.
+- [x] Define extended attributes for source filesystem and original pathname information.
+- [x] Implement getxattr and listxattr in read-only mode.
+- [x] Map Acorn locked files to a sensible read-only POSIX presentation.
 - [ ] Decide whether optional `.inf` sidecars should be exposed, generated on export, or hidden by default.
 - [ ] Document lossy and lossless metadata mappings.
 
@@ -64,25 +64,25 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 - [x] Add an explicit `--read-write` mount option while retaining read-only as the default.
 - [x] Obtain exclusive locks on both DAT and DSC files for writable mounts.
-- [ ] Detect an already mounted or externally modified image.
-- [ ] Implement create, write, truncate, flush, fsync and release.
-- [ ] Implement mkdir and rmdir.
-- [ ] Implement rename and unlink.
-- [ ] Implement setattr for writable Acorn metadata.
-- [ ] Enforce ADFS filename, directory-entry and capacity restrictions.
-- [ ] Return clear POSIX errors for invalid names, full directories and insufficient space.
-- [ ] Never silently truncate or sanitise an invalid filename during a filesystem call.
-- [ ] Serialise mutations within each mounted image.
-- [ ] Maintain old-ADFS directory sequence fields correctly.
+- [x] Detect an already mounted or externally modified image.
+- [x] Implement create, write, truncate, flush, fsync and release.
+- [x] Implement mkdir and rmdir.
+- [x] Implement rename and unlink.
+- [x] Implement writable Acorn metadata through extended attributes.
+- [x] Enforce ADFS filename, directory-entry and capacity restrictions.
+- [x] Return clear POSIX errors for invalid names, full directories and insufficient space.
+- [x] Never silently truncate or sanitise an invalid filename during a filesystem call.
+- [x] Serialise mutations within each mounted image.
+- [x] Maintain old-ADFS directory sequence fields correctly.
 - [ ] Advance the ADFS disc ID when required.
-- [ ] Rebuild and verify the free-space-map checksum after mutations.
-- [ ] Flush all pending metadata before reporting fsync or unmount success.
+- [x] Rebuild and verify the free-space-map checksum after mutations.
+- [x] Flush all pending metadata before reporting fsync or unmount success.
 - [ ] Prevent partial updates when an operation fails.
-- [ ] Add a write-ahead journal or equivalent recovery mechanism.
-- [ ] Store recovery state outside the mounted image and identify it by image identity.
-- [ ] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
-- [ ] Provide an optional pre-write checkpoint.
-- [ ] Use reflinks or sparse copies where available instead of blindly duplicating a complete large DAT file.
+- [x] Add a write-ahead journal or equivalent recovery mechanism.
+- [x] Store recovery state outside the mounted image and identify it by image identity.
+- [x] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
+- [x] Provide a mandatory pre-write checkpoint.
+- [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
 - [ ] Add safe cancellation boundaries for long validation and recovery operations.
 
 ## Phase 5: Nautilus integration
@@ -91,7 +91,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Add a desktop application and URI handler for opening Acorn images.
 - [x] Implement a Nautilus 4 extension using current model-based APIs.
 - [x] Add `Mount Acorn image` to suitable DAT and DSC files.
-- [ ] Add `Mount read-only`.
+- [x] Add `Mount read-only`.
 - [x] Add `Unmount` for mounted images.
 - [ ] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
@@ -99,7 +99,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile and mount state.
 - [ ] Add file properties for load address, execute address, RISC OS filetype and lock state.
 - [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
-- [ ] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
+- [x] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
 - [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
 - [ ] Test light mode, dark mode, narrow windows and 200 percent scaling.
 

@@ -47,7 +47,7 @@ def _matching_files(directory: Path, expected_name: str) -> list[Path]:
             (
                 child
                 for child in children
-                if child.is_file() and child.name.casefold() == expected_name
+                if child.name.casefold() == expected_name and child.is_file()
             ),
             key=lambda path: path.name,
         )
@@ -135,5 +135,6 @@ def inspect_pair(selected: str | Path) -> dict[str, Any]:
             "capacity": geometry.capacity,
         },
         "warnings": warnings,
-        "read_only": True,
+        "default_read_only": True,
+        "writable_supported": True,
     }

@@ -41,19 +41,49 @@ nautilus "$HOME/AcornFS/scsi0"
 Files and directories are presented as mode `0444` and `0555`. The default
 kernel mount carries `ro,nodev,nosuid,noexec` and rejects mutations.
 
-## Experimental writable mount
+## Writable mount
 
-Writable mounting is currently limited to replacing or truncating existing files:
+Enable complete file and directory mutations explicitly:
 
 ```shell
 acornfs mount --read-write /path/to/scsi0.dat /path/to/mountpoint
 ```
 
-Read-only remains the default. A writable session takes exclusive advisory locks
-on both the DAT and DSC; read-only sessions take shared locks and refuse to start
-while a writer is active. Creating, deleting, moving, or renaming entries is not
-implemented yet, and writable mounting is deliberately not exposed in Nautilus
-until checkpoint and recovery support is complete.
+Read-only remains the default. A writable session takes exclusive locks on both
+the DAT and DSC; read-only sessions take shared locks and refuse to start while a
+writer is active. Each writable session creates a persistent checkpoint, flushes
+each completed mutation, and validates ADFS before a clean unmount removes that
+checkpoint. Names must obey old-ADFS rules: 7-bit ASCII, at most 10 bytes, with
+no `.`, `:` or carriage return.
+
+Existing load address, execute address and access/lock metadata survive content
+replacement. Acorn-locked entries are presented without POSIX write bits and
+reject writes, renames and deletion. Checkpoints use filesystem reflinks when
+the source and state location support them, falling back to a durable copy.
+
+Acorn metadata is available through standard Linux extended-attribute tools:
+
+```shell
+getfattr -d /path/to/mountpoint/README
+setfattr -n user.acorn.filetype -v FFD /path/to/mountpoint/README
+setfattr -n user.acorn.locked -v 1 /path/to/mountpoint/README
+```
+
+`user.acorn.load` and `user.acorn.execute` use exactly eight hexadecimal digits;
+`user.acorn.filetype` uses exactly three. `user.acorn.locked` accepts `0`, `1`,
+`false`, or `true`. Those four attributes are writable only on a writable mount.
+`user.acorn.source` (`adfs`) and `user.acorn.path` are read-only provenance
+attributes. Setting a filetype changes the ADFS load/execute encoding in the
+normal RISC OS fashion, so callers should not treat the raw addresses and the
+filetype as independent metadata.
+
+If a session is interrupted, inspect and resolve it explicitly:
+
+```shell
+acornfs recover /path/to/scsi0.dat
+acornfs recover /path/to/scsi0.dat --restore  # undo the interrupted session
+acornfs recover /path/to/scsi0.dat --discard  # accept the current image
+```
 
 ## Status and unmounting
 
@@ -74,7 +104,7 @@ acornfs unmount --lazy "$HOME/AcornFS/scsi0"
 
 - Manual mounts are foreground processes; Nautilus actions launch a detached process until a
   systemd user service is implemented.
-- Acorn extended attributes are not exposed yet.
+- POSIX timestamp changes are accepted for application compatibility but are not persisted.
 - All entries currently use the DAT file's modification time as their POSIX time.
 - Unsafe, malformed, ambiguous, or non-ADFS pairs are rejected rather than repaired.
 - Filename characters unavailable on POSIX are displayed with unambiguous Unicode glyphs.

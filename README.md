@@ -6,8 +6,11 @@ files. Images will be mounted through FUSE 3 and exposed to Nautilus through a
 small extension, while the filesystem engine remains usable from any Linux
 application.
 
-The project is deliberately read-only while the image parser and validation
-rules mature. See [TODO.md](TODO.md) for the roadmap.
+Read-only mounting remains the default. Opt-in writable mounts use exclusive
+pair locks, persistent pre-write checkpoints, external-change detection and
+post-write ADFS validation. Acorn load/execute addresses, filetypes, lock state,
+source filesystem and original paths are available as extended attributes. See
+[TODO.md](TODO.md) for the remaining lifecycle and format work.
 
 ## Current functionality
 
@@ -15,9 +18,10 @@ rules mature. See [TODO.md](TODO.md) for the roadmap.
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
-- Mount a validated ADFS image read-only through FUSE 3.
+- Mount a validated ADFS image read-only or read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
-- Mount, open, and unmount paired images from Nautilus context menus.
+- Create, replace, truncate, rename and delete files and directories on writable mounts.
+- Mount read-write, mount read-only, recover and unmount from Nautilus context menus.
 
 ## Development
 
@@ -38,10 +42,10 @@ Install the per-user Nautilus extension and restart Files:
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair and select **Mount Acorn image**. The
-image is mounted read-only in the user runtime directory and opened in Nautilus.
-Right-click the DAT/DSC again to open or unmount it; **Unmount Acorn image** is
-also available from the mounted folder's background menu.
+Right-click either member of a valid pair and choose **Mount Acorn image
+read-write** or **Mount Acorn image read-only**. The mounted image opens in
+Nautilus and appears in its sidebar. Right-click the DAT/DSC again to unmount it;
+**Unmount Acorn image** is also available from the mounted root's background menu.
 
 To remove the integration:
 
@@ -69,11 +73,9 @@ If Nautilus still holds the location open, close that window and retry. For a
 read-only mount that must disappear immediately, use `acornfs unmount --lazy
 MOUNTPOINT`; existing handles finish in the background.
 
-Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`.
-Experimental replacement and truncation of existing files is available from the
-CLI with `acornfs mount --read-write`; it is not exposed in Nautilus yet.
-Selection of either DAT or DSC is supported. The mountpoint must already exist
-and be empty.
+Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`. Pass
+`--read-write` for complete file and directory mutation support. Selection of
+either DAT or DSC is supported. The mountpoint must already exist and be empty.
 
 The initial development and CI container target is amd64. Native arm64 and
 arm/v7 container builds remain on the roadmap.

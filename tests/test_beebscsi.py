@@ -81,5 +81,6 @@ def test_reports_short_dat_as_warning(tmp_path: Path) -> None:
     dat, _ = make_pair(tmp_path)
     dat.write_bytes(bytes(256))
     result = inspect_pair(dat)
-    assert result["read_only"] is True
+    assert result["default_read_only"] is True
+    assert result["writable_supported"] is True
     assert result["warnings"]

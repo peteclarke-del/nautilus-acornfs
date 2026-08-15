@@ -11,6 +11,7 @@ import gi
 from acornfs.desktop import mountpoint_for_image
 from acornfs.errors import AcornFSError
 from acornfs.mounts import is_mounted
+from acornfs.recovery import pending_recovery
 from acornfs_nautilus.logic import is_supported_image
 
 gi.require_version("Nautilus", "4.0")
@@ -45,11 +46,27 @@ def _launch(*arguments: str) -> None:
 class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     """Add mount lifecycle actions for paired BeebSCSI images."""
 
-    def _mount(self, _menu: Any, image_path: Path) -> None:
+    def _mount_read_only(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-mount", str(image_path))
+
+    def _mount_read_write(self, _menu: Any, image_path: Path) -> None:
+        _launch("desktop-mount", "--read-write", str(image_path))
 
     def _unmount(self, _menu: Any, mountpoint: Path) -> None:
         _launch("desktop-unmount", str(mountpoint))
+
+    def _recover(self, _menu: Any, image_path: Path) -> None:
+        _launch("desktop-recover", str(image_path))
+
+    def _read_only_item(self, path: Path) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::MountReadOnly",
+            label="Mount Acorn image read-only",
+            tip=f"Mount {path.name} without allowing changes",
+            icon="changes-prevent-symbolic",
+        )
+        item.connect("activate", self._mount_read_only, path)
+        return item
 
     def _unmount_item(self, mountpoint: Path) -> Any:
         item = Nautilus.MenuItem(
@@ -78,14 +95,27 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             return []
         if is_mounted(mountpoint):
             return [self._unmount_item(mountpoint)]
-        mount_item = Nautilus.MenuItem(
-            name="AcornFS::Mount",
-            label="Mount Acorn image",
-            tip=f"Mount {path.name} read-only",
+        try:
+            recovery = pending_recovery(path)
+        except AcornFSError:
+            recovery = None
+        if recovery is not None:
+            recovery_item = Nautilus.MenuItem(
+                name="AcornFS::Recover",
+                label="Resolve interrupted Acorn write…",
+                tip="Restore the pre-write checkpoint or keep the current image",
+                icon="document-revert-symbolic",
+            )
+            recovery_item.connect("activate", self._recover, path)
+            return [recovery_item, self._read_only_item(path)]
+        writable_item = Nautilus.MenuItem(
+            name="AcornFS::MountReadWrite",
+            label="Mount Acorn image read-write",
+            tip=f"Mount {path.name} read-write with a recovery checkpoint",
             icon="drive-harddisk-symbolic",
         )
-        mount_item.connect("activate", self._mount, path)
-        return [mount_item]
+        writable_item.connect("activate", self._mount_read_write, path)
+        return [writable_item, self._read_only_item(path)]
 
     def get_background_items(self, current_folder: Any) -> list[Any]:
         path = _local_path(current_folder)
