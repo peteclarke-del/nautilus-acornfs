@@ -29,6 +29,10 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 5. Right-click the DAT/DSC and select **Unmount Acorn image**, or use that action
    from the background menu at the mounted root.
 
+Select **Validate Acorn image** to run a read-only ADFS structural check without
+mounting or modifying the pair. The result is reported as a desktop notification;
+`acornfs validate IMAGE` provides full terminal output.
+
 Desktop unmount detaches the sidebar entry immediately so an open Files window
 cannot keep it busy. Existing handles finish in the background; the daemon then
 flushes and validates the image before deleting its checkpoint.
@@ -55,9 +59,12 @@ IMAGE --restore`, and `acornfs recover IMAGE --discard`.
 Each image receives a stable location under `~/AcornFS Mounts/IMAGE-HASH`.
 GNOME deliberately exposes user FUSE mounts below the home directory in the
 Files sidebar. Runtime locks and logs remain under `$XDG_RUNTIME_DIR/acornfs`.
-The extension starts the mount in a detached process so it survives after the
-context-menu callback returns. A systemd user service will replace this initial
-lifecycle mechanism later.
+The extension normally starts each mount as a collected transient systemd user
+service. This keeps the daemon independent of Nautilus, records output in the
+user journal, and sends `SIGINT` during logout or shutdown so FUSE can flush,
+validate and remove a clean checkpoint. A detached-process fallback is retained
+for desktop sessions without a systemd user manager. A dead FUSE endpoint is
+detected and detached automatically before the next mount attempt.
 
 ## Troubleshooting
 

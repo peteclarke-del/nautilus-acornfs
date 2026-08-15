@@ -54,7 +54,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
             code = errno.ENOTEMPTY
         elif isinstance(exc, (ADFSDiscFullError, ADFSDirectoryFullError)):
             code = errno.ENOSPC
-        elif isinstance(exc, ADFSFileLockedError):
+        elif isinstance(exc, (ADFSFileLockedError, PermissionError)):
             code = errno.EACCES
         elif isinstance(exc, IsADirectoryError):
             code = errno.EISDIR
