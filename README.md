@@ -8,9 +8,12 @@ application.
 
 Read-only mounting remains the default. Opt-in writable mounts use exclusive
 pair locks, persistent pre-write checkpoints, external-change detection and
-post-write ADFS validation. Acorn load/execute addresses, filetypes, lock state,
-source filesystem and original paths are available as extended attributes. See
-[TODO.md](TODO.md) for the remaining lifecycle and format work.
+complete pre-write and post-write ADFS integrity validation. Fatal geometry,
+map, directory or allocation findings refuse writable access before a checkpoint
+is created, while safe warnings and compatibility advice remain non-blocking.
+Acorn load/execute addresses, filetypes, lock state, source filesystem and
+original paths are available as extended attributes. See [TODO.md](TODO.md) for
+the remaining lifecycle and format work.
 
 ## Current functionality
 
@@ -18,6 +21,7 @@ source filesystem and original paths are available as extended attributes. See
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
+- Validate geometry, maps, directories and used/free sector allocation with typed reports.
 - Mount a validated ADFS image read-only or read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
@@ -53,6 +57,23 @@ To remove the integration:
 ```shell
 acornfs uninstall-nautilus --restart
 ```
+
+## Validate an image
+
+Validation is read-only and accepts either member of the pair:
+
+```shell
+acornfs validate /path/to/scsi0.dat
+acornfs validate --json /path/to/scsi0.dsc
+```
+
+The complete report checks DSC/DAT geometry, ADFS map and directory structures,
+and all used and free sector extents. Findings are classified as `FATAL`,
+`WARNING`, or `ADVICE`; JSON includes stable finding codes, sector totals, and a
+`safe_for_write` flag. Fatal findings prevent a read-write mount before its
+recovery checkpoint is created. Warnings and compatibility advice do not block
+mounting, although warnings make the validation command exit non-zero for
+strict unattended checks. Validation does not repair or modify the image.
 
 For terminal use, create an empty mountpoint and mount either member manually:
 

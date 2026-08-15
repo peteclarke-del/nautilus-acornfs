@@ -31,7 +31,12 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 
 Select **Validate Acorn image** to run a read-only ADFS structural check without
 mounting or modifying the pair. The result is reported as a desktop notification;
-`acornfs validate IMAGE` provides full terminal output.
+fatal and warning totals are included when attention is needed. `acornfs validate
+IMAGE` provides the complete report.
+
+The same complete check runs before a read-write mount. Fatal geometry,
+directory, map, or sector-allocation findings prevent the mount before its
+checkpoint is created. Warnings and compatibility advice do not prevent access.
 
 Desktop unmount detaches the sidebar entry immediately so an open Files window
 cannot keep it busy. Existing handles finish in the background; the daemon then

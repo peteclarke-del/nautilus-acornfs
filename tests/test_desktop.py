@@ -6,6 +6,7 @@ from acornfs.desktop import (
     _systemd_mount_command,
     cleanup_stale_mountpoint,
     desktop_recover,
+    desktop_validate,
     mountpoint_for_image,
 )
 from tests.image_fixture import create_beebscsi_image
@@ -67,3 +68,13 @@ def test_systemd_mount_uses_graceful_sigint_and_collection() -> None:
     assert "--property=KillSignal=SIGINT" in command
     assert "--property=TimeoutStopSec=30s" in command
     assert command[-3:] == ["python", "-m", "acornfs.cli"]
+
+
+def test_desktop_validation_reports_clean_image(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with patch("acornfs.desktop._notify") as notify:
+        assert desktop_validate(dat_path) == 0
+    notify.assert_called_once_with(
+        "AcornFS validation passed",
+        "scsi0.dat has no reported ADFS problems.",
+    )
