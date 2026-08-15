@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -10,13 +9,24 @@ from pathlib import Path
 import pytest
 
 from acornfs.core import validate_image_report
+from acornfs.fuse_adapter.availability import live_fuse_available
+from acornfs.mounts import mount_for_image
 from acornfs.recovery import pending_recovery
 from tests.image_fixture import create_beebscsi_image
 
-FUSE_AVAILABLE = Path("/dev/fuse").exists() and shutil.which("fusermount3") is not None
+FUSE_REQUESTED = os.environ.get("ACORNFS_RUN_LIVE_FUSE") == "1"
+FUSE_AVAILABLE = FUSE_REQUESTED and live_fuse_available()
+FUSE_SKIP_REASON = (
+    "a usable /dev/fuse device and fusermount3 are required"
+    if FUSE_REQUESTED
+    else "set ACORNFS_RUN_LIVE_FUSE=1 on a host permitted to mount FUSE filesystems"
+)
 
 
-@pytest.mark.skipif(not FUSE_AVAILABLE, reason="a usable host /dev/fuse is required")
+@pytest.mark.skipif(
+    not FUSE_AVAILABLE,
+    reason=FUSE_SKIP_REASON,
+)
 def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
     """Exercise normal file-manager operations through a real kernel mount."""
 
@@ -39,7 +49,7 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
     )
     try:
         deadline = time.monotonic() + 15
-        while not (mountpoint / "README").exists():
+        while mount_for_image(dat_path) is None:
             if process.poll() is not None:
                 stderr = process.stderr.read() if process.stderr is not None else ""
                 pytest.fail(f"FUSE mount exited early: {stderr}")

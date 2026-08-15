@@ -36,6 +36,9 @@ the remaining lifecycle and format work.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
+- Track mounted pairs by canonical path and DAT/DSC device/inode identity.
+- Wait for writable flush and final validation before confirming unmount success.
+- Export privacy-safe support information through `acornfs diagnostics --json`.
 
 ## Development
 
@@ -50,12 +53,13 @@ python -m pip install -e '.[dev,fuse]'
 pytest
 ```
 
-The suite includes a real writable FUSE lifecycle test and runs it automatically
-when `/dev/fuse` and `fusermount3` are available; restricted containers skip only
-that test. Run it explicitly on a Linux host with:
+The suite includes a real writable FUSE lifecycle test. Because some CI hosts
+expose `/dev/fuse` without granting mount permission, ordinary test runs skip it
+unless explicitly enabled. Run it on a Linux host permitted to create FUSE
+mounts with:
 
 ```shell
-pytest tests/test_live_fuse.py
+make test-live
 ```
 
 Install the per-user Nautilus extension and restart Files:
@@ -113,6 +117,13 @@ acornfs unmount "$HOME/AcornFS/scsi0"
 If Nautilus still holds the location open, close that window and retry. For a
 read-only mount that must disappear immediately, use `acornfs unmount --lazy
 MOUNTPOINT`; existing handles finish in the background.
+
+To capture environment and mount state for a bug report without including image
+contents or absolute paths:
+
+```shell
+acornfs diagnostics --json > acornfs-diagnostics.json
+```
 
 Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`. Pass
 `--read-write` for complete file and directory mutation support. Selection of
