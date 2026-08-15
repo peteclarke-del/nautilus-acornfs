@@ -8,14 +8,19 @@ from typing import Any
 
 import gi
 
+from acornfs.core import read_image_properties
 from acornfs.desktop import mountpoint_for_image
 from acornfs.errors import AcornFSError
 from acornfs.mounts import is_mounted
 from acornfs.recovery import pending_recovery
-from acornfs_nautilus.logic import is_supported_image
+from acornfs_nautilus.logic import (
+    image_property_rows,
+    is_supported_image,
+    mounted_file_property_rows,
+)
 
 gi.require_version("Nautilus", "4.0")
-from gi.repository import GObject, Nautilus  # noqa: E402
+from gi.repository import Gio, GObject, Nautilus  # noqa: E402
 
 _COMMAND = ["acornfs"]
 
@@ -135,3 +140,32 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if path is None or not is_mounted(path):
             return []
         return [self._unmount_item(path)]
+
+
+class AcornFSPropertiesModelProvider(GObject.GObject, Nautilus.PropertiesModelProvider):
+    """Show image compatibility and mounted-entry Acorn metadata."""
+
+    @staticmethod
+    def _model(title: str, rows: tuple[tuple[str, str], ...]) -> Any:
+        items = Gio.ListStore.new(item_type=Nautilus.PropertiesItem)
+        for name, value in rows:
+            items.append(Nautilus.PropertiesItem(name=name, value=value))
+        return Nautilus.PropertiesModel(title=title, model=items)
+
+    def get_models(self, files: list[Any]) -> list[Any]:
+        if len(files) != 1:
+            return []
+        path = _local_path(files[0])
+        if path is None:
+            return []
+        if is_supported_image(path):
+            try:
+                properties = read_image_properties(path)
+                mountpoint = mountpoint_for_image(path)
+                mount_state = "Mounted" if is_mounted(mountpoint) else "Not mounted"
+                rows = (*image_property_rows(properties), ("Mount state", mount_state))
+            except AcornFSError as exc:
+                rows = (("Status", f"Unavailable: {exc}"),)
+            return [self._model("Acorn disk image", rows)]
+        rows = mounted_file_property_rows(path)
+        return [self._model("Acorn metadata", rows)] if rows else []

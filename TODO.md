@@ -37,7 +37,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Reject ambiguous pairs and explain how to resolve them.
 - [x] Parse and validate DSC geometry before opening the DAT image.
 - [x] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
-- [ ] Detect the ADFS format and target hardware characteristics.
+- [x] Detect the ADFS format and target hardware characteristics.
 - [ ] Mount uncertain or damaged images read-only when safe traversal is still possible.
 - [x] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
 - [x] Traverse the complete ADFS directory tree.
@@ -61,7 +61,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Implement getxattr and listxattr in read-only mode.
 - [x] Map Acorn locked files to a sensible read-only POSIX presentation.
 - [ ] Decide whether optional `.inf` sidecars should be exposed, generated on export, or hidden by default.
-- [ ] Document lossy and lossless metadata mappings.
+- [x] Document lossy and lossless metadata mappings.
 
 ## Phase 4: safe write support
 
@@ -77,7 +77,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Never silently truncate or sanitise an invalid filename during a filesystem call.
 - [x] Serialise mutations within each mounted image.
 - [x] Maintain old-ADFS directory sequence fields correctly.
-- [ ] Advance the ADFS disc ID when required.
+- [x] Advance the ADFS disc ID when required.
 - [x] Rebuild and verify the free-space-map checksum after mutations.
 - [x] Flush all pending metadata before reporting fsync or unmount success.
 - [x] Prevent partial updates when an operation fails.
@@ -99,8 +99,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
 - [ ] Add `Create BeebSCSI image` where appropriate.
-- [ ] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile and mount state.
-- [ ] Add file properties for load address, execute address, RISC OS filetype and lock state.
+- [x] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile, mount state and validation state.
+- [x] Add file properties for load address, execute address, RISC OS filetype and lock state.
 - [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
 - [x] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
 - [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
@@ -170,7 +170,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 ## Test matrix
 
 - [x] Empty, lightly populated, nearly full and full images.
-- [ ] Valid DAT/DSC pairs across supported geometries.
+- [x] Valid DAT/DSC pairs across supported geometries.
 - [ ] Missing, mismatched, truncated and corrupt DSC files.
 - [ ] Truncated, oversized, sparse and corrupt DAT files.
 - [ ] Old ADFS directory formats used by BBC, Master and Electron hardware.

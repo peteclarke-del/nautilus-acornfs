@@ -8,16 +8,21 @@ from oaknut.filesystem import create_filesystem, reader_for, winchester_geometry
 
 
 def create_beebscsi_image(
-    directory: Path, *, stem: str = "scsi0", populated: bool = True
+    directory: Path,
+    *,
+    stem: str = "scsi0",
+    populated: bool = True,
+    cylinders: int = 80,
+    heads: int = 2,
 ) -> tuple[Path, Path]:
     dat_path = directory / f"{stem}.dat"
     dsc_path = directory / f"{stem}.dsc"
-    geometry = winchester_geometry(cylinders=80, heads=2, sectors_per_track=33)
+    geometry = winchester_geometry(cylinders=cylinders, heads=heads, sectors_per_track=33)
     create_filesystem("adfs").create(dat_path, geometry, title="ACORNFS")
 
     descriptor = bytearray(22)
-    descriptor[13:15] = (80).to_bytes(2, "big")
-    descriptor[15] = 2
+    descriptor[13:15] = cylinders.to_bytes(2, "big")
+    descriptor[15] = heads
     dsc_path.write_bytes(descriptor)
 
     if populated:

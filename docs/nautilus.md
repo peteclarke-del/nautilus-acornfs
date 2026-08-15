@@ -30,9 +30,18 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
    from the background menu at the mounted root.
 
 Select **Validate Acorn image** to run a read-only ADFS structural check without
-mounting or modifying the pair. The result is reported as a desktop notification;
-fatal and warning totals are included when attention is needed. `acornfs validate
-IMAGE` provides the complete report.
+mounting or modifying the pair. A clean result is reported as a desktop
+notification. When problems are found, a finite details dialog lists every
+finding and closes without running validation again. `acornfs validate IMAGE`
+prints the same complete report.
+
+Open **Properties** on either image member to see the detected old-map ADFS and
+directory formats, compatibility profile, title, disc cycle ID, boot option,
+DSC geometry, capacity, ADFS used/free space, reserved tail and current validation
+state. Open **Properties** on an entry inside a mounted image to see its original
+ADFS pathname and, for files, load address, execute address, RISC OS filetype and
+locked state. Image properties perform complete read-only validation and may take
+longer to appear for a very large or deeply populated image.
 
 The same complete check runs before a read-write mount. Fatal geometry,
 directory, map, or sector-allocation findings prevent the mount before its
