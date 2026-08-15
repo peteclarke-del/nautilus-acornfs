@@ -14,10 +14,19 @@ from acornfs.mounts import mount_for_image
 from acornfs.recovery import pending_recovery
 from tests.image_fixture import create_beebscsi_image
 
-FUSE_AVAILABLE = live_fuse_available()
+FUSE_REQUESTED = os.environ.get("ACORNFS_RUN_LIVE_FUSE") == "1"
+FUSE_AVAILABLE = FUSE_REQUESTED and live_fuse_available()
+FUSE_SKIP_REASON = (
+    "a usable /dev/fuse device and fusermount3 are required"
+    if FUSE_REQUESTED
+    else "set ACORNFS_RUN_LIVE_FUSE=1 on a host permitted to mount FUSE filesystems"
+)
 
 
-@pytest.mark.skipif(not FUSE_AVAILABLE, reason="a usable host /dev/fuse is required")
+@pytest.mark.skipif(
+    not FUSE_AVAILABLE,
+    reason=FUSE_SKIP_REASON,
+)
 def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
     """Exercise normal file-manager operations through a real kernel mount."""
 

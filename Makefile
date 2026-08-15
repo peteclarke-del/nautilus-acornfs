@@ -1,4 +1,4 @@
-.PHONY: check format lint test typecheck
+.PHONY: check format lint test test-live typecheck
 
 check: lint typecheck test
 
@@ -15,3 +15,5 @@ typecheck:
 test:
 	python -m pytest
 
+test-live:
+	ACORNFS_RUN_LIVE_FUSE=1 python -m pytest tests/test_live_fuse.py

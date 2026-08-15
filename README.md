@@ -53,12 +53,13 @@ python -m pip install -e '.[dev,fuse]'
 pytest
 ```
 
-The suite includes a real writable FUSE lifecycle test and runs it automatically
-when `/dev/fuse` and `fusermount3` are available; restricted containers skip only
-that test. Run it explicitly on a Linux host with:
+The suite includes a real writable FUSE lifecycle test. Because some CI hosts
+expose `/dev/fuse` without granting mount permission, ordinary test runs skip it
+unless explicitly enabled. Run it on a Linux host permitted to create FUSE
+mounts with:
 
 ```shell
-pytest tests/test_live_fuse.py
+make test-live
 ```
 
 Install the per-user Nautilus extension and restart Files:
