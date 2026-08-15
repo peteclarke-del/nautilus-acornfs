@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nautilus-acornfs"
+version = "0.1.0"
+description = "A safe userspace filesystem for Acorn disk images"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "oaknut-disc==12.13.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2,<2",
+    "mypy>=1.15,<2",
+    "pytest>=8.3,<9",
+    "ruff>=0.11,<1",
+]
+fuse = [
+    "pyfuse3>=3.5,<4",
+    "trio>=0.22,<1",
+]
+
+[project.scripts]
+acornfs = "acornfs.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["acornfs"]
+
+[[tool.mypy.overrides]]
+module = ["gi", "gi.*", "oaknut.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "acornfs_nautilus.extension"
+disable_error_code = ["misc"]
