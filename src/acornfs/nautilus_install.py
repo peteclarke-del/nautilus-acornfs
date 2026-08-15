@@ -54,6 +54,8 @@ def install_extension(*, restart: bool = False) -> Path:
         f"_extension.configure_command([{sys.executable!r}, '-m', 'acornfs.cli'])\n"
         "class AcornFSMenuProvider(_extension.AcornFSMenuProvider):\n"
         "    pass\n"
+        "class AcornFSPropertiesModelProvider(_extension.AcornFSPropertiesModelProvider):\n"
+        "    pass\n"
     )
     temporary = target.with_suffix(".py.tmp")
     temporary.write_text(content, encoding="utf-8")

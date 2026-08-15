@@ -13,8 +13,10 @@ map, directory or allocation findings refuse writable access before a checkpoint
 is created, while safe warnings and compatibility advice remain non-blocking.
 Each mutation also uses a compact sector before-image, so a partially failed map
 or catalogue update is rolled back and verified without sacrificing the rest of
-the writable session. Oversized writes are rejected before their FUSE buffers
-consume the unavailable capacity.
+the writable session. A successful logical mutation advances the old-ADFS disc
+cycle ID exactly once and refreshes both map checksums; rollback restores the
+previous ID. Oversized writes are rejected before their FUSE buffers consume the
+unavailable capacity.
 Acorn load/execute addresses, filetypes, lock state, source filesystem and
 original paths are available as extended attributes. See [TODO.md](TODO.md) for
 the remaining lifecycle and format work.
@@ -31,6 +33,8 @@ the remaining lifecycle and format work.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Mount read-write, mount read-only, validate, recover and unmount from Nautilus context menus.
+- Show image format, compatibility, geometry, capacity and validation details in Properties.
+- Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
 
 ## Development
@@ -64,6 +68,8 @@ Right-click either member of a valid pair and choose **Mount Acorn image
 read-write** or **Mount Acorn image read-only**. The mounted image opens in
 Nautilus and appears in its sidebar. Right-click the DAT/DSC again to unmount it;
 **Unmount Acorn image** is also available from the mounted root's background menu.
+The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
+Properties for files inside an active mount include an **Acorn metadata** section.
 
 To remove the integration:
 
@@ -114,3 +120,9 @@ either DAT or DSC is supported. The mountpoint must already exist and be empty.
 
 The initial development and CI container target is amd64. Native arm64 and
 arm/v7 container builds remain on the roadmap.
+
+The initial writable format is a BeebSCSI DAT/DSC hard-disc pair containing
+old-map ADFS with old (Hugo) directories. The image metadata is compatible with
+BBC Master BeebSCSI and RISC OS old-map ADFS access; the pair alone cannot prove
+which physical host will be used. Other ADFS maps and image types remain
+unsupported rather than being guessed.

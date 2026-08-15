@@ -7,6 +7,7 @@ from typing import Any, cast
 
 SECTOR_BYTES = 256
 MAP_SECTORS = 2
+OLD_DISC_ID_OFFSET = 0x1FB
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +75,23 @@ class SectorTransaction:
         for before_image in reversed(self._before_images):
             end = before_image.offset + len(before_image.data)
             self._mapping[before_image.offset : end] = before_image.data
+
+    def advance_disc_id(self) -> tuple[int, int]:
+        """Advance the old-map cycle ID and refresh both map checksums.
+
+        This intentionally lives beside the other pinned Oaknut-private
+        integration.  The map sectors are captured by the constructor, so a
+        failed logical mutation restores both the ID and its checksums.
+        """
+
+        free_space_map = self._adfs._fsm
+        old_id = int(free_space_map.disc_id)
+        new_id = (old_id + 1) & 0xFFFF
+        data = free_space_map._data
+        data[OLD_DISC_ID_OFFSET] = new_id & 0xFF
+        data[OLD_DISC_ID_OFFSET + 1] = new_id >> 8
+        free_space_map._recalculate_checksums()
+        return old_id, new_id
 
 
 __all__ = ["SectorTransaction"]
