@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import fcntl
+import mmap
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+
+from oaknut.filesystem.reader import ImageReader
 
 from acornfs.errors import DescriptorError, PairDiscoveryError
 
@@ -38,6 +42,30 @@ class BeebSCSIPair:
 
     dat_path: Path
     dsc_path: Path
+
+
+def open_locked_reader(
+    pair: BeebSCSIPair, *, writable: bool
+) -> tuple[ImageReader, tuple[Any, ...]]:
+    """Lock both pair members and map the DAT for the requested access mode."""
+
+    mode = "r+b" if writable else "rb"
+    lock_mode = fcntl.LOCK_EX if writable else fcntl.LOCK_SH
+    dat_lock = pair.dat_path.open(mode)
+    dsc_lock = pair.dsc_path.open(mode)
+    mapping_handle = pair.dat_path.open(mode)
+    try:
+        fcntl.flock(dat_lock, lock_mode | fcntl.LOCK_NB)
+        fcntl.flock(dsc_lock, lock_mode | fcntl.LOCK_NB)
+        access = mmap.ACCESS_WRITE if writable else mmap.ACCESS_COPY
+        mapping = mmap.mmap(mapping_handle.fileno(), 0, access=access)
+    except Exception:
+        mapping_handle.close()
+        dat_lock.close()
+        dsc_lock.close()
+        raise
+    reader = ImageReader(mapping, suffix=pair.dat_path.suffix, writable=True)
+    return reader, (mapping, mapping_handle, dat_lock, dsc_lock)
 
 
 def _matching_files(directory: Path, expected_name: str) -> list[Path]:

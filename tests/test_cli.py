@@ -46,6 +46,15 @@ def test_validate_command_reports_clean_image(tmp_path: Path, capsys: object) ->
     assert "passed with no problems" in capsys.readouterr().out  # type: ignore[attr-defined]
 
 
+def test_validate_json_reports_write_gate_and_extent_counts(tmp_path: Path, capsys: object) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    assert main(["validate", "--json", str(dat_path)]) == 0
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert '"safe_for_write": true' in output
+    assert '"used_sectors": 19' in output
+    assert '"free_sectors": 5261' in output
+
+
 def test_validate_command_reports_corrupt_subdirectory(tmp_path: Path, capsys: object) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     with ReadOnlyImage.open(dat_path) as image:
@@ -69,6 +78,7 @@ def test_validate_command_rejects_truncated_dat_cleanly(tmp_path: Path, capsys: 
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     with dat_path.open("r+b") as handle:
         handle.truncate(512)
-    assert main(["validate", str(dat_path)]) == 2
-    error = capsys.readouterr().err  # type: ignore[attr-defined]
-    assert "could not run safely" in error
+    assert main(["validate", str(dat_path)]) == 1
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert "geometry.dat_short" in output
+    assert "adfs.open_failed" in output

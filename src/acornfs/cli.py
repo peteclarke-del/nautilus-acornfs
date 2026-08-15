@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import inspect_pair, validate_image
+from acornfs.core import FindingSeverity, inspect_pair, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.mounts import active_mounts
 from acornfs.recovery import recover_image
@@ -115,16 +115,23 @@ def _mount(args: argparse.Namespace) -> int:
 
 
 def _validate(args: argparse.Namespace) -> int:
-    problems = validate_image(args.image)
+    report = validate_image_report(args.image)
     if args.json:
-        print(json.dumps({"image": str(Path(args.image).expanduser()), "problems": problems}))
-    elif problems:
-        print(f"Validation found {len(problems)} problem(s):")
-        for problem in problems:
-            print(f"- {problem}")
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+    elif report.findings:
+        summary = report.as_dict()["summary"]
+        print(
+            f"Validation found {summary['fatal']} fatal, {summary['warning']} warning, "
+            f"and {summary['advice']} advice finding(s):"
+        )
+        for finding in report.findings:
+            location = f" {finding.path}" if finding.path else ""
+            print(
+                f"- [{finding.severity.value.upper()}] {finding.code}{location}: {finding.message}"
+            )
     else:
         print("ADFS validation passed with no problems.")
-    return 1 if problems else 0
+    return 1 if any(item.severity is not FindingSeverity.ADVICE for item in report.findings) else 0
 
 
 def _unmount(args: argparse.Namespace) -> int:
