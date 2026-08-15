@@ -57,3 +57,18 @@ sector range; FUSE growth is capacity-checked before its memory buffer expands.
 The Nautilus extension communicates with the CLI, which runs desktop mounts as
 collected transient systemd user services when available. It must not hold
 writable images open or implement filesystem parsing itself.
+
+## Mount identity and shutdown
+
+`/proc/self/mountinfo` is authoritative for active FUSE mounts. A private
+per-user runtime record enriches each entry with canonical DAT/DSC paths, both
+device/inode pairs, the daemon PID and access mode. Records use a `0700`
+directory and `0600` files and are removed only after the image context has
+completed close-time flush and validation. Dead records are pruned; a live
+post-detach record represents a writable daemon still finalising.
+
+Read-only desktop mounts may detach lazily. Writable mounts may not: callers
+wait for the lifecycle record to disappear and then verify that no recovery
+checkpoint remains before claiming a safe unmount. Diagnostics deliberately
+reduce paths to basenames and hash device/inode identities; they never inspect
+or copy image content.

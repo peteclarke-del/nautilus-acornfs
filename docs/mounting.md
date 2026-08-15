@@ -56,6 +56,11 @@ each completed mutation, and validates ADFS before a clean unmount removes that
 checkpoint. Names must obey old-ADFS rules: 7-bit ASCII, at most 10 bytes, with
 no `.`, `:` or carriage return.
 
+While mounted, a private runtime record ties the kernel mount to the canonical
+DAT/DSC paths, both device/inode identities, daemon PID and access mode. The
+kernel mount table remains authoritative; dead records are discarded. Replacing
+a pair at the same pathname cannot silently alias the already-mounted image.
+
 Before creating that checkpoint, AcornFS validates the descriptor and DAT
 geometry, ADFS map and directory structures, and every used and free sector
 extent. A fatal finding refuses writable access. Warnings describe unusual but
@@ -121,11 +126,21 @@ acornfs unmount "$HOME/AcornFS/scsi0"
 ```
 
 Unmounting causes the foreground mount command to exit. `Ctrl-C` in the mount
-terminal also unmounts cleanly. If Nautilus keeps the location busy, close its
-window and retry, or detach this read-only mount explicitly:
+terminal also unmounts cleanly. A writable unmount is never lazy: AcornFS waits
+for the daemon to flush, validate and remove its checkpoint before reporting
+success. If that cannot be confirmed, the image remains subject to recovery and
+must not be remounted read-write. If Nautilus keeps a read-only location busy,
+close its window and retry, or detach it explicitly:
 
 ```shell
 acornfs unmount --lazy "$HOME/AcornFS/scsi0"
+```
+
+Generate a support report that omits image contents and absolute paths:
+
+```shell
+acornfs diagnostics
+acornfs diagnostics --json > acornfs-diagnostics.json
 ```
 
 ## Current limits
