@@ -83,6 +83,17 @@ def _parser() -> argparse.ArgumentParser:
         "diagnostics", help="print privacy-safe support diagnostics"
     )
     diagnostics_parser.add_argument("--json", action="store_true", help="emit JSON")
+    config_parser = subparsers.add_parser(
+        "config-mount-location", help="show or set the persistent desktop mount location"
+    )
+    config_parser.add_argument(
+        "location",
+        nargs="?",
+        help="sidebar, runtime, or an absolute directory path",
+    )
+    config_parser.add_argument(
+        "--reset", action="store_true", help="remove the saved value and restore the default"
+    )
     install_parser = subparsers.add_parser(
         "install-nautilus", help="install the per-user Nautilus and MIME integration"
     )
@@ -106,6 +117,7 @@ def _parser() -> argparse.ArgumentParser:
     desktop_open_parser.add_argument("images", nargs="+")
     desktop_create_parser = subparsers.add_parser("desktop-create")
     desktop_create_parser.add_argument("directory")
+    subparsers.add_parser("desktop-configure-mount-location")
     recover_parser = subparsers.add_parser(
         "recover", help="inspect or resolve an interrupted writable session"
     )
@@ -278,6 +290,25 @@ def _diagnostics(args: argparse.Namespace) -> int:
     return 0
 
 
+def _config_mount_location(args: argparse.Namespace) -> int:
+    from acornfs.preferences import mount_location, reset_mount_location, set_mount_location
+
+    if args.reset and args.location is not None:
+        raise AcornFSError("Specify either a mount location or --reset, not both.")
+    if args.reset:
+        result = reset_mount_location()
+    elif args.location is not None:
+        set_mount_location(args.location)
+        result = mount_location()
+    else:
+        result = mount_location()
+    print(f"Mount location: {result.root}")
+    print(f"Mode: {result.mode}; source: {result.source}")
+    if os.environ.get("ACORNFS_MOUNT_ROOT") is not None:
+        print("ACORNFS_MOUNT_ROOT currently overrides the saved preference.")
+    return 0
+
+
 def _install_nautilus(args: argparse.Namespace) -> int:
     from acornfs.nautilus_install import install_extension
 
@@ -338,6 +369,12 @@ def _desktop_create(args: argparse.Namespace) -> int:
     return desktop_create(args.directory)
 
 
+def _desktop_configure_mount_location(_args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_configure_mount_location
+
+    return desktop_configure_mount_location()
+
+
 def _recover(args: argparse.Namespace) -> int:
     print(recover_image(args.image, restore=args.restore, discard=args.discard))
     return 0
@@ -355,6 +392,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "unmount": _unmount,
         "status": _status,
         "diagnostics": _diagnostics,
+        "config-mount-location": _config_mount_location,
         "install-nautilus": _install_nautilus,
         "uninstall-nautilus": _uninstall_nautilus,
         "desktop-mount": _desktop_mount,
@@ -364,6 +402,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-validate": _desktop_validate,
         "desktop-open": _desktop_open,
         "desktop-create": _desktop_create,
+        "desktop-configure-mount-location": _desktop_configure_mount_location,
         "recover": _recover,
     }
     try:

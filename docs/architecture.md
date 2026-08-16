@@ -64,6 +64,13 @@ The Nautilus extension communicates with the CLI, which runs desktop mounts as
 collected transient systemd user services when available. It must not hold
 writable images open or implement filesystem parsing itself.
 
+Desktop mount roots are resolved by one preferences boundary. The default
+sidebar mode remains below the user's home directory; runtime mode resolves per
+session below `$XDG_RUNTIME_DIR/acornfs/images`, and custom mode requires an
+absolute path. Preferences are atomically replaced in a private XDG config
+directory. `ACORNFS_MOUNT_ROOT` is a process-scoped override. Privacy-safe
+diagnostics report only the selected mode and source, never the resolved path.
+
 Image creation follows the same boundary. The extension launches a desktop CLI
 action, while `acornfs.core` asks Oaknut to create the filesystem under unique
 temporary names in the destination directory. AcornFS then performs complete

@@ -25,6 +25,20 @@ def test_indexes_nested_image_and_reads_files(tmp_path: Path) -> None:
         assert image.read(guide.inode, 7, 4) == b"file"
 
 
+def test_adfs_lookup_is_case_insensitive_and_case_collisions_are_refused(
+    tmp_path: Path,
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        readme = image.lookup(ROOT_INODE, b"readme")
+        assert readme is not None
+        assert readme.name == b"README"
+        with pytest.raises(FileExistsError):
+            image.create_file(ROOT_INODE, b"ReadMe")
+        with pytest.raises(FileExistsError):
+            image.make_directory(ROOT_INODE, b"readme")
+
+
 def test_reports_filesystem_capacity(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     with ReadOnlyImage.open(dat_path) as image:

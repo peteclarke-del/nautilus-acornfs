@@ -56,6 +56,24 @@ def test_diagnostics_json_is_exportable(capsys: object) -> None:
     assert '"privacy"' in capsys.readouterr().out  # type: ignore[attr-defined]
 
 
+def test_config_mount_location_round_trip(
+    tmp_path: Path, capsys: object, monkeypatch: object
+) -> None:
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))  # type: ignore[attr-defined]
+    monkeypatch.delenv("ACORNFS_MOUNT_ROOT", raising=False)  # type: ignore[attr-defined]
+
+    assert main(["config-mount-location", "runtime"]) == 0
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert str(runtime / "acornfs" / "images") in output
+    assert "Mode: runtime; source: user" in output
+    assert main(["config-mount-location"]) == 0
+    assert "Mode: runtime; source: user" in capsys.readouterr().out  # type: ignore[attr-defined]
+    assert main(["config-mount-location", "--reset"]) == 0
+    assert "Mode: sidebar; source: default" in capsys.readouterr().out  # type: ignore[attr-defined]
+
+
 def test_lazy_unmount_is_refused_for_writable_image(tmp_path: Path, capsys: object) -> None:
     mountpoint = tmp_path / "mounted"
     mountpoint.mkdir()
@@ -120,6 +138,12 @@ def test_desktop_create_forwards_directory() -> None:
     with patch("acornfs.desktop.desktop_create", return_value=0) as desktop_create:
         assert main(["desktop-create", "/images"]) == 0
     desktop_create.assert_called_once_with("/images")
+
+
+def test_desktop_mount_location_forwards_to_desktop() -> None:
+    with patch("acornfs.desktop.desktop_configure_mount_location", return_value=0) as configure:
+        assert main(["desktop-configure-mount-location"]) == 0
+    configure.assert_called_once_with()
 
 
 def test_validate_command_reports_clean_image(tmp_path: Path, capsys: object) -> None:
