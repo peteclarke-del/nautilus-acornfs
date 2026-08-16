@@ -33,7 +33,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Add a reproducible development and test container for amd64.
 - [ ] Add arm64 and arm/v7 development and test containers after the initial amd64 release.
 - [x] Add CI for formatting, static analysis, unit tests, packaging and the amd64 container.
-- [ ] Add privileged live-FUSE integration tests to CI.
+- [x] Add privileged live-FUSE integration tests to CI.
 - [x] Add generated test fixtures so private sample images are not required.
 - [x] Define supported Ubuntu and GNOME/Nautilus versions.
 - [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
@@ -126,7 +126,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Make all user-facing desktop strings translatable.
 - [x] Add the gettext foundation, catalogue template and localisation guidance for desktop UI chrome.
 - [x] Localise core validation, repair and image-property values displayed by the desktop UI.
-- [ ] Localise remaining lifecycle, creation, recovery and preference errors surfaced by the desktop UI.
+- [x] Localise remaining lifecycle, creation, recovery and preference errors surfaced by the desktop UI.
 - [ ] Verify dialogs and notifications with a screen reader.
 
 ## Phase 6: lifecycle and desktop service
@@ -141,8 +141,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Provide configurable per-user mount locations under `/run/user/$UID/acornfs`.
 - [x] Persist mount-location preferences atomically with environment overrides and privacy-safe diagnostics.
 - [x] Avoid requiring global `/etc/fuse.conf` changes for ordinary operation.
-- [ ] Handle a changed mount-location preference while older images remain mounted.
-- [ ] Define cleanup and retention for stale runtime logs, repair audits and abandoned checkpoints.
+- [x] Handle a changed mount-location preference while older images remain mounted.
+- [x] Define cleanup and retention for stale runtime logs, repair audits and abandoned checkpoints.
 
 ## Phase 7: validation and repair tooling
 

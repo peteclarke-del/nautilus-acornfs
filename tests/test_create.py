@@ -78,3 +78,10 @@ def test_create_rolls_back_if_second_file_cannot_be_published(
         create_beebscsi_image(tmp_path, capacity="2MB")
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_create_errors_are_translatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("acornfs.core.create._", lambda message: f"translated: {message}")
+
+    with pytest.raises(AcornFSError, match="translated: The image name"):
+        create_beebscsi_image(tmp_path, name="../disc")

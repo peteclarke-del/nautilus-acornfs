@@ -142,3 +142,10 @@ def test_cancelled_restore_keeps_current_pair_and_checkpoint(tmp_path: Path) -> 
     assert dsc_path.read_bytes() == current_dsc
     assert pending_recovery(dat_path) is not None
     assert not list(tmp_path.glob(".*.acornfs-restore-*"))
+
+
+def test_recovery_results_are_translatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    monkeypatch.setattr("acornfs.recovery._", lambda message: f"translated: {message}")
+
+    assert recover_image(dat_path) == "translated: No recovery checkpoint is pending."
