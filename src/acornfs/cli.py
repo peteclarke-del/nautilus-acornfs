@@ -15,6 +15,8 @@ from acornfs.core import (
     FindingSeverity,
     apply_repairs,
     create_beebscsi_image,
+    export_file,
+    import_file,
     inspect_pair,
     plan_repairs,
     validate_image_report,
@@ -36,6 +38,26 @@ def _parser() -> argparse.ArgumentParser:
         "--title", default="BLANK", help="ADFS title (up to 12 ASCII characters)"
     )
     create_parser.add_argument("--capacity", default="20MB", help="image capacity (default: 20MB)")
+    export_parser = subparsers.add_parser(
+        "export-file", help="export one image file with an Acorn INF metadata sidecar"
+    )
+    export_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    export_parser.add_argument("acorn_path", help="full ADFS path, for example $.DOCS.GUIDE")
+    export_parser.add_argument("destination", help="new host filename; existing files are refused")
+    import_parser = subparsers.add_parser(
+        "import-file", help="import one host file and its Acorn metadata"
+    )
+    import_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    import_parser.add_argument("source", help="host file to import")
+    import_parser.add_argument(
+        "--directory", default="$", help="destination ADFS directory (default: $)"
+    )
+    import_parser.add_argument("--name", help="ADFS leaf name; defaults to trusted metadata/name")
+    import_metadata = import_parser.add_mutually_exclusive_group()
+    import_metadata.add_argument("--sidecar", help="explicit INF sidecar path")
+    import_metadata.add_argument(
+        "--ignore-sidecar", action="store_true", help="ignore an automatically matching INF"
+    )
     inspect_parser = subparsers.add_parser("inspect", help="validate basic image metadata")
     inspect_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     inspect_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
@@ -159,6 +181,27 @@ def _create(args: argparse.Namespace) -> int:
     print(f"Created and verified BeebSCSI image: {result.pair.dat_path}")
     print(f"Descriptor: {result.pair.dsc_path}")
     print(f"ADFS title: {result.title}; capacity: {result.capacity_bytes} bytes")
+    return 0
+
+
+def _export_file(args: argparse.Namespace) -> int:
+    result = export_file(args.image, args.acorn_path, args.destination)
+    print(f"Exported {result.acorn_path} to {result.data_path}")
+    print(f"Acorn metadata: {result.sidecar_path}")
+    return 0
+
+
+def _import_file(args: argparse.Namespace) -> int:
+    result = import_file(
+        args.image,
+        args.source,
+        directory=args.directory,
+        name=args.name,
+        sidecar=args.sidecar,
+        ignore_sidecar=args.ignore_sidecar,
+    )
+    print(f"Imported {result.source_path} as {result.node.acorn_path}")
+    print(f"Metadata source: {result.metadata_source}")
     return 0
 
 
@@ -384,6 +427,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     handlers = {
         "create-beebscsi": _create,
+        "export-file": _export_file,
+        "import-file": _import_file,
         "inspect": _inspect,
         "validate": _validate,
         "repair-plan": _repair_plan,
