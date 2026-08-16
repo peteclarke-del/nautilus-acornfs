@@ -60,13 +60,12 @@ def mount_image(
             if debug:
                 logging.basicConfig(level=logging.DEBUG)
                 options.add("debug")
+            # Publish identity before init: the kernel mount may become visible
+            # while libfuse is still completing initialisation. active_mounts()
+            # remains kernel-gated, so this cannot advertise a mount early.
+            register_mount(image.pair.dat_path, target, read_write=read_write)
+            registered = True
             pyfuse3.init(operations, str(target), options)
-            try:
-                register_mount(image.pair.dat_path, target, read_write=read_write)
-                registered = True
-            except Exception:
-                pyfuse3.close()
-                raise
             try:
                 trio.run(pyfuse3.main)
             except BaseException as exc:

@@ -92,6 +92,10 @@ validate and remove a clean checkpoint. A detached-process fallback is retained
 for desktop sessions without a systemd user manager. A dead FUSE endpoint is
 detected and detached automatically before the next mount attempt.
 
+The opt-in live-FUSE suite exercises this exact transient-service path and also
+kills a writable daemon deliberately to prove that its pre-mount checkpoint can
+restore and completely revalidate the original image.
+
 ## Troubleshooting
 
 Only local files with an unambiguous matching partner receive the menu. If the
