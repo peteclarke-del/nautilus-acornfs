@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-16 22:25+0100\n"
+"POT-Creation-Date: 2026-08-17 00:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,18 +31,69 @@ msgid ""
 "The saved preference is invalid; saving will replace it."
 msgstr ""
 
+#: src/acornfs/core/repair.py:108
+#, python-brace-format
+msgid "   Findings: {findings}"
+msgstr ""
+
+#: src/acornfs/core/repair.py:111
+#, python-brace-format
+msgid "   Paths: {paths}"
+msgstr ""
+
 #: src/acornfs/desktop.py:743
 #, python-brace-format
 msgid " (+{count} more)"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:42
+#: src/acornfs_nautilus/logic.py:72
 #, python-brace-format
 msgid " ({warnings}, {advice})"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:64
+#: src/acornfs/core/validation.py:120
+#, python-brace-format
+msgid "- [{severity}] {code}{location}: {message}"
+msgstr ""
+
+#: src/acornfs/core/validation.py:301
+#, python-brace-format
+msgid "ADFS claims {adfs} sectors but the DAT contains {dat}."
+msgstr ""
+
+#: src/acornfs/core/validation.py:311
+#, python-brace-format
+msgid "ADFS claims {adfs} sectors but the DSC allows {dsc}."
+msgstr ""
+
+#: src/acornfs/core/validation.py:388
+msgid "ADFS free-space map"
+msgstr ""
+
+#: src/acornfs/core/validation.py:322
+#, python-brace-format
+msgid "ADFS occupies {adfs} of {dsc} DSC sectors; the remaining tail may host another filesystem."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:36
+msgid "ADFS old map"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:94
 msgid "ADFS size"
+msgstr ""
+
+#: src/acornfs/core/validation.py:336
+#, python-brace-format
+msgid "ADFS structure error: {error}"
+msgstr ""
+
+#: src/acornfs/core/validation.py:104
+msgid "ADFS validation passed with no problems."
+msgstr ""
+
+#: src/acornfs/core/validation.py:48
+msgid "ADVICE"
 msgstr ""
 
 #: src/acornfs_nautilus/extension.py:62
@@ -158,15 +209,41 @@ msgstr ""
 msgid "AcornFS validation passed"
 msgstr ""
 
+#: src/acornfs/core/validation.py:494
+msgid "Allocated"
+msgstr ""
+
+#: src/acornfs/core/validation.py:481
+#, python-brace-format
+msgid "Allocated extent covers sectors {start}..{end}, outside ADFS sectors 0..{adfs_end}."
+msgstr ""
+
+#: src/acornfs/core/repair.py:386
+#, python-brace-format
+msgid "Applying: {action}"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:35
+msgid "BeebSCSI DAT/DSC pair"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:41
+msgid "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
+msgstr ""
+
 #: src/acornfs/desktop.py:556
 msgid "BeebSCSI image created"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:54
+#: src/acornfs_nautilus/logic.py:39
+msgid "Big directory"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:84
 msgid "Boot option"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:63
+#: src/acornfs_nautilus/logic.py:93
 msgid "Capacity"
 msgstr ""
 
@@ -187,9 +264,22 @@ msgstr ""
 msgid "Choose where future AcornFS desktop mounts appear"
 msgstr ""
 
+#: src/acornfs/core/repair.py:190
+msgid "Choose which overlapping or out-of-range catalogue entries own their recorded sectors."
+msgstr ""
+
+#: src/acornfs/core/repair.py:205
+msgid "Clear stale extents from empty files"
+msgstr ""
+
 #: src/acornfs/desktop.py:710
 #, python-brace-format
 msgid "Could not clean up stale mount {mountpoint}: {detail}"
+msgstr ""
+
+#: src/acornfs/core/repair.py:351
+#, python-brace-format
+msgid "Could not create the mandatory repair audit: {error}"
 msgstr ""
 
 #: src/acornfs/desktop.py:697
@@ -237,35 +327,108 @@ msgstr ""
 msgid "Creating BeebSCSI image"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:49
+#: src/acornfs/core/repair.py:366
+#, python-brace-format
+msgid "Creating recovery checkpoint… {copied:.1f} of {total:.1f} MiB"
+msgstr ""
+
+#: src/acornfs/core/validation.py:288
+#, python-brace-format
+msgid "DAT ends exactly at the ADFS boundary and omits {count} reserved DSC sector; the missing tail can be restored without changing ADFS data."
+msgid_plural "DAT ends exactly at the ADFS boundary and omits {count} reserved DSC sectors; the missing tail can be restored without changing ADFS data."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/acornfs/core/validation.py:250
+#, python-brace-format
+msgid "DAT length {length} exceeds DSC capacity {capacity}."
+msgstr ""
+
+#: src/acornfs/core/validation.py:230
+#, python-brace-format
+msgid "DAT length {length} is not a multiple of {sector_size} bytes."
+msgstr ""
+
+#: src/acornfs/core/validation.py:240
+#, python-brace-format
+msgid "DAT length {length} is shorter than DSC capacity {capacity}."
+msgstr ""
+
+#: src/acornfs/core/validation.py:432
+#, python-brace-format
+msgid "Directory at sector {sector} cannot be read: {error}"
+msgstr ""
+
+#: src/acornfs/core/validation.py:406
+#, python-brace-format
+msgid "Directory entry length is {length}; expected {expected}."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:79
 msgid "Directory format"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:53
+#: src/acornfs/core/validation.py:418
+#, python-brace-format
+msgid "Directory reuses sector {sector}, creating a cycle or alias."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:83
 msgid "Disc cycle ID"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:52
+#: src/acornfs_nautilus/logic.py:82
 msgid "Disc name"
+msgstr ""
+
+#: src/acornfs/core/repair.py:87
+msgid "Dry-run repair plan (the image was not modified):"
+msgstr ""
+
+#: src/acornfs/core/validation.py:451
+#, python-brace-format
+msgid "Empty file records non-zero start sector {sector}."
 msgstr ""
 
 #: src/acornfs/desktop.py:579
 msgid "Enter sidebar, runtime, or an absolute directory path.\n"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:92
+#: src/acornfs_nautilus/logic.py:55
+msgid "Exec"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:122
 msgid "Execute address"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:48
+#: src/acornfs/core/repair.py:163
+msgid "Extend the DAT to its DSC capacity with zero-filled sectors beyond the ADFS boundary."
+msgstr ""
+
+#: src/acornfs/core/validation.py:46
+msgid "FATAL"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:78
 msgid "Filesystem"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:66
+#: src/acornfs/core/validation.py:496 src/acornfs_nautilus/logic.py:96
 msgid "Free"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:56
+#: src/acornfs/core/validation.py:367
+#, python-brace-format
+msgid "Free-space entry {index} covers sectors {start}..{end}, outside allocatable ADFS sectors 7..{adfs_end}."
+msgstr ""
+
+#: src/acornfs/core/validation.py:351
+#, python-brace-format
+msgid "Free-space entry {index} has zero length."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:86
 msgid "Geometry"
 msgstr ""
 
@@ -273,11 +436,11 @@ msgstr ""
 msgid "GiB"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:50
+#: src/acornfs_nautilus/logic.py:80
 msgid "Hardware profile"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:47
+#: src/acornfs_nautilus/logic.py:77
 msgid "Image type"
 msgstr ""
 
@@ -289,11 +452,15 @@ msgstr ""
 msgid "KiB"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:91
+#: src/acornfs_nautilus/logic.py:53
+msgid "Load"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:121
 msgid "Load address"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:94
+#: src/acornfs_nautilus/logic.py:124
 msgid "Locked"
 msgstr ""
 
@@ -328,8 +495,32 @@ msgstr ""
 msgid "Mounted"
 msgstr ""
 
+#: src/acornfs_nautilus/logic.py:38
+msgid "New directory (Nick)"
+msgstr ""
+
+#: src/acornfs/core/repair.py:93
+msgid "No repair action is proposed for informational findings only."
+msgstr ""
+
+#: src/acornfs/core/repair.py:83
+msgid "No repair actions are needed; validation found no problems."
+msgstr ""
+
+#: src/acornfs/core/repair.py:197
+msgid "Normalise directory entry lengths"
+msgstr ""
+
 #: src/acornfs_nautilus/extension.py:275
 msgid "Not mounted"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:52
+msgid "Off"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:37
+msgid "Old directory (Hugo)"
 msgstr ""
 
 #: src/acornfs_nautilus/extension.py:63
@@ -353,16 +544,37 @@ msgstr ""
 msgid "Open {image} in Acorn File Forge"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:90
+#: src/acornfs_nautilus/logic.py:120
 msgid "Original pathname"
+msgstr ""
+
+#: src/acornfs/core/repair.py:309
+msgid "Planning repair…"
+msgstr ""
+
+#: src/acornfs/core/repair.py:408
+#, python-brace-format
+msgid "Post-repair validation failed: {detail}."
 msgstr ""
 
 #: src/acornfs/desktop.py:794
 msgid "Preparing the repair…"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:93
+#: src/acornfs_nautilus/logic.py:123
 msgid "RISC OS filetype"
+msgstr ""
+
+#: src/acornfs/core/repair.py:181
+msgid "Rebuild free-space accounting from allocated extents"
+msgstr ""
+
+#: src/acornfs/core/repair.py:182
+msgid "Recalculate free ranges from the traversable catalogue and regenerate old-map checksums."
+msgstr ""
+
+#: src/acornfs/core/repair.py:377
+msgid "Recovery checkpoint ready"
 msgstr ""
 
 #: src/acornfs/desktop.py:841
@@ -373,16 +585,55 @@ msgstr ""
 msgid "Recovery stopped before the commit boundary. The image was not replaced and the checkpoint is still available."
 msgstr ""
 
+#: src/acornfs/core/repair.py:348
+msgid "Repair audit created"
+msgstr ""
+
+#: src/acornfs/core/repair.py:419
+msgid "Repair completed and verified"
+msgstr ""
+
+#: src/acornfs/core/repair.py:440
+#, python-brace-format
+msgid "Repair completed and verified, but its audit could not be marked complete. The verified audit was retained at {audit}: {error}"
+msgstr ""
+
+#: src/acornfs/core/repair.py:313
+#, python-brace-format
+msgid "Repair confirmation must exactly match the DAT filename: {name}"
+msgstr ""
+
+#: src/acornfs/core/repair.py:445
+#, python-brace-format
+msgid "Repair failed; the checkpoint was retained. Audit: {audit}: {error}"
+msgstr ""
+
 #: src/acornfs_nautilus/extension.py:145
 msgid "Repair image…"
+msgstr ""
+
+#: src/acornfs/core/repair.py:318
+msgid "Repair plan validated"
+msgstr ""
+
+#: src/acornfs/core/repair.py:412
+msgid "Repair verified; finalising checkpoint…"
 msgstr ""
 
 #: src/acornfs/desktop.py:793
 msgid "Repairing AcornFS image"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:69
+#: src/acornfs_nautilus/logic.py:99
 msgid "Reserved tail"
+msgstr ""
+
+#: src/acornfs/core/repair.py:151
+msgid "Resolve DAT/DSC geometry mismatch"
+msgstr ""
+
+#: src/acornfs/core/repair.py:189
+msgid "Resolve conflicting catalogue extents"
 msgstr ""
 
 #: src/acornfs_nautilus/extension.py:208
@@ -393,17 +644,37 @@ msgstr ""
 msgid "Restore image to the pre-mount checkpoint"
 msgstr ""
 
+#: src/acornfs/core/repair.py:162
+msgid "Restore omitted reserved DAT tail"
+msgstr ""
+
+#: src/acornfs/core/repair.py:153
+msgid "Restore the correct pair or explicitly choose which trusted geometry and capacity is valid."
+msgstr ""
+
 #: src/acornfs_nautilus/extension.py:209
 msgid "Restore the pre-mount checkpoint or keep the current image"
+msgstr ""
+
+#: src/acornfs/core/repair.py:170
+msgid "Restore unreadable ADFS structures"
 msgstr ""
 
 #: src/acornfs/desktop.py:871
 msgid "Restoring AcornFS image"
 msgstr ""
 
+#: src/acornfs/core/repair.py:357
+msgid "Revalidating image before checkpoint creation…"
+msgstr ""
+
 #: src/acornfs_nautilus/extension.py:146
 #, python-brace-format
 msgid "Review eligible low-risk repairs for {image}"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:54
+msgid "Run"
 msgstr ""
 
 #: src/acornfs/desktop.py:577
@@ -420,7 +691,7 @@ msgstr ""
 msgid "Run 'acornfs repair {image} --confirm {name}' to apply the eligible repair."
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:34
+#: src/acornfs_nautilus/logic.py:64
 msgid "Safe for read-write mounting"
 msgstr ""
 
@@ -433,7 +704,20 @@ msgid ""
 "Mode: {mode}{override}"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:88
+#: src/acornfs/core/validation.py:194
+#, python-brace-format
+msgid "Sectors {start}..{end} are both allocated to {owner} and marked free."
+msgstr ""
+
+#: src/acornfs/core/repair.py:198
+msgid "Set directory entry lengths to the detected on-disc directory-format size."
+msgstr ""
+
+#: src/acornfs/core/repair.py:206
+msgid "Set the start sector of zero-length files to zero without changing file contents."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:118
 msgid "Source filesystem"
 msgstr ""
 
@@ -445,8 +729,27 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
+#: src/acornfs/core/validation.py:574
+#, python-brace-format
+msgid "The ADFS image could not be opened for validation: {error}"
+msgstr ""
+
 #: src/acornfs/desktop.py:418
 msgid "The AcornFS user service exited before mounting."
+msgstr ""
+
+#: src/acornfs/core/validation.py:553
+#, python-brace-format
+msgid "The DSC descriptor is invalid: {error}"
+msgstr ""
+
+#: src/acornfs/core/repair.py:324
+msgid "The complete repair plan is not eligible for automatic application; no checkpoint or image change was made."
+msgstr ""
+
+#: src/acornfs/core/validation.py:384
+#, python-brace-format
+msgid "The free-space extent list could not be read: {error}"
 msgstr ""
 
 #: src/acornfs/desktop.py:476
@@ -455,6 +758,10 @@ msgstr ""
 
 #: src/acornfs/desktop.py:473
 msgid "The image URI must contain one unambiguous local path."
+msgstr ""
+
+#: src/acornfs/core/repair.py:172
+msgid "The image cannot be parsed deeply enough for safe automatic reconstruction; use a known-good copy."
 msgstr ""
 
 #: src/acornfs/desktop.py:664
@@ -477,8 +784,17 @@ msgstr ""
 msgid "The image's mount location is occupied by a different file identity. Unmount that location before mounting the replacement image."
 msgstr ""
 
+#: src/acornfs/core/validation.py:468
+#, python-brace-format
+msgid "The root directory cannot be traversed: {error}"
+msgstr ""
+
 #: src/acornfs/desktop.py:580
 msgid "The setting applies to future mounts; existing mounts are unchanged."
+msgstr ""
+
+#: src/acornfs/core/repair.py:115
+msgid "This complete plan can be applied with 'acornfs repair IMAGE --confirm DAT_FILENAME'."
 msgstr ""
 
 #: src/acornfs/desktop.py:828
@@ -489,12 +805,16 @@ msgstr ""
 msgid "This mount has no lifecycle identity record, so AcornFS cannot prove its write mode or final flush state. Unmount it from a terminal before remounting it."
 msgstr ""
 
+#: src/acornfs/core/repair.py:120
+msgid "This plan cannot be applied automatically; no changes are permitted."
+msgstr ""
+
 #: src/acornfs/desktop.py:427
 #, python-brace-format
 msgid "Timed out mounting {image}."
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:51
+#: src/acornfs_nautilus/logic.py:81
 msgid "Title"
 msgstr ""
 
@@ -512,7 +832,7 @@ msgstr ""
 msgid "Unmount {mountpoint}"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:34
+#: src/acornfs_nautilus/logic.py:64
 msgid "Unsafe"
 msgstr ""
 
@@ -521,7 +841,7 @@ msgstr ""
 msgid "Unsupported image URI scheme: {scheme}"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:65
+#: src/acornfs_nautilus/logic.py:95
 msgid "Used"
 msgstr ""
 
@@ -533,16 +853,80 @@ msgstr ""
 msgid "Validating AcornFS image"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:70
+#: src/acornfs_nautilus/logic.py:100
 msgid "Validation"
 msgstr ""
+
+#: src/acornfs/core/repair.py:88
+#, python-brace-format
+msgid "Validation findings: {findings}; planned actions: {actions}."
+msgstr ""
+
+#: src/acornfs/core/repair.py:320
+msgid "Validation found no problems, so there is nothing to repair."
+msgstr ""
+
+#: src/acornfs/core/validation.py:108
+#, python-brace-format
+msgid "Validation found {fatal} fatal, {warning} warning, and {advice} advice {finding_label}:"
+msgstr ""
+
+#: src/acornfs/core/repair.py:395
+msgid "Verifying the complete repaired image…"
+msgstr ""
+
+#: src/acornfs/core/validation.py:47
+msgid "WARNING"
+msgstr ""
+
+#: src/acornfs/core/validation.py:609
+#, python-brace-format
+msgid "Writable mount refused: validation found {count} fatal problem. {code}: {message}"
+msgid_plural "Writable mount refused: validation found {count} fatal problems. {code}: {message}"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/acornfs_nautilus/logic.py:22 src/acornfs_nautilus/logic.py:26
 msgid "bytes"
 msgstr ""
 
+#: src/acornfs/core/repair.py:95
+msgid "candidate"
+msgstr ""
+
+#: src/acornfs/core/repair.py:404
+msgid "fatal findings remain"
+msgstr ""
+
+#: src/acornfs/core/validation.py:105
+msgid "finding"
+msgid_plural "findings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/acornfs/core/validation.py:358
+#, python-brace-format
+msgid "free-space entry {index}"
+msgstr ""
+
 #: src/acornfs/desktop.py:649 src/acornfs/desktop.py:708
 msgid "fusermount3 failed"
+msgstr ""
+
+#: src/acornfs/core/repair.py:99
+msgid "high"
+msgstr ""
+
+#: src/acornfs/core/repair.py:97
+msgid "low"
+msgstr ""
+
+#: src/acornfs/core/repair.py:95
+msgid "manual decision required"
+msgstr ""
+
+#: src/acornfs/core/repair.py:98
+msgid "medium"
 msgstr ""
 
 #: src/acornfs/desktop.py:433
@@ -553,23 +937,35 @@ msgstr ""
 msgid "read-write"
 msgstr ""
 
-#: src/acornfs_nautilus/logic.py:41
+#: src/acornfs/core/validation.py:508
+#, python-brace-format
+msgid "{count} ADFS sector range is neither allocated nor free: {ranges}{suffix}."
+msgid_plural "{count} ADFS sector ranges are neither allocated nor free: {ranges}{suffix}."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/acornfs_nautilus/logic.py:71
 #, python-brace-format
 msgid "{count} advice"
 msgid_plural "{count} advice"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/acornfs_nautilus/logic.py:38
+#: src/acornfs_nautilus/logic.py:68
 #, python-brace-format
 msgid "{count} warning"
 msgid_plural "{count} warnings"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/acornfs_nautilus/logic.py:57
+#: src/acornfs_nautilus/logic.py:87
 #, python-brace-format
 msgid "{cylinders} cylinders × {heads} heads × {sectors} sectors/track"
+msgstr ""
+
+#: src/acornfs/core/repair.py:435
+#, python-brace-format
+msgid "{error} Audit: {audit}"
 msgstr ""
 
 #: src/acornfs/desktop.py:758
@@ -599,6 +995,16 @@ msgstr ""
 #: src/acornfs/desktop.py:746
 #, python-brace-format
 msgid "{image}: [{severity}] {code}: {message}{suffix}"
+msgstr ""
+
+#: src/acornfs/core/repair.py:102
+#, python-brace-format
+msgid "{index}. {title} [{risk} risk; {mode}]"
+msgstr ""
+
+#: src/acornfs/core/validation.py:160
+#, python-brace-format
+msgid "{label} extents overlap in sectors {start}..{end}: {first_owner} and {second_owner}."
 msgstr ""
 
 #: src/acornfs/desktop.py:628

@@ -77,6 +77,27 @@ def test_invalid_descriptor_is_a_classified_fatal_finding(tmp_path: Path) -> Non
     assert report.fatal_findings[0].code == "geometry.descriptor_invalid"
 
 
+def test_validation_text_is_localised_without_changing_stable_codes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    dsc_path.write_bytes(b"bad")
+    monkeypatch.setattr("acornfs.core.validation._", lambda message: f"translated:{message}")
+    monkeypatch.setattr(
+        "acornfs.core.validation.ngettext",
+        lambda singular, plural, count: f"plural:{singular if count == 1 else plural}",
+    )
+
+    report = validate_image_report(dat_path)
+
+    assert report.fatal_findings[0].code == "geometry.descriptor_invalid"
+    assert report.as_dict()["findings"][0]["code"] == "geometry.descriptor_invalid"
+    assert report.fatal_findings[0].message.startswith("translated:")
+    assert report.format_text().startswith("translated:Validation found")
+    assert "plural:finding" in report.format_text()
+    assert "[translated:FATAL]" in report.format_text()
+
+
 def test_warning_and_reserved_tail_advice_do_not_block_writes(tmp_path: Path) -> None:
     warning_dat, _dsc_path = create_beebscsi_image(tmp_path, stem="warning")
     set_root_entry_length(warning_dat, "DOCS", 0)

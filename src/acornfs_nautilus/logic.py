@@ -28,6 +28,36 @@ def _size(value: int) -> str:
     raise AssertionError("unreachable")
 
 
+def _property_value(value: str) -> str:
+    """Translate known technical display values while preserving image-owned text."""
+
+    values = {
+        "BeebSCSI DAT/DSC pair": _("BeebSCSI DAT/DSC pair"),
+        "ADFS old map": _("ADFS old map"),
+        "Old directory (Hugo)": _("Old directory (Hugo)"),
+        "New directory (Nick)": _("New directory (Nick)"),
+        "Big directory": _("Big directory"),
+        "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)": _(
+            "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
+        ),
+    }
+    return values.get(value, value)
+
+
+def _boot_option(value: str) -> str:
+    """Translate the known option name while retaining its stable numeric value."""
+
+    name, separator, number = value.partition(" (")
+    names = {
+        "Off": _("Off"),
+        "Load": _("Load"),
+        "Run": _("Run"),
+        "Exec": _("Exec"),
+    }
+    translated = names.get(name, name)
+    return f"{translated} ({number}" if separator else translated
+
+
 def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], ...]:
     """Convert typed core metadata to stable labels for Nautilus."""
 
@@ -44,14 +74,14 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
             advice=advice_text,
         )
     rows = [
-        (_("Image type"), properties.image_type),
-        (_("Filesystem"), properties.filesystem_format),
-        (_("Directory format"), properties.directory_format),
-        (_("Hardware profile"), properties.hardware_profile),
+        (_("Image type"), _property_value(properties.image_type)),
+        (_("Filesystem"), _property_value(properties.filesystem_format)),
+        (_("Directory format"), _property_value(properties.directory_format)),
+        (_("Hardware profile"), _property_value(properties.hardware_profile)),
         (_("Title"), properties.title or "—"),
         (_("Disc name"), properties.disc_name or "—"),
         (_("Disc cycle ID"), f"&{properties.disc_id:04X}"),
-        (_("Boot option"), properties.boot_option),
+        (_("Boot option"), _boot_option(properties.boot_option)),
         (
             _("Geometry"),
             _("{cylinders} cylinders × {heads} heads × {sectors} sectors/track").format(

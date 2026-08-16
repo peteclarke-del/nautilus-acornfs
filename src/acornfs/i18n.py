@@ -27,4 +27,10 @@ _ = _catalogue.gettext
 ngettext = _catalogue.ngettext
 
 
-__all__ = ["DOMAIN", "_", "locale_directory", "ngettext", "translation"]
+def N_(message: str) -> str:
+    """Mark a deferred message for extraction without translating it yet."""
+
+    return message
+
+
+__all__ = ["DOMAIN", "N_", "_", "locale_directory", "ngettext", "translation"]

@@ -47,7 +47,9 @@ plan is eligible for low-risk repair, the dialog instead offers **Cancel** and
 running the initial validation again. The report window sizes itself to its
 content, and repair completion or failure is shown in a separate compact dialog
 with the audit or recovery detail. `acornfs validate IMAGE` prints the same
-complete report.
+complete report. Validation summaries, severity labels, finding explanations,
+repair plans and progress text use the active AcornFS gettext catalogue; stable
+finding codes and image paths remain unchanged for support and automation.
 
 Select **Repair image…** to review a complete eligible low-risk plan. AcornFS
 requires the exact DAT filename in the confirmation dialog, creates a recovery

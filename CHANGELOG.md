@@ -18,6 +18,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 ### Changed
 
 - The initial supported host architecture is explicitly limited to amd64.
+- Validation findings, repair plans/progress and known image-property values now use gettext.
+- Remaining Acorn File Forge integration is explicitly deferred until the other backlog is complete.
 
 ### Fixed
 
