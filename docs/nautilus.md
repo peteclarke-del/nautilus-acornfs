@@ -36,7 +36,9 @@ notification. When problems are found, a finite details dialog lists every
 finding. Non-repairable reports have one **Close** button. When the complete
 plan is eligible for low-risk repair, the dialog instead offers **Cancel** and
 **Repair…**; Repair continues to the typed-filename confirmation without
-running the initial validation again. `acornfs validate IMAGE` prints the same
+running the initial validation again. The report window sizes itself to its
+content, and repair completion or failure is shown in a separate compact dialog
+with the audit or recovery detail. `acornfs validate IMAGE` prints the same
 complete report.
 
 Select **Repair image…** to review a complete eligible low-risk plan. AcornFS
@@ -71,7 +73,7 @@ A clean unmount flushes pending data, validates the ADFS structure, and removes
 the checkpoint. If the mount process crashes or validation fails, AcornFS keeps
 the checkpoint and refuses another writable mount. First unmount any stale
 sidebar entry, then right-click the DAT/DSC and select **Acorn FS Support →
-Resolve interrupted Acorn write…**. Choose either:
+Resolve interrupted read-write mount…**. Choose either:
 
 - **Restore image to the pre-mount checkpoint** to undo the interrupted session.
 - **Keep the current image and discard the checkpoint** after independently

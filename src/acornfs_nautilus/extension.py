@@ -146,8 +146,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if recovery is not None:
             recovery_item = Nautilus.MenuItem(
                 name="AcornFS::Recover",
-                label="Resolve interrupted Acorn write…",
-                tip="Restore the pre-write checkpoint or keep the current image",
+                label="Resolve interrupted read-write mount…",
+                tip="Restore the pre-mount checkpoint or keep the current image",
                 icon="document-revert-symbolic",
             )
             recovery_item.connect("activate", self._recover, path)
