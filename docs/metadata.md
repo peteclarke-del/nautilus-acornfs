@@ -21,8 +21,10 @@ should use the extended attributes.
 
 Filename display maps ADFS `/` to `∕`, control characters to Unicode control
 pictures, and the special names `.` and `..` to full-width forms. New names must
-be representable as 7-bit ASCII, contain at most 10 bytes, and exclude `.`, `:`
-and carriage return. AcornFS never silently sanitises a new name.
+be representable as 7-bit ASCII, contain at most 10 bytes, and exclude `.`, `:`,
+NUL and carriage return. AcornFS never silently sanitises a new name. NUL is
+rejected because old ADFS readers treat it as a name terminator, which would
+otherwise make a newly created name reopen in truncated form.
 
 ADFS lookup is case-insensitive while the stored spelling remains visible.
 AcornFS therefore resolves Linux lookups case-insensitively and refuses creation

@@ -56,6 +56,12 @@ commits every remaining dirty inode before detaching and before the image
 performs final validation. A failed shutdown flush detaches the mount but makes
 the image context retain its pre-mount recovery checkpoint.
 
+Generated stress fixtures exercise a 64-level hierarchy at both sides of the
+configured depth/node gates, the old-directory maximum of 47 entries, the
+10-byte filename boundary, case collisions, and every non-POSIX display mapping.
+Creation rejects any mapped value that cannot round trip through old ADFS; in
+particular, NUL is an on-disc terminator rather than a valid creatable character.
+
 ## Package boundaries
 
 - `acornfs.core`: untrusted-image parsing, validation and filesystem policy.
