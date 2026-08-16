@@ -5,6 +5,8 @@ from __future__ import annotations
 import errno
 import os
 import stat
+from collections import OrderedDict
+from dataclasses import dataclass
 
 import pyfuse3
 from oaknut.adfs.exceptions import (
@@ -21,6 +23,9 @@ from acornfs.errors import AcornFSError
 
 BLOCK_SIZE = 256
 CACHE_TIMEOUT = 60.0
+DEFAULT_READ_AHEAD_BYTES = 256 * 1024
+DEFAULT_READ_AHEAD_CACHE_BYTES = 4 * 1024 * 1024
+DEFAULT_SEQUENTIAL_READ_THRESHOLD = 2
 XATTR_LOAD = b"user.acorn.load"
 XATTR_EXECUTE = b"user.acorn.execute"
 XATTR_FILETYPE = b"user.acorn.filetype"
@@ -30,17 +35,43 @@ XATTR_PATH = b"user.acorn.path"
 XATTR_NAMES = (XATTR_LOAD, XATTR_EXECUTE, XATTR_LOCKED, XATTR_SOURCE, XATTR_PATH)
 
 
+@dataclass(slots=True)
+class _ReadState:
+    next_offset: int | None = None
+    sequential_reads: int = 0
+    buffer_offset: int = 0
+    buffer: bytes = b""
+    buffer_position: int = 0
+
+
 class ReadOnlyOperations(pyfuse3.Operations):
     """Expose an indexed :class:`ReadOnlyImage` through FUSE 3."""
 
     enable_writeback_cache = False
 
-    def __init__(self, image: ReadOnlyImage) -> None:
+    def __init__(
+        self,
+        image: ReadOnlyImage,
+        *,
+        read_ahead_bytes: int = DEFAULT_READ_AHEAD_BYTES,
+        read_ahead_cache_bytes: int = DEFAULT_READ_AHEAD_CACHE_BYTES,
+        sequential_read_threshold: int = DEFAULT_SEQUENTIAL_READ_THRESHOLD,
+    ) -> None:
         super().__init__()
+        if read_ahead_bytes < 0 or read_ahead_cache_bytes < 0:
+            raise ValueError("read-ahead limits cannot be negative")
+        if sequential_read_threshold < 2:
+            raise ValueError("sequential read detection requires at least two reads")
         self.image = image
+        self._read_ahead_limit = min(read_ahead_bytes, read_ahead_cache_bytes)
+        self._read_ahead_cache_limit = read_ahead_cache_bytes
+        self._sequential_read_threshold = sequential_read_threshold
         self._write_buffers: dict[int, bytearray] = {}
         self._dirty: set[int] = set()
         self._handles: dict[int, int] = {}
+        self._read_states: dict[int, _ReadState] = {}
+        self._read_ahead_lru: OrderedDict[int, None] = OrderedDict()
+        self._read_ahead_size = 0
         self._next_fh = 1
 
     @staticmethod
@@ -73,7 +104,59 @@ class ReadOnlyOperations(pyfuse3.Operations):
         fh = self._next_fh
         self._next_fh += 1
         self._handles[fh] = inode
+        self._read_states[fh] = _ReadState()
         return fh
+
+    def _clear_read_ahead(self, fh: int) -> None:
+        state = self._read_states.get(fh)
+        if state is None:
+            return
+        self._read_ahead_size -= len(state.buffer)
+        state.buffer = b""
+        state.buffer_offset = 0
+        state.buffer_position = 0
+        self._read_ahead_lru.pop(fh, None)
+
+    def _clear_inode_read_ahead(self, inode: int) -> None:
+        for fh, handle_inode in self._handles.items():
+            if handle_inode == inode:
+                self._clear_read_ahead(fh)
+
+    def _store_read_ahead(self, fh: int, offset: int, data: bytes) -> None:
+        self._clear_read_ahead(fh)
+        keep = min(len(data), self._read_ahead_cache_limit)
+        if keep == 0:
+            return
+        data = data[:keep]
+        while self._read_ahead_size + keep > self._read_ahead_cache_limit:
+            old_fh = next(iter(self._read_ahead_lru))
+            self._clear_read_ahead(old_fh)
+        state = self._read_states[fh]
+        state.buffer_offset = offset
+        state.buffer = data
+        state.buffer_position = 0
+        self._read_ahead_size += keep
+        self._read_ahead_lru[fh] = None
+
+    def _consume_read_ahead(self, fh: int, offset: int, size: int) -> bytes | None:
+        state = self._read_states[fh]
+        if not state.buffer:
+            return None
+        available = len(state.buffer) - state.buffer_position
+        if offset != state.buffer_offset or size > available:
+            self._clear_read_ahead(fh)
+            return None
+        start = state.buffer_position
+        result = state.buffer[start : start + size]
+        state.buffer_position += len(result)
+        state.buffer_offset += len(result)
+        state.next_offset = offset + len(result)
+        state.sequential_reads += 1
+        if state.buffer_position < len(state.buffer):
+            self._read_ahead_lru.move_to_end(fh)
+        else:
+            self._clear_read_ahead(fh)
+        return result
 
     def _handle_inode(self, fh: int) -> int:
         try:
@@ -93,6 +176,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
             node = self._node(inode)
             data = bytearray(self.image.read(inode, 0, node.size))
             self._write_buffers[inode] = data
+            self._clear_inode_read_ahead(inode)
         return data
 
     def _attributes(self, node: ImageNode) -> pyfuse3.EntryAttributes:
@@ -186,20 +270,45 @@ class ReadOnlyOperations(pyfuse3.Operations):
         inode = self._handle_inode(fh)
         buffered = self._write_buffers.get(inode)
         if buffered is not None:
+            self._clear_read_ahead(fh)
             return bytes(buffered[off : off + size])
+        if size <= 0:
+            return b""
+        prefetched = self._consume_read_ahead(fh, off, size)
+        if prefetched is not None:
+            return prefetched
+        state = self._read_states[fh]
+        if state.next_offset == off:
+            state.sequential_reads += 1
+        else:
+            state.sequential_reads = 1
         try:
-            return self.image.read(inode, off, size)
+            read_size = size
+            if (
+                state.sequential_reads >= self._sequential_read_threshold
+                and self._read_ahead_limit
+                and self._read_ahead_cache_limit
+                and self.image.uses_ranged_reads(inode)
+            ):
+                remaining = max(0, self._node(inode).size - off)
+                read_size = min(size + self._read_ahead_limit, remaining)
+            data = self.image.read(inode, off, read_size)
         except KeyError as exc:
             raise pyfuse3.FUSEError(errno.ENOENT) from exc
         except IsADirectoryError as exc:
             raise pyfuse3.FUSEError(errno.EISDIR) from exc
         except Exception as exc:
             raise pyfuse3.FUSEError(errno.EIO) from exc
+        result = data[:size]
+        state.next_offset = off + len(result)
+        self._store_read_ahead(fh, state.next_offset, data[len(result) :])
+        return result
 
     async def write(self, fh: int, off: int, buf: bytes) -> int:
         if not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
         inode = self._handle_inode(fh)
+        self._clear_inode_read_ahead(inode)
         data = self._write_buffers.get(inode)
         if data is None:
             raise pyfuse3.FUSEError(errno.EBADF)
@@ -358,6 +467,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
     async def release(self, fh: int) -> None:
         await self.flush(fh)
         inode = self._handles.pop(fh, None)
+        self._clear_read_ahead(fh)
+        self._read_states.pop(fh, None)
         if inode is not None and inode not in self._handles.values():
             self._write_buffers.pop(inode, None)
 
