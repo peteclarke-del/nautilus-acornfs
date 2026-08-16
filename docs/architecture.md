@@ -67,6 +67,13 @@ directory and `0600` files and are removed only after the image context has
 completed close-time flush and validation. Dead records are pruned; a live
 post-detach record represents a writable daemon still finalising.
 
+The daemon publishes its private identity immediately before FUSE
+initialisation. The kernel mount remains authoritative, so this record cannot
+advertise a mount prematurely; publishing first avoids a race where the kernel
+mount is visible while libfuse is still returning from initialisation. Desktop
+launchers can therefore recognise readiness without timing out and killing a
+healthy writable daemon.
+
 Read-only desktop mounts may detach lazily. Writable mounts may not: callers
 wait for the lifecycle record to disappear and then verify that no recovery
 checkpoint remains before claiming a safe unmount. Diagnostics deliberately
