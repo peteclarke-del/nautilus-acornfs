@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import time
 from contextlib import suppress
 from pathlib import Path
@@ -157,6 +158,45 @@ def _open_folder(path: Path) -> None:
     )
 
 
+def _dialog_report(report: IntegrityReport) -> str:
+    """Wrap a validation report for a compact, readable desktop dialog."""
+
+    wrapped: list[str] = []
+    for line in report.format_text().splitlines():
+        wrapped.extend(
+            textwrap.wrap(
+                line,
+                width=88,
+                subsequent_indent="  " if line.startswith("- ") else "",
+                replace_whitespace=False,
+            )
+            or [""]
+        )
+    return "\n".join(wrapped)
+
+
+def _show_desktop_message(title: str, message: str, *, error: bool = False) -> None:
+    """Show a finite one-button result dialog, falling back to a notification."""
+
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        _notify(title, message, error=error)
+        return
+    subprocess.run(
+        [
+            dialog,
+            "--error" if error else "--info",
+            f"--title={title}",
+            f"--text={message}",
+            "--ok-label=Close",
+            "--width=560",
+        ],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
 def _show_validation_report(
     name: str, report: IntegrityReport, *, offer_repair: bool = False
 ) -> bool | None:
@@ -165,12 +205,15 @@ def _show_validation_report(
     dialog = shutil.which("zenity")
     if dialog is None:
         return None
+    content = _dialog_report(report)
+    line_count = len(content.splitlines())
+    height = min(480, max(240, 145 + line_count * 22))
     arguments = [
         dialog,
         "--text-info",
         f"--title=AcornFS validation — {name}",
-        "--width=760",
-        "--height=520",
+        "--width=680",
+        f"--height={height}",
         f"--ok-label={'Repair…' if offer_repair else 'Close'}",
     ]
     if offer_repair:
@@ -179,7 +222,7 @@ def _show_validation_report(
         arguments.append("--no-cancel")
     result = subprocess.run(
         arguments,
-        input=report.format_text(),
+        input=content,
         text=True,
         check=False,
         stdout=subprocess.DEVNULL,
@@ -432,11 +475,12 @@ def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
     try:
         repair = apply_repairs(pair.dat_path, confirmation=confirmation)
     except AcornFSError as exc:
-        _notify("AcornFS repair failed", str(exc), error=True)
+        _show_desktop_message("AcornFS repair failed", str(exc), error=True)
         raise
-    _notify(
+    _show_desktop_message(
         "AcornFS repair completed",
-        f"{pair.dat_path.name} was repaired and verified. Audit: {Path(repair.audit_path).name}",
+        f"{pair.dat_path.name} was repaired and fully verified.\n\n"
+        f"Audit report:\n{repair.audit_path}",
     )
     return 0
 
@@ -473,8 +517,8 @@ def desktop_recover(image_path: str | Path) -> int:
             dialog,
             "--list",
             "--radiolist",
-            "--title=Resolve interrupted AcornFS write",
-            "--text=Choose how to resolve the retained pre-write checkpoint.",
+            "--title=Resolve interrupted AcornFS read-write mount",
+            "--text=Choose how to resolve the retained pre-mount checkpoint.",
             "--column=Selected",
             "--column=Action",
             "TRUE",
@@ -491,13 +535,17 @@ def desktop_recover(image_path: str | Path) -> int:
     if result.returncode != 0:
         return 0
     choice = result.stdout.strip()
-    if choice == "Restore image to the pre-mount checkpoint":
-        message = recover_image(image_path, restore=True)
-    elif choice == "Keep the current image and discard the checkpoint":
-        message = recover_image(image_path, discard=True)
-    else:
-        return 0
-    _notify("AcornFS recovery complete", message)
+    try:
+        if choice == "Restore image to the pre-mount checkpoint":
+            message = recover_image(image_path, restore=True)
+        elif choice == "Keep the current image and discard the checkpoint":
+            message = recover_image(image_path, discard=True)
+        else:
+            return 0
+    except AcornFSError as exc:
+        _show_desktop_message("AcornFS recovery failed", str(exc), error=True)
+        raise
+    _show_desktop_message("AcornFS recovery complete", message)
     return 0
 
 

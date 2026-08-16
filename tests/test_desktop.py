@@ -2,6 +2,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from acornfs.desktop import (
     _systemd_mount_command,
     cleanup_stale_mountpoint,
@@ -11,6 +13,7 @@ from acornfs.desktop import (
     desktop_validate,
     mountpoint_for_image,
 )
+from acornfs.errors import AcornFSError
 from acornfs.mounts import MountRecord
 from tests.image_fixture import create_beebscsi_image, reserve_adfs_tail
 
@@ -31,7 +34,7 @@ def test_desktop_recovery_requires_explicit_dialog_choice() -> None:
     )
     with (
         patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
-        patch("acornfs.desktop.subprocess.run", return_value=choice),
+        patch("acornfs.desktop.subprocess.run", return_value=choice) as run,
         patch(
             "acornfs.desktop.recover_image", return_value="Recovery checkpoint restored."
         ) as recover,
@@ -39,6 +42,28 @@ def test_desktop_recovery_requires_explicit_dialog_choice() -> None:
     ):
         assert desktop_recover("/image.dat") == 0
     recover.assert_called_once_with("/image.dat", restore=True)
+    assert run.call_args_list[1].args[0][:2] == ["/usr/bin/zenity", "--info"]
+
+
+def test_desktop_recovery_failure_is_shown_explicitly() -> None:
+    choice = SimpleNamespace(
+        returncode=0,
+        stdout="Restore image to the pre-mount checkpoint\n",
+    )
+    shown = SimpleNamespace(returncode=0)
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.run", side_effect=[choice, shown]) as run,
+        patch(
+            "acornfs.desktop.recover_image",
+            side_effect=AcornFSError("The image is still mounted."),
+        ),
+        pytest.raises(AcornFSError, match="still mounted"),
+    ):
+        desktop_recover("/image.dat")
+    error_arguments = run.call_args_list[1].args[0]
+    assert error_arguments[:2] == ["/usr/bin/zenity", "--error"]
+    assert "still mounted" in next(item for item in error_arguments if item.startswith("--text="))
 
 
 def test_desktop_repair_requires_typed_filename_and_repairs_safe_tail(
@@ -59,9 +84,10 @@ def test_desktop_repair_requires_typed_filename_and_repairs_safe_tail(
     ):
         assert desktop_repair(dat_path) == 0
 
-    assert run.call_args.args[0][:2] == ["/usr/bin/zenity", "--entry"]
+    assert run.call_args_list[0].args[0][:2] == ["/usr/bin/zenity", "--entry"]
+    assert run.call_args_list[1].args[0][:2] == ["/usr/bin/zenity", "--info"]
     assert dat_path.stat().st_size == capacity
-    assert notify.call_args.args[0] == "AcornFS repair completed"
+    notify.assert_not_called()
 
 
 def test_dead_fuse_endpoint_is_detached_before_mounting(tmp_path: Path) -> None:
@@ -122,6 +148,8 @@ def test_desktop_validation_shows_finite_problem_report(tmp_path: Path) -> None:
     assert arguments[:2] == ["/usr/bin/zenity", "--text-info"]
     assert "--ok-label=Close" in arguments
     assert "--no-cancel" in arguments
+    height = int(next(item.split("=", 1)[1] for item in arguments if item.startswith("--height=")))
+    assert height < 400
     assert "geometry.dat_short" in run.call_args.kwargs["input"]
     assert "Run 'acornfs validate'" not in run.call_args.kwargs["input"]
     notify.assert_not_called()
@@ -136,10 +164,14 @@ def test_validation_dialog_offers_repair_for_safe_tail(tmp_path: Path, monkeypat
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))  # type: ignore[attr-defined]
     report_choice = SimpleNamespace(returncode=0)
     confirmation = SimpleNamespace(returncode=0, stdout=f"{dat_path.name}\n")
+    completed = SimpleNamespace(returncode=0)
 
     with (
         patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
-        patch("acornfs.desktop.subprocess.run", side_effect=[report_choice, confirmation]) as run,
+        patch(
+            "acornfs.desktop.subprocess.run",
+            side_effect=[report_choice, confirmation, completed],
+        ) as run,
         patch("acornfs.desktop._notify") as notify,
     ):
         assert desktop_validate(dat_path) == 0
@@ -150,8 +182,9 @@ def test_validation_dialog_offers_repair_for_safe_tail(tmp_path: Path, monkeypat
     assert "--cancel-label=Cancel" in report_arguments
     assert "--no-cancel" not in report_arguments
     assert run.call_args_list[1].args[0][:2] == ["/usr/bin/zenity", "--entry"]
+    assert run.call_args_list[2].args[0][:2] == ["/usr/bin/zenity", "--info"]
     assert dat_path.stat().st_size == capacity
-    assert notify.call_args.args[0] == "AcornFS repair completed"
+    notify.assert_not_called()
 
 
 def test_writable_desktop_unmount_waits_for_safe_finalisation(tmp_path: Path) -> None:
