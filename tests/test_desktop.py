@@ -1,5 +1,6 @@
 import time
 from collections.abc import Callable
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
@@ -8,6 +9,7 @@ import pytest
 
 from acornfs.desktop import (
     _run_with_progress,
+    _run_with_reported_progress,
     _systemd_mount_command,
     cleanup_stale_mountpoint,
     desktop_open,
@@ -28,6 +30,10 @@ def run_progress_inline(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "acornfs.desktop._run_with_progress",
         lambda _title, _message, operation: operation(lambda: False),
+    )
+    monkeypatch.setattr(
+        "acornfs.desktop._run_with_reported_progress",
+        lambda _title, _message, operation: operation(lambda _percent, _message: None),
     )
 
 
@@ -220,6 +226,50 @@ def test_progress_dialog_requests_cooperative_cancellation() -> None:
     arguments = popen.call_args.args[0]
     assert arguments[:3] == ["/usr/bin/zenity", "--progress", "--pulsate"]
     assert "--cancel-label=Cancel safely" in arguments
+
+
+def test_repair_progress_dialog_receives_determinate_updates() -> None:
+    class RecordingInput(StringIO):
+        def close(self) -> None:
+            pass
+
+    class ProgressProcess:
+        def __init__(self) -> None:
+            self.stdin = RecordingInput()
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+        def wait(self, timeout: int) -> int:
+            self.returncode = 0
+            return 0
+
+        def terminate(self) -> None:
+            self.returncode = -15
+
+    process = ProgressProcess()
+
+    def operation(progress: Callable[[int, str], None]) -> str:
+        progress(10, "Planning repair")
+        progress(55, "Copying checkpoint")
+        progress(100, "Repair verified")
+        return "done"
+
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.Popen", return_value=process) as popen,
+    ):
+        assert _run_with_reported_progress("Repair", "Starting", operation) == "done"
+
+    arguments = popen.call_args.args[0]
+    assert arguments[:2] == ["/usr/bin/zenity", "--progress"]
+    assert "--percentage=0" in arguments
+    assert "--no-cancel" in arguments
+    assert "--pulsate" not in arguments
+    assert process.stdin.getvalue() == (
+        "#Planning repair\n10\n#Copying checkpoint\n55\n#Repair verified\n100\n"
+    )
 
 
 def test_desktop_validation_shows_finite_problem_report(tmp_path: Path) -> None:

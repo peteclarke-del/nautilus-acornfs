@@ -97,6 +97,10 @@ exact-ADFS-boundary reserved-tail padding have an apply entry point. It requires
 exact-filename confirmation, exclusive pair locks, a pre-repair checkpoint, full
 verification and a retained audit record in one operation; none of those
 guarantees is inferred from planning. All other plans remain read-only guidance.
+The repair API reports monotonic stage progress, including byte-level checkpoint
+copying, to desktop callers without coupling the core transaction to Zenity. The
+desktop progress window is deliberately non-cancellable after typed confirmation;
+the transaction remains the sole authority for rollback and checkpoint retention.
 
 Long read-only validation uses cooperative cancellation points between directory
 and extent checks. Recovery stages complete DAT and DSC replacements alongside

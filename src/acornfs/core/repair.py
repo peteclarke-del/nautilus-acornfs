@@ -17,6 +17,7 @@ from acornfs.core.beebscsi import discover_pair
 from acornfs.core.image import ReadOnlyImage
 from acornfs.core.validation import IntegrityFinding, IntegrityReport, validate_image_report
 from acornfs.errors import AcornFSError
+from acornfs.operations import ProgressCallback, report_progress
 
 SUPPORTED_REPAIR_ACTIONS = frozenset(
     {"normalise_directory_lengths", "clear_empty_file_extents", "pad_reserved_tail"}
@@ -276,15 +277,22 @@ def _write_audit(path: Path, payload: dict[str, Any]) -> None:
         os.close(descriptor)
 
 
-def apply_repairs(selected: str | Path, *, confirmation: str) -> RepairResult:
+def apply_repairs(
+    selected: str | Path,
+    *,
+    confirmation: str,
+    progress: ProgressCallback | None = None,
+) -> RepairResult:
     """Apply a complete low-risk plan with confirmation, checkpointing and audit."""
 
+    report_progress(progress, 0, "Planning repair…")
     pair = discover_pair(selected)
     if confirmation != pair.dat_path.name:
         raise AcornFSError(
             f"Repair confirmation must exactly match the DAT filename: {pair.dat_path.name}"
         )
     plan = plan_repairs(pair.dat_path)
+    report_progress(progress, 10, "Repair plan validated")
     if plan.clean:
         raise AcornFSError("Validation found no problems, so there is nothing to repair.")
     if not plan.application_supported:
@@ -312,17 +320,38 @@ def apply_repairs(selected: str | Path, *, confirmation: str) -> RepairResult:
     }
     try:
         _write_audit(audit_path, payload)
+        report_progress(progress, 15, "Repair audit created")
     except OSError as exc:
         raise AcornFSError(f"Could not create the mandatory repair audit: {exc}") from exc
 
     image: ReadOnlyImage | None = None
     checkpoint_completed = False
     try:
-        image = ReadOnlyImage.open(pair.dat_path, writable=True, repair_mode=True)
+        report_progress(progress, 20, "Revalidating image before checkpoint creation…")
+
+        def checkpoint_progress(copied: int, total: int) -> None:
+            fraction = copied / total if total else 1.0
+            copied_mib = copied / (1024 * 1024)
+            total_mib = total / (1024 * 1024)
+            report_progress(
+                progress,
+                20 + int(fraction * 40),
+                f"Creating recovery checkpoint… {copied_mib:.1f} of {total_mib:.1f} MiB",
+            )
+
+        image = ReadOnlyImage.open(
+            pair.dat_path,
+            writable=True,
+            repair_mode=True,
+            checkpoint_progress=checkpoint_progress,
+        )
+        report_progress(progress, 60, "Recovery checkpoint ready")
         payload["status"] = "applying"
         payload["checkpoint_created"] = True
         _write_audit(audit_path, payload)
-        for action in plan.actions:
+        for index, action in enumerate(plan.actions, 1):
+            action_percent = 60 + int((index - 1) * 15 / len(plan.actions))
+            report_progress(progress, action_percent, f"Applying: {action.title}")
             if action.action == "pad_reserved_tail":
                 image.pad_reserved_tail()
             else:
@@ -330,6 +359,7 @@ def apply_repairs(selected: str | Path, *, confirmation: str) -> RepairResult:
             payload["applied_actions"].append(action.as_dict())
             _write_audit(audit_path, payload)
 
+        report_progress(progress, 78, "Verifying the complete repaired image…")
         report = image.integrity_report()
         remaining = {
             finding.code
@@ -344,12 +374,14 @@ def apply_repairs(selected: str | Path, *, confirmation: str) -> RepairResult:
         payload["status"] = "verified"
         payload["post_validation"] = report.as_dict()
         _write_audit(audit_path, payload)
+        report_progress(progress, 92, "Repair verified; finalising checkpoint…")
         image.close()
         checkpoint_completed = True
         image = None
         payload["status"] = "completed"
         payload["completed_at"] = datetime.now(UTC).isoformat()
         _write_audit(audit_path, payload)
+        report_progress(progress, 100, "Repair completed and verified")
         return RepairResult(str(audit_path), plan.actions, report)
     except Exception as exc:
         if image is not None:

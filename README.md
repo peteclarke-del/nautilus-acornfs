@@ -36,6 +36,7 @@ the remaining lifecycle and format work.
 - Identify ADFS DAT content without claiming generic DAT files and open image or `acornfs:` URIs read-only.
 - Cancel long validation and recovery work only at boundaries that leave images and checkpoints safe.
 - Apply eligible low-risk catalogue repairs with confirmation, checkpointing and retained audits.
+- Show live repair progress through checkpoint copying, mutation, verification and finalisation.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.

@@ -138,6 +138,7 @@ class ReadOnlyImage:
         writable: bool = False,
         repair_mode: bool = False,
         fault_injector: Callable[[str], None] | None = None,
+        checkpoint_progress: Callable[[int, int], None] | None = None,
     ) -> ReadOnlyImage:
         """Validate and open a DAT/DSC image, read-only unless explicitly writable."""
 
@@ -185,7 +186,9 @@ class ReadOnlyImage:
                 try:
                     from acornfs.recovery import RecoveryCheckpoint
 
-                    image._checkpoint = RecoveryCheckpoint.create(pair)
+                    image._checkpoint = RecoveryCheckpoint.create(
+                        pair, progress=checkpoint_progress
+                    )
                 except Exception:
                     image.close(clean=False)
                     raise
