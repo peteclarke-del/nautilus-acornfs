@@ -37,6 +37,25 @@ def test_create_beebscsi_command_creates_pair(tmp_path: Path, capsys: object) ->
     assert "ADFS title: NEWDISC" in output
 
 
+def test_metadata_aware_export_and_import_commands(tmp_path: Path, capsys: object) -> None:
+    images = tmp_path / "images"
+    images.mkdir()
+    dat_path, _dsc_path = create_beebscsi_image(images)
+    exported = tmp_path / "GUIDE"
+
+    assert main(["export-file", str(dat_path), "$.DOCS.GUIDE", str(exported)]) == 0
+    assert exported.read_bytes() == b"Nested file\r"
+    assert exported.with_name("GUIDE.inf").is_file()
+    assert "Acorn metadata:" in capsys.readouterr().out  # type: ignore[attr-defined]
+
+    assert main(["import-file", str(dat_path), str(exported), "--name", "COPY"]) == 0
+    assert "Metadata source: INF sidecar GUIDE.inf" in capsys.readouterr().out  # type: ignore[attr-defined]
+    with ReadOnlyImage.open(dat_path) as image:
+        copied = image.lookup(ROOT_INODE, b"COPY")
+        assert copied is not None
+        assert image.read(copied.inode, 0, copied.size) == b"Nested file\r"
+
+
 def test_status_reports_no_mounts(capsys: object) -> None:
     with patch("acornfs.cli.active_mounts", return_value=[]):
         assert main(["status"]) == 0

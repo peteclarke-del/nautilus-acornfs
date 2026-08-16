@@ -19,7 +19,8 @@ previous ID. Oversized writes are rejected before their FUSE buffers consume the
 unavailable capacity.
 Acorn load/execute addresses, filetypes, lock state, source filesystem and
 original paths are available as extended attributes. See [TODO.md](TODO.md) for
-the remaining lifecycle and format work.
+the remaining lifecycle and format work. Release history and policy are in
+[CHANGELOG.md](CHANGELOG.md) and [docs/releases.md](docs/releases.md).
 
 ## Current functionality
 
@@ -49,6 +50,7 @@ the remaining lifecycle and format work.
 - Track mounted pairs by canonical path and DAT/DSC device/inode identity.
 - Wait for writable flush and final validation before confirming unmount success.
 - Export privacy-safe support information through `acornfs diagnostics --json`.
+- Import and export individual files with Acorn load, execution and lock metadata sidecars.
 
 ## Development
 
@@ -122,6 +124,20 @@ To remove the extension, MIME types and desktop handler:
 ```shell
 acornfs uninstall-nautilus --restart
 ```
+
+Transfer a file without losing its Acorn catalogue metadata:
+
+```shell
+acornfs export-file /path/to/scsi0.dat '$.DOCS.GUIDE' ./GUIDE
+acornfs import-file /path/to/scsi0.dat ./GUIDE --directory '$.BACKUP'
+```
+
+Export refuses to overwrite either `GUIDE` or `GUIDE.inf`. Import automatically
+uses a single case-insensitive matching `.inf`, validates its recorded length,
+preflights image space, and commits the data and metadata as one checkpointed
+image mutation. Use
+`--sidecar PATH` to select one explicitly, `--ignore-sidecar` for neutral
+metadata, or `--name NAME` to override the imported ADFS leaf name.
 
 ## Validate an image
 
