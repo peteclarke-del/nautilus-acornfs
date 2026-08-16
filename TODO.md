@@ -86,7 +86,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
 - [x] Provide a mandatory pre-write checkpoint.
 - [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
-- [ ] Add safe cancellation boundaries for long validation and recovery operations.
+- [x] Add safe cancellation boundaries for long validation and recovery operations.
 
 ## Phase 5: Nautilus integration
 
