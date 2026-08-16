@@ -11,11 +11,21 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import time
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import IntegrityReport, discover_pair, validate_image_report
+from acornfs.core import (
+    BeebSCSIPair,
+    IntegrityReport,
+    RepairPlan,
+    apply_repairs,
+    discover_pair,
+    plan_repairs,
+    plan_repairs_from_report,
+    validate_image_report,
+)
 from acornfs.errors import AcornFSError
 from acornfs.mounts import (
     is_mounted,
@@ -148,28 +158,77 @@ def _open_folder(path: Path) -> None:
     )
 
 
-def _show_validation_report(name: str, report: IntegrityReport) -> bool:
-    """Show complete findings in a finite dialog; return false without Zenity."""
+def _dialog_report(report: IntegrityReport) -> str:
+    """Wrap a validation report for a compact, readable desktop dialog."""
+
+    wrapped: list[str] = []
+    for line in report.format_text().splitlines():
+        wrapped.extend(
+            textwrap.wrap(
+                line,
+                width=88,
+                subsequent_indent="  " if line.startswith("- ") else "",
+                replace_whitespace=False,
+            )
+            or [""]
+        )
+    return "\n".join(wrapped)
+
+
+def _show_desktop_message(title: str, message: str, *, error: bool = False) -> None:
+    """Show a finite one-button result dialog, falling back to a notification."""
 
     dialog = shutil.which("zenity")
     if dialog is None:
-        return False
+        _notify(title, message, error=error)
+        return
     subprocess.run(
         [
             dialog,
-            "--text-info",
-            f"--title=AcornFS validation — {name}",
-            "--width=760",
-            "--height=520",
+            "--error" if error else "--info",
+            f"--title={title}",
+            f"--text={message}",
             "--ok-label=Close",
+            "--width=560",
         ],
-        input=report.format_text(),
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _show_validation_report(
+    name: str, report: IntegrityReport, *, offer_repair: bool = False
+) -> bool | None:
+    """Show complete findings and return whether the user selected repair."""
+
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        return None
+    content = _dialog_report(report)
+    line_count = len(content.splitlines())
+    height = min(480, max(240, 145 + line_count * 22))
+    arguments = [
+        dialog,
+        "--text-info",
+        f"--title=AcornFS validation — {name}",
+        "--width=680",
+        f"--height={height}",
+        f"--ok-label={'Repair…' if offer_repair else 'Close'}",
+    ]
+    if offer_repair:
+        arguments.append("--cancel-label=Cancel")
+    else:
+        arguments.append("--no-cancel")
+    result = subprocess.run(
+        arguments,
+        input=content,
         text=True,
         check=False,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    return True
+    return offer_repair and result.returncode == 0
 
 
 def background_mount(
@@ -365,9 +424,14 @@ def desktop_validate(image_path: str | Path) -> int:
     except AcornFSError as exc:
         _notify("AcornFS validation failed", str(exc), error=True)
         raise
-    name = discover_pair(image_path).dat_path.name
+    pair = discover_pair(image_path)
+    name = pair.dat_path.name
     if report.fatal_findings or report.warning_findings:
-        if not _show_validation_report(name, report):
+        plan = plan_repairs_from_report(report)
+        choice = _show_validation_report(name, report, offer_repair=plan.application_supported)
+        if choice is True:
+            return _confirm_and_apply_repair(pair, plan)
+        if choice is None:
             first = (*report.fatal_findings, *report.warning_findings)[0]
             remaining = len(report.findings) - 1
             suffix = f" (+{remaining} more)" if remaining else ""
@@ -379,6 +443,65 @@ def desktop_validate(image_path: str | Path) -> int:
         return 1
     _notify("AcornFS validation passed", f"{name} has no reported ADFS problems.")
     return 0
+
+
+def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
+    """Show the shared typed-confirmation dialog and apply a previously reviewed plan."""
+
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        raise AcornFSError(
+            f"Run 'acornfs repair {pair.dat_path} --confirm {pair.dat_path.name}' "
+            "to apply the eligible repair."
+        )
+    actions = "\n".join(f"• {action.title}" for action in plan.actions)
+    result = subprocess.run(
+        [
+            dialog,
+            "--entry",
+            "--title=Repair AcornFS image",
+            f"--text=Eligible low-risk repair(s):\n{actions}\n\n"
+            f"A recovery checkpoint and audit will be created.\n"
+            f"Type {pair.dat_path.name} to confirm:",
+            "--width=620",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return 0
+    confirmation = result.stdout.rstrip("\n")
+    try:
+        repair = apply_repairs(pair.dat_path, confirmation=confirmation)
+    except AcornFSError as exc:
+        _show_desktop_message("AcornFS repair failed", str(exc), error=True)
+        raise
+    _show_desktop_message(
+        "AcornFS repair completed",
+        f"{pair.dat_path.name} was repaired and fully verified.\n\n"
+        f"Audit report:\n{repair.audit_path}",
+    )
+    return 0
+
+
+def desktop_repair(image_path: str | Path) -> int:
+    """Review an eligible repair and require the exact DAT filename before applying it."""
+
+    pair = discover_pair(image_path)
+    plan = plan_repairs(pair.dat_path)
+    if plan.clean:
+        _notify("AcornFS repair", f"{pair.dat_path.name} needs no repair.")
+        return 0
+    if not plan.application_supported:
+        if _show_validation_report(pair.dat_path.name, plan.report) is None:
+            _notify(
+                "AcornFS automatic repair refused",
+                "This image has no complete low-risk automatic repair plan.",
+                error=True,
+            )
+        return 1
+    return _confirm_and_apply_repair(pair, plan)
 
 
 def desktop_recover(image_path: str | Path) -> int:
@@ -394,8 +517,8 @@ def desktop_recover(image_path: str | Path) -> int:
             dialog,
             "--list",
             "--radiolist",
-            "--title=Resolve interrupted AcornFS write",
-            "--text=Choose how to resolve the retained pre-write checkpoint.",
+            "--title=Resolve interrupted AcornFS read-write mount",
+            "--text=Choose how to resolve the retained pre-mount checkpoint.",
             "--column=Selected",
             "--column=Action",
             "TRUE",
@@ -412,13 +535,17 @@ def desktop_recover(image_path: str | Path) -> int:
     if result.returncode != 0:
         return 0
     choice = result.stdout.strip()
-    if choice == "Restore image to the pre-mount checkpoint":
-        message = recover_image(image_path, restore=True)
-    elif choice == "Keep the current image and discard the checkpoint":
-        message = recover_image(image_path, discard=True)
-    else:
-        return 0
-    _notify("AcornFS recovery complete", message)
+    try:
+        if choice == "Restore image to the pre-mount checkpoint":
+            message = recover_image(image_path, restore=True)
+        elif choice == "Keep the current image and discard the checkpoint":
+            message = recover_image(image_path, discard=True)
+        else:
+            return 0
+    except AcornFSError as exc:
+        _show_desktop_message("AcornFS recovery failed", str(exc), error=True)
+        raise
+    _show_desktop_message("AcornFS recovery complete", message)
     return 0
 
 
@@ -432,6 +559,7 @@ __all__ = [
     "background_mount",
     "cleanup_stale_mountpoint",
     "desktop_mount",
+    "desktop_repair",
     "desktop_recover",
     "desktop_unmount",
     "desktop_validate",

@@ -9,6 +9,7 @@ from acornfs.errors import AcornFSError
 from acornfs.recovery import pending_recovery, recover_image
 from tests.image_fixture import (
     create_beebscsi_image,
+    reserve_adfs_tail,
     rewrite_old_map,
     set_root_entry_length,
     set_root_entry_start,
@@ -110,6 +111,67 @@ def test_empty_file_extent_repair_clears_only_stale_catalogue_field(
         _parent, entry = image._mount._adfs.path("$.ZERO")._resolve()  # type: ignore[attr-defined]
         assert entry.length == 0
         assert entry.start_sector == 0
+
+
+def test_omitted_reserved_tail_is_padded_with_checkpoint_and_audit(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    capacity = dat_path.stat().st_size
+    reserve_adfs_tail(dat_path, 128)
+    trimmed_size = capacity - 128 * 256
+    with dat_path.open("r+b") as handle:
+        handle.truncate(trimmed_size)
+    before = dat_path.read_bytes()
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))  # type: ignore[attr-defined]
+
+    plan = plan_repairs(dat_path)
+    assert plan.application_supported
+    assert [action.action for action in plan.actions] == ["pad_reserved_tail"]
+    result = apply_repairs(dat_path, confirmation=dat_path.name)
+
+    assert dat_path.stat().st_size == capacity
+    with dat_path.open("rb") as handle:
+        assert handle.read(trimmed_size) == before
+        assert handle.read() == bytes(128 * 256)
+    assert not result.report.fatal_findings
+    assert not result.report.warning_findings
+    assert {finding.code for finding in result.report.advice_findings} == {"geometry.reserved_tail"}
+    assert pending_recovery(dat_path) is None
+
+
+def test_reserved_tail_padding_rolls_back_size_on_failure(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    capacity = dat_path.stat().st_size
+    reserve_adfs_tail(dat_path, 128)
+    trimmed_size = capacity - 128 * 256
+    with dat_path.open("r+b") as handle:
+        handle.truncate(trimmed_size)
+
+    def fail(stage: str) -> None:
+        if stage == "pad_reserved_tail.after":
+            raise RuntimeError("injected padding failure")
+
+    image = ReadOnlyImage.open(dat_path, writable=True, repair_mode=True, fault_injector=fail)
+    with pytest.raises(RuntimeError, match="injected padding failure"):
+        image.pad_reserved_tail()
+    assert dat_path.stat().st_size == trimmed_size
+    image.close(clean=False)
+    assert pending_recovery(dat_path) is not None
+    recover_image(dat_path, discard=True)
+
+
+def test_writable_file_edit_preserves_reserved_container_tail(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    reserve_adfs_tail(dat_path, 128)
+    size_before = dat_path.stat().st_size
+
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        readme = image.lookup(1, b"README")
+        assert readme is not None
+        image.replace_file(readme.inode, b"edited through AcornFS")
+
+    assert dat_path.stat().st_size == size_before
 
 
 def test_failed_repair_retains_checkpoint_and_failed_audit(

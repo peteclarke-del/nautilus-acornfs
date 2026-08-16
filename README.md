@@ -70,10 +70,10 @@ acornfs install-nautilus --restart
 ```
 
 Right-click either member of a valid pair and open **Acorn FS Support**. Choose
-**Open read-only**, **Open read-write**, or **Validate image**. The mounted image
-opens in Nautilus and appears in its sidebar. The same submenu offers **Unmount**
-on the DAT/DSC and from the mounted root's background menu, keeping Acorn-specific
-actions out of Nautilus's top-level context menu.
+**Open read-only**, **Open read-write**, **Validate image**, or **Repair image…**.
+The mounted image opens in Nautilus and appears in its sidebar. The same submenu
+offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
+keeping Acorn-specific actions out of Nautilus's top-level context menu.
 The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
 
@@ -109,8 +109,9 @@ acornfs repair-plan --json /path/to/scsi0.dsc
 
 The plan groups findings into candidate operations, records risk and identifies
 steps that require a human decision. AcornFS can apply a complete plan only when
-every action is a low-risk directory-length or empty-file catalogue
-normalisation. First review the plan, then confirm with the exact DAT filename:
+every action is a low-risk directory-length normalisation, empty-file catalogue
+normalisation, or restoration of a DSC-declared tail omitted beyond the exact
+ADFS boundary. First review the plan, then confirm with the exact DAT filename:
 
 ```shell
 acornfs repair /path/to/scsi0.dat --confirm scsi0.dat

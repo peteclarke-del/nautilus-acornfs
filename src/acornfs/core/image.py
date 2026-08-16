@@ -136,6 +136,7 @@ class ReadOnlyImage:
         max_nodes: int = DEFAULT_MAX_NODES,
         max_depth: int = DEFAULT_MAX_DEPTH,
         writable: bool = False,
+        repair_mode: bool = False,
         fault_injector: Callable[[str], None] | None = None,
     ) -> ReadOnlyImage:
         """Validate and open a DAT/DSC image, read-only unless explicitly writable."""
@@ -152,7 +153,16 @@ class ReadOnlyImage:
             if writable:
                 from acornfs.core.validation import require_safe_for_write, validate_open_mount
 
-                require_safe_for_write(validate_open_mount(pair, mount, descriptor_geometry))
+                report = validate_open_mount(pair, mount, descriptor_geometry)
+                require_safe_for_write(report)
+                if not repair_mode and any(
+                    finding.code == "geometry.dat_missing_reserved_tail"
+                    for finding in report.findings
+                ):
+                    raise AcornFSError(
+                        "Writable mount refused: the DAT omits a repairable reserved tail. "
+                        "Run the low-risk repair first."
+                    )
             image = cls(
                 pair=pair,
                 reader=reader,
@@ -165,6 +175,12 @@ class ReadOnlyImage:
                 descriptor_geometry=descriptor_geometry,
                 fault_injector=fault_injector,
             )
+            # Ownership has transferred to the image. This also prevents the
+            # outer exception handler from closing the same resources twice if
+            # checkpoint creation fails and image.close() handles them.
+            reader = None
+            mount = None
+            closeables = ()
             if writable:
                 try:
                     from acornfs.recovery import RecoveryCheckpoint
@@ -174,8 +190,6 @@ class ReadOnlyImage:
                     image.close(clean=False)
                     raise
             return image
-        except AcornFSError:
-            raise
         except Exception as exc:
             if mount is not None:
                 cls._close_oaknut_mount(mount)
@@ -184,6 +198,8 @@ class ReadOnlyImage:
             for closeable in closeables if "closeables" in locals() else ():
                 with suppress(Exception):
                     closeable.close()
+            if isinstance(exc, AcornFSError):
+                raise
             raise AcornFSError(f"The ADFS image could not be opened safely: {exc}") from exc
 
     def _index_tree(self) -> None:
@@ -685,6 +701,37 @@ class ReadOnlyImage:
                         self.nodes[inode] = replace(node, size=expected)
 
         self._run_atomic(action, prepare=prepare, mutate=mutate, commit=commit)
+
+    def pad_reserved_tail(self) -> None:
+        """Restore a DSC-declared tail only when it starts at the ADFS boundary."""
+
+        with self._mutation():
+            mapping_handle = self._closeables[1]
+            original_size = os.fstat(mapping_handle.fileno()).st_size
+            expected_size = self._descriptor_geometry.capacity
+            adfs_size = int(cast(Any, self._mount)._adfs._fsm.total_sectors) * ADFS_SECTOR_BYTES
+            if original_size != adfs_size or original_size >= expected_size:
+                raise AcornFSError(
+                    "Reserved-tail padding is allowed only when the DAT ends exactly at "
+                    "the validated ADFS boundary below DSC capacity."
+                )
+            try:
+                os.ftruncate(mapping_handle.fileno(), expected_size)
+                self._fault("pad_reserved_tail.after")
+                os.fsync(mapping_handle.fileno())
+                self._expected_signature = self._current_signature()
+            except Exception as exc:
+                try:
+                    os.ftruncate(mapping_handle.fileno(), original_size)
+                    os.fsync(mapping_handle.fileno())
+                    self._expected_signature = self._current_signature()
+                except Exception as rollback_exc:
+                    self._failed = True
+                    raise AcornFSError(
+                        "Reserved-tail padding failed and its size rollback could not be "
+                        "verified; restore the recovery checkpoint."
+                    ) from rollback_exc
+                raise _MutationRolledBack(exc) from exc
 
     def _is_descendant_or_self(self, inode: int, ancestor_inode: int) -> bool:
         cursor = inode
