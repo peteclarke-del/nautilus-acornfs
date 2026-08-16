@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from pathlib import Path
 from typing import TypeVar
+from urllib.parse import unquote, urlparse
 
 from acornfs.core import (
     BeebSCSIPair,
@@ -394,6 +395,39 @@ def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:
     return 0
 
 
+def local_image_reference(reference: str | Path) -> Path:
+    """Convert a desktop path, file URI or AcornFS URI to one local image member."""
+
+    if isinstance(reference, Path):
+        return reference.expanduser()
+    parsed = urlparse(reference)
+    if not parsed.scheme:
+        return Path(reference).expanduser()
+    if parsed.scheme not in {"file", "acornfs"}:
+        raise AcornFSError(f"Unsupported image URI scheme: {parsed.scheme}")
+    if parsed.netloc not in {"", "localhost"}:
+        raise AcornFSError("AcornFS can open only local image URIs.")
+    if parsed.params or parsed.query or parsed.fragment or not parsed.path:
+        raise AcornFSError("The image URI must contain one unambiguous local path.")
+    path = unquote(parsed.path)
+    if "\0" in path:
+        raise AcornFSError("The image URI contains an invalid path.")
+    return Path(path)
+
+
+def desktop_open(image_references: list[str]) -> int:
+    """Open local desktop/MIME references as safe read-only mounts."""
+
+    for reference in image_references:
+        try:
+            image_path = local_image_reference(reference)
+        except AcornFSError as exc:
+            _notify("AcornFS open failed", str(exc), error=True)
+            raise
+        desktop_mount(image_path, read_write=False)
+    return 0
+
+
 def desktop_unmount(mountpoint: str | Path) -> int:
     target = Path(mountpoint).expanduser().resolve()
     record = mount_at(target)
@@ -634,12 +668,14 @@ __all__ = [
     "background_mount",
     "cleanup_stale_mountpoint",
     "desktop_mount",
+    "desktop_open",
     "desktop_repair",
     "desktop_recover",
     "desktop_unmount",
     "desktop_validate",
     "mountpoint_for_image",
     "mount_root",
+    "local_image_reference",
     "notify_mount_failure",
     "runtime_root",
 ]

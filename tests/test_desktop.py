@@ -10,10 +10,12 @@ from acornfs.desktop import (
     _run_with_progress,
     _systemd_mount_command,
     cleanup_stale_mountpoint,
+    desktop_open,
     desktop_recover,
     desktop_repair,
     desktop_unmount,
     desktop_validate,
+    local_image_reference,
     mountpoint_for_image,
 )
 from acornfs.errors import AcornFSError, OperationCancelled
@@ -36,6 +38,42 @@ def test_mountpoint_is_stable_for_either_pair_member(tmp_path: Path, monkeypatch
     assert mountpoint_for_image(dat_path) == mountpoint_for_image(dsc_path)
     assert mountpoint_for_image(dat_path).parent == mount_root
     assert mountpoint_for_image(dat_path).name.startswith("scsi0-")
+
+
+def test_desktop_uri_handler_accepts_only_local_image_paths() -> None:
+    assert local_image_reference("file:///tmp/Acorn%20image/scsi0.dat") == Path(
+        "/tmp/Acorn image/scsi0.dat"
+    )
+    assert local_image_reference("acornfs:///tmp/scsi0.dsc") == Path("/tmp/scsi0.dsc")
+    assert local_image_reference("relative/scsi0.dat") == Path("relative/scsi0.dat")
+    with pytest.raises(AcornFSError, match="only local"):
+        local_image_reference("file://server/share/scsi0.dat")
+    with pytest.raises(AcornFSError, match="Unsupported"):
+        local_image_reference("https://example.test/scsi0.dat")
+    with pytest.raises(AcornFSError, match="invalid path"):
+        local_image_reference("file:///tmp/scsi%00.dat")
+    with pytest.raises(AcornFSError, match="unambiguous"):
+        local_image_reference("file:///tmp/scsi0.dat?version=2")
+
+
+def test_desktop_open_mounts_mime_references_read_only() -> None:
+    with patch("acornfs.desktop.desktop_mount", return_value=0) as mount:
+        assert desktop_open(["file:///tmp/scsi0.dat", "acornfs:///tmp/scsi1.dsc"]) == 0
+    assert mount.call_args_list == [
+        ((Path("/tmp/scsi0.dat"),), {"read_write": False}),
+        ((Path("/tmp/scsi1.dsc"),), {"read_write": False}),
+    ]
+
+
+def test_desktop_open_notifies_for_refused_uri() -> None:
+    with (
+        patch("acornfs.desktop._notify") as notify,
+        pytest.raises(AcornFSError, match="Unsupported"),
+    ):
+        desktop_open(["https://example.test/scsi0.dat"])
+    notify.assert_called_once_with(
+        "AcornFS open failed", "Unsupported image URI scheme: https", error=True
+    )
 
 
 def test_desktop_recovery_requires_explicit_dialog_choice() -> None:
