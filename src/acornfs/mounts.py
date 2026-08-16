@@ -14,6 +14,7 @@ from typing import Any
 
 from acornfs.core import BeebSCSIPair, discover_pair
 from acornfs.errors import AcornFSError
+from acornfs.i18n import _
 
 REGISTRY_VERSION = 1
 
@@ -47,9 +48,11 @@ def runtime_root() -> Path:
             root.mkdir(mode=0o700, exist_ok=True)
             stat = root.stat(follow_symlinks=False)
             if stat.st_uid != os.getuid() or stat.st_mode & 0o077:
-                raise AcornFSError(f"The fallback runtime directory is not private: {root}")
+                raise AcornFSError(
+                    _("The fallback runtime directory is not private: {path}").format(path=root)
+                )
     if not root.is_dir():
-        raise AcornFSError("The session runtime directory is unavailable.")
+        raise AcornFSError(_("The session runtime directory is unavailable."))
     return root / "acornfs"
 
 
@@ -72,7 +75,9 @@ def _pair_identity(pair: BeebSCSIPair) -> tuple[int, int, int, int]:
         dat_stat = pair.dat_path.stat()
         dsc_stat = pair.dsc_path.stat()
     except OSError as exc:
-        raise AcornFSError(f"Could not identify the BeebSCSI pair: {exc}") from exc
+        raise AcornFSError(
+            _("Could not identify the BeebSCSI pair: {error}").format(error=exc)
+        ) from exc
     return dat_stat.st_dev, dat_stat.st_ino, dsc_stat.st_dev, dsc_stat.st_ino
 
 
@@ -105,7 +110,9 @@ def register_mount(
         os.replace(temporary, path)
     except OSError as exc:
         temporary.unlink(missing_ok=True)
-        raise AcornFSError(f"Could not record the active AcornFS mount: {exc}") from exc
+        raise AcornFSError(
+            _("Could not record the active AcornFS mount: {error}").format(error=exc)
+        ) from exc
     return record
 
 
@@ -148,7 +155,7 @@ def _kernel_mounts() -> list[MountRecord]:
     try:
         mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
     except OSError as exc:
-        raise AcornFSError(f"Cannot read mount status: {exc}") from exc
+        raise AcornFSError(_("Cannot read mount status: {error}").format(error=exc)) from exc
     return parse_mountinfo(mountinfo)
 
 

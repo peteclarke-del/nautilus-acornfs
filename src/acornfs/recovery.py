@@ -18,6 +18,7 @@ from typing import Any
 
 from acornfs.core.beebscsi import BeebSCSIPair, discover_pair
 from acornfs.errors import AcornFSError
+from acornfs.i18n import _
 from acornfs.operations import CancellationCheck, cancellation_point
 
 FICLONE = 0x40049409
@@ -77,7 +78,9 @@ def pending_recovery(selected: str | Path) -> RecoveryInfo | None:
         payload: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
         return RecoveryInfo(**payload)
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise AcornFSError(f"The recovery manifest is unreadable: {path}: {exc}") from exc
+        raise AcornFSError(
+            _("The recovery manifest is unreadable: {path}: {error}").format(path=path, error=exc)
+        ) from exc
 
 
 def _checkpoint_copy(
@@ -111,7 +114,7 @@ def _exclusive_pair_lock(pair: BeebSCSIPair) -> Any:
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         yield
     except BlockingIOError as exc:
-        raise AcornFSError("The image is mounted or open in another AcornFS process.") from exc
+        raise AcornFSError(_("The image is mounted or open in another AcornFS process.")) from exc
     finally:
         for handle in handles:
             handle.close()
@@ -136,8 +139,10 @@ class RecoveryCheckpoint:
         manifest = directory / "manifest.json"
         if manifest.exists():
             raise AcornFSError(
-                "An interrupted writable session needs recovery. Run "
-                f"'acornfs recover {pair.dat_path}' before mounting read-write."
+                _(
+                    "An interrupted writable session needs recovery. Run "
+                    "'acornfs recover {path}' before mounting read-write."
+                ).format(path=pair.dat_path)
             )
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         # A crash after a clean session removes its manifest may leave harmless
@@ -180,7 +185,9 @@ class RecoveryCheckpoint:
             _write_manifest(manifest, info)
         except Exception as exc:
             cls(pair, directory, info).complete()
-            raise AcornFSError(f"Could not create the writable recovery checkpoint: {exc}") from exc
+            raise AcornFSError(
+                _("Could not create the writable recovery checkpoint: {error}").format(error=exc)
+            ) from exc
         return cls(pair, directory, info)
 
     def complete(self) -> None:
@@ -233,20 +240,27 @@ def recover_image(
     pair = discover_pair(selected)
     info = pending_recovery(pair.dat_path)
     if info is None:
-        return "No recovery checkpoint is pending."
+        return _("No recovery checkpoint is pending.")
     directory = _manifest_path(pair).parent
     if restore and discard:
-        raise AcornFSError("Choose either --restore or --discard, not both.")
+        raise AcornFSError(_("Choose either --restore or --discard, not both."))
     if not restore and not discard:
-        return (
-            f"Recovery checkpoint from {info.created_at} is {info.state}. "
-            "Use --restore to restore it or --discard to accept the current image."
+        state = {
+            "creating": _("being created"),
+            "ready": _("ready"),
+        }.get(info.state, info.state)
+        return _(
+            "Recovery checkpoint from {created_at} is {state}. Use --restore to restore it "
+            "or --discard to accept the current image."
+        ).format(
+            created_at=info.created_at,
+            state=state,
         )
     with _exclusive_pair_lock(pair):
         if restore:
             if info.state != "ready":
                 raise AcornFSError(
-                    "The interrupted checkpoint was not completed and cannot be restored."
+                    _("The interrupted checkpoint was not completed and cannot be restored.")
                 )
             replacements: list[tuple[Path, Path]] = []
             try:
@@ -270,11 +284,11 @@ def recover_image(
             finally:
                 for temporary, _target in replacements:
                     temporary.unlink(missing_ok=True)
-            action = "restored"
+            result = _("Recovery checkpoint restored.")
         else:
-            action = "discarded"
+            result = _("Recovery checkpoint discarded.")
         RecoveryCheckpoint(pair, directory, info).complete()
-    return f"Recovery checkpoint {action}."
+    return result
 
 
 __all__ = [

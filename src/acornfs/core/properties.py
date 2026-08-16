@@ -19,6 +19,7 @@ from acornfs.core.beebscsi import (
 )
 from acornfs.core.validation import validate_open_mount
 from acornfs.errors import AcornFSError
+from acornfs.i18n import _
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,7 +113,9 @@ def read_image_properties(selected: str | Path) -> ImageProperties:
     except AcornFSError:
         raise
     except Exception as exc:
-        raise AcornFSError(f"The ADFS image properties could not be read safely: {exc}") from exc
+        raise AcornFSError(
+            _("The ADFS image properties could not be read safely: {error}").format(error=exc)
+        ) from exc
     finally:
         if mount is not None:
             close = getattr(getattr(mount, "_adfs", None), "close", None)
