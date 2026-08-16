@@ -32,6 +32,7 @@ the remaining lifecycle and format work.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Keep concurrent handles to one writable file coherent and flush dirty open handles on shutdown.
+- Enforce and test deep-tree, 47-entry old-directory, 10-byte name and display-mapping boundaries.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
 - Create an empty, validated BeebSCSI DAT/DSC pair from a writable Nautilus folder.
