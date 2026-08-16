@@ -12,6 +12,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Transactional ADFS file, directory and Acorn metadata mutations with recovery checkpoints.
 - Explicit host-file import and export with portable Acorn `.inf` metadata sidecars.
 - Deterministic amd64 performance budgets and bounded sequential large-file read-ahead.
+- The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
+- Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
 
 ### Changed
 

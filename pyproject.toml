@@ -30,6 +30,9 @@ acornfs = "acornfs.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+acornfs = ["locale/*/LC_MESSAGES/*.mo"]
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]

@@ -11,6 +11,7 @@ import gi
 
 from acornfs.core import read_image_properties
 from acornfs.errors import AcornFSError
+from acornfs.i18n import _
 from acornfs.mounts import is_mounted, mount_for_image
 from acornfs.recovery import pending_recovery
 from acornfs_nautilus.logic import (
@@ -58,8 +59,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             submenu.append_item(item)
         parent = Nautilus.MenuItem(
             name="AcornFS::Support",
-            label="Acorn FS Support",
-            tip="Open AcornFS image and filesystem actions",
+            label=_("Acorn FS Support"),
+            tip=_("Open AcornFS image and filesystem actions"),
             icon="drive-harddisk-symbolic",
         )
         parent.set_submenu(submenu)
@@ -83,6 +84,9 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _repair(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-repair", str(image_path))
 
+    def _open_file_forge(self, _menu: Any, image_path: Path) -> None:
+        _launch("desktop-open-file-forge", str(image_path))
+
     def _create(self, _menu: Any, directory: Path) -> None:
         _launch("desktop-create", str(directory))
 
@@ -92,8 +96,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _configuration_item(self) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::ConfigureMountLocation",
-            label="Mount location…",
-            tip="Choose where future AcornFS desktop mounts appear",
+            label=_("Mount location…"),
+            tip=_("Choose where future AcornFS desktop mounts appear"),
             icon="preferences-system-symbolic",
         )
         item.connect("activate", self._configure_mount_location)
@@ -102,8 +106,10 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _create_item(self, directory: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::CreateBeebSCSI",
-            label="Create BeebSCSI image…",
-            tip=f"Create an empty ADFS DAT/DSC pair in {directory.name}",
+            label=_("Create BeebSCSI image…"),
+            tip=_("Create an empty ADFS DAT/DSC pair in {directory}").format(
+                directory=directory.name
+            ),
             icon="document-new-symbolic",
         )
         item.connect("activate", self._create, directory)
@@ -116,8 +122,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _validate_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Validate",
-            label="Validate image",
-            tip=f"Check {path.name} without modifying it",
+            label=_("Validate image"),
+            tip=_("Check {image} without modifying it").format(image=path.name),
             icon="emblem-default-symbolic",
         )
         item.connect("activate", self._validate, path)
@@ -126,8 +132,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _read_only_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::MountReadOnly",
-            label="Open read-only",
-            tip=f"Mount {path.name} without allowing changes",
+            label=_("Open read-only"),
+            tip=_("Mount {image} without allowing changes").format(image=path.name),
             icon="changes-prevent-symbolic",
         )
         item.connect("activate", self._mount_read_only, path)
@@ -136,8 +142,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _repair_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Repair",
-            label="Repair image…",
-            tip=f"Review eligible low-risk repairs for {path.name}",
+            label=_("Repair image…"),
+            tip=_("Review eligible low-risk repairs for {image}").format(image=path.name),
             icon="document-edit-symbolic",
         )
         item.connect("activate", self._repair, path)
@@ -146,11 +152,21 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _unmount_item(self, mountpoint: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Unmount",
-            label="Unmount",
-            tip=f"Unmount {mountpoint.name}",
+            label=_("Unmount"),
+            tip=_("Unmount {mountpoint}").format(mountpoint=mountpoint.name),
             icon="media-eject-symbolic",
         )
         item.connect("activate", self._unmount, mountpoint)
+        return item
+
+    def _file_forge_item(self, path: Path) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::OpenFileForge",
+            label=_("Open in Acorn File Forge…"),
+            tip=_("Open {image} in Acorn File Forge").format(image=path.name),
+            icon="document-open-symbolic",
+        )
+        item.connect("activate", self._open_file_forge, path)
         return item
 
     def get_file_items(self, files: list[Any]) -> list[Any]:
@@ -175,7 +191,11 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if mounted is not None:
             return [
                 self._support_menu(
-                    [self._unmount_item(Path(mounted.mountpoint)), self._configuration_item()]
+                    [
+                        self._unmount_item(Path(mounted.mountpoint)),
+                        self._file_forge_item(path),
+                        self._configuration_item(),
+                    ]
                 )
             ]
         try:
@@ -185,8 +205,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if recovery is not None:
             recovery_item = Nautilus.MenuItem(
                 name="AcornFS::Recover",
-                label="Resolve interrupted read-write mount…",
-                tip="Restore the pre-mount checkpoint or keep the current image",
+                label=_("Resolve interrupted read-write mount…"),
+                tip=_("Restore the pre-mount checkpoint or keep the current image"),
                 icon="document-revert-symbolic",
             )
             recovery_item.connect("activate", self._recover, path)
@@ -196,14 +216,15 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                         recovery_item,
                         self._read_only_item(path),
                         self._validate_item(path),
+                        self._file_forge_item(path),
                         self._configuration_item(),
                     ]
                 )
             ]
         writable_item = Nautilus.MenuItem(
             name="AcornFS::MountReadWrite",
-            label="Open read-write",
-            tip=f"Mount {path.name} read-write with a recovery checkpoint",
+            label=_("Open read-write"),
+            tip=_("Mount {image} read-write with a recovery checkpoint").format(image=path.name),
             icon="drive-harddisk-symbolic",
         )
         writable_item.connect("activate", self._mount_read_write, path)
@@ -214,6 +235,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                     writable_item,
                     self._validate_item(path),
                     self._repair_item(path),
+                    self._file_forge_item(path),
                     self._configuration_item(),
                 ]
             )
@@ -249,10 +271,12 @@ class AcornFSPropertiesModelProvider(GObject.GObject, Nautilus.PropertiesModelPr
         if is_supported_image(path):
             try:
                 properties = read_image_properties(path)
-                mount_state = "Mounted" if mount_for_image(path) is not None else "Not mounted"
-                rows = (*image_property_rows(properties), ("Mount state", mount_state))
+                mount_state = (
+                    _("Mounted") if mount_for_image(path) is not None else _("Not mounted")
+                )
+                rows = (*image_property_rows(properties), (_("Mount state"), mount_state))
             except AcornFSError as exc:
-                rows = (("Status", f"Unavailable: {exc}"),)
-            return [self._model("Acorn disk image", rows)]
+                rows = ((_("Status"), _("Unavailable: {error}").format(error=exc)),)
+            return [self._model(_("Acorn disk image"), rows)]
         rows = mounted_file_property_rows(path)
-        return [self._model("Acorn metadata", rows)] if rows else []
+        return [self._model(_("Acorn metadata"), rows)] if rows else []

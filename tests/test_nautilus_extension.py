@@ -78,6 +78,7 @@ def test_image_actions_are_collapsed_under_one_support_menu(
         "Open read-write",
         "Validate image",
         "Repair image…",
+        "Open in Acorn File Forge…",
         "Mount location…",
     ]
 
@@ -128,3 +129,37 @@ def test_mount_location_action_launches_desktop_configuration(
     item.callback(None, *item.arguments)
 
     assert launched == [("desktop-configure-mount-location",)]
+
+
+def test_file_forge_action_launches_desktop_handoff(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "is_supported_image", lambda _path: True)
+    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
+    launched: list[tuple[str, ...]] = []
+    monkeypatch.setattr(extension, "_launch", lambda *arguments: launched.append(arguments))
+    image = tmp_path / "scsi0.dat"
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(image)])
+    item = next(row for row in items[0].submenu.items if row.label == "Open in Acorn File Forge…")
+
+    item.callback(None, *item.arguments)
+
+    assert launched == [("desktop-open-file-forge", str(image))]
+
+
+def test_mounted_image_keeps_file_forge_action(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "is_supported_image", lambda _path: True)
+    monkeypatch.setattr(
+        extension,
+        "mount_for_image",
+        lambda _path: SimpleNamespace(mountpoint=str(tmp_path / "mounted")),
+    )
+
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "scsi0.dat")])
+
+    assert [item.label for item in items[0].submenu.items] == [
+        "Unmount",
+        "Open in Acorn File Forge…",
+        "Mount location…",
+    ]
