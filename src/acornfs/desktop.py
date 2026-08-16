@@ -6,7 +6,6 @@ import errno
 import fcntl
 import hashlib
 import os
-import pwd
 import re
 import shutil
 import subprocess
@@ -40,21 +39,12 @@ from acornfs.mounts import (
     runtime_root,
     wait_for_mount_shutdown,
 )
+from acornfs.preferences import mount_location, mount_root, set_mount_location
 from acornfs.recovery import pending_recovery, recover_image
 
 MOUNT_TIMEOUT = 15.0
 WRITABLE_MOUNT_TIMEOUT = 300.0
 _T = TypeVar("_T")
-
-
-def mount_root() -> Path:
-    """Return a non-hidden home path which GLib exposes as a user FUSE mount."""
-
-    configured = os.environ.get("ACORNFS_MOUNT_ROOT")
-    if configured:
-        return Path(configured).expanduser()
-    home = Path(pwd.getpwuid(os.getuid()).pw_dir)
-    return home / "AcornFS Mounts"
 
 
 def mountpoint_for_image(image_path: str | Path) -> Path:
@@ -540,6 +530,58 @@ def desktop_create(directory: str | Path) -> int:
     return 0
 
 
+def desktop_configure_mount_location() -> int:
+    """Collect and persist the mount location used for future desktop mounts."""
+
+    try:
+        current = mount_location()
+        displayed = current.mode if current.mode != "custom" else str(current.root)
+        preference_note = ""
+    except AcornFSError:
+        displayed = "sidebar"
+        preference_note = "\nThe saved preference is invalid; saving will replace it."
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        raise AcornFSError("Run 'acornfs config-mount-location' to configure mount locations.")
+    prompt = (
+        "Enter sidebar, runtime, or an absolute directory path.\n"
+        f"The setting applies to future mounts; existing mounts are unchanged.{preference_note}"
+    )
+    choice = subprocess.run(
+        [
+            dialog,
+            "--entry",
+            "--title=AcornFS mount location",
+            f"--text={prompt}",
+            f"--entry-text={displayed}",
+            "--ok-label=Save",
+            "--cancel-label=Cancel",
+            "--width=620",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if choice.returncode != 0:
+        return 0
+    try:
+        saved = set_mount_location(choice.stdout.rstrip("\n"))
+    except AcornFSError as exc:
+        _show_desktop_message("AcornFS mount location was not changed", str(exc), error=True)
+        raise
+    effective = mount_location()
+    override = (
+        "\n\nACORNFS_MOUNT_ROOT still overrides this preference for the current environment."
+        if effective.source == "environment"
+        else ""
+    )
+    _show_desktop_message(
+        "AcornFS mount location saved",
+        f"Saved mount location:\n{saved.root}\n\nMode: {saved.mode}{override}",
+    )
+    return 0
+
+
 def desktop_unmount(mountpoint: str | Path) -> int:
     target = Path(mountpoint).expanduser().resolve()
     record = mount_at(target)
@@ -787,6 +829,7 @@ def notify_mount_failure(message: str) -> None:
 __all__ = [
     "background_mount",
     "cleanup_stale_mountpoint",
+    "desktop_configure_mount_location",
     "desktop_create",
     "desktop_mount",
     "desktop_open",

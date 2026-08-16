@@ -78,6 +78,7 @@ def test_image_actions_are_collapsed_under_one_support_menu(
         "Open read-write",
         "Validate image",
         "Repair image…",
+        "Mount location…",
     ]
 
 
@@ -89,7 +90,10 @@ def test_writable_folder_offers_create_in_support_menu(tmp_path: Path, monkeypat
 
     assert len(items) == 1
     assert items[0].label == "Acorn FS Support"
-    assert [item.label for item in items[0].submenu.items] == ["Create BeebSCSI image…"]
+    assert [item.label for item in items[0].submenu.items] == [
+        "Create BeebSCSI image…",
+        "Mount location…",
+    ]
 
 
 def test_create_action_launches_desktop_command(tmp_path: Path, monkeypatch: Any) -> None:
@@ -106,3 +110,21 @@ def test_create_action_launches_desktop_command(tmp_path: Path, monkeypatch: Any
     item.callback(None, *item.arguments)
 
     assert launched == [("desktop-create", str(tmp_path))]
+
+
+def test_mount_location_action_launches_desktop_configuration(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "is_mounted", lambda _path: False)
+    launched: list[tuple[str, ...]] = []
+    monkeypatch.setattr(extension, "_launch", lambda *arguments: launched.append(arguments))
+    item = (
+        extension.AcornFSMenuProvider()
+        .get_background_items(_FileInfo(tmp_path))[0]
+        .submenu.items[1]
+    )
+
+    item.callback(None, *item.arguments)
+
+    assert launched == [("desktop-configure-mount-location",)]

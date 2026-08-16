@@ -86,6 +86,19 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _create(self, _menu: Any, directory: Path) -> None:
         _launch("desktop-create", str(directory))
 
+    def _configure_mount_location(self, _menu: Any) -> None:
+        _launch("desktop-configure-mount-location")
+
+    def _configuration_item(self) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::ConfigureMountLocation",
+            label="Mount location…",
+            tip="Choose where future AcornFS desktop mounts appear",
+            icon="preferences-system-symbolic",
+        )
+        item.connect("activate", self._configure_mount_location)
+        return item
+
     def _create_item(self, directory: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::CreateBeebSCSI",
@@ -149,9 +162,9 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             return []
         if file_info.is_directory():
             if is_mounted(path):
-                return [self._support_menu([self._unmount_item(path)])]
+                return [self._support_menu([self._unmount_item(path), self._configuration_item()])]
             if self._can_create_in(path):
-                return [self._support_menu([self._create_item(path)])]
+                return [self._support_menu([self._create_item(path), self._configuration_item()])]
             return []
         if not is_supported_image(path):
             return []
@@ -160,7 +173,11 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         except AcornFSError:
             return []
         if mounted is not None:
-            return [self._support_menu([self._unmount_item(Path(mounted.mountpoint))])]
+            return [
+                self._support_menu(
+                    [self._unmount_item(Path(mounted.mountpoint)), self._configuration_item()]
+                )
+            ]
         try:
             recovery = pending_recovery(path)
         except AcornFSError:
@@ -175,7 +192,12 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             recovery_item.connect("activate", self._recover, path)
             return [
                 self._support_menu(
-                    [recovery_item, self._read_only_item(path), self._validate_item(path)]
+                    [
+                        recovery_item,
+                        self._read_only_item(path),
+                        self._validate_item(path),
+                        self._configuration_item(),
+                    ]
                 )
             ]
         writable_item = Nautilus.MenuItem(
@@ -192,6 +214,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                     writable_item,
                     self._validate_item(path),
                     self._repair_item(path),
+                    self._configuration_item(),
                 ]
             )
         ]
@@ -201,9 +224,9 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if path is None:
             return []
         if is_mounted(path):
-            return [self._support_menu([self._unmount_item(path)])]
+            return [self._support_menu([self._unmount_item(path), self._configuration_item()])]
         if self._can_create_in(path):
-            return [self._support_menu([self._create_item(path)])]
+            return [self._support_menu([self._create_item(path), self._configuration_item()])]
         return []
 
 
