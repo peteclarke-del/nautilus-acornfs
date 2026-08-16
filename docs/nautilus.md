@@ -96,9 +96,16 @@ does not expose either final file until the newly created pair has passed
 validation. If publishing the second member fails, the first is rolled back.
 Creation is intentionally absent inside a mounted ADFS image.
 
-The separate **Open in Acorn File Forge** backlog item remains pending because
-File Forge does not yet expose a supported desktop file-handoff interface.
-Opening only its web home page would not transfer the selected image.
+**Open in Acorn File Forge…** now dispatches the canonical DAT/DSC pair through
+an argv-only desktop launcher contract. AcornFS uses an installed
+`acorn-file-forge` command, or `ACORN_FILE_FORGE_COMMAND` with optional complete
+`{image}`, `{dat}`, and `{dsc}` argument placeholders. It never invokes a shell.
+The end-to-end backlog item remains pending until File Forge provides the
+corresponding helper or browser-session hand-off endpoint; without one, the
+action explains what must be installed instead of pretending that opening the
+web home page transferred the selected image. The helper must treat the source
+pair as read-only input and upload or copy it into File Forge's private working
+session rather than editing the original files directly.
 
 ## Interrupted writes and recovery
 

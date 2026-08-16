@@ -38,6 +38,7 @@ the remaining lifecycle and format work. Release history and policy are in
 - Detect sequential large-file reads and use globally bounded per-handle read-ahead.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
+- Hand image pairs to an installed Acorn File Forge desktop launcher without invoking a shell.
 - Create an empty, validated BeebSCSI DAT/DSC pair from a writable Nautilus folder.
 - Identify ADFS DAT content without claiming generic DAT files and open image or `acornfs:` URIs read-only.
 - Cancel long validation and recovery work only at boundaries that leave images and checkpoints safe.
@@ -86,7 +87,8 @@ acornfs install-nautilus --restart
 ```
 
 Right-click either member of a valid pair and open **Acorn FS Support**. Choose
-**Open read-only**, **Open read-write**, **Validate image**, or **Repair image…**.
+**Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
+**Open in Acorn File Forge…**.
 The mounted image opens in Nautilus and appears in its sidebar. The same submenu
 offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
@@ -94,6 +96,30 @@ The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
 Double-clicking a recognised image member opens the pair read-only. The same
 handler accepts a local URI such as `acornfs:///path/to/scsi0.dat`.
+
+### Acorn File Forge hand-off
+
+The File Forge action first looks for an `acorn-file-forge` desktop command. Its
+launcher receives the canonical DAT and DSC paths as separate arguments. Until
+File Forge ships that helper, configure an equivalent installed launcher with
+`ACORN_FILE_FORGE_COMMAND`. The value is split into arguments and is never
+passed to a shell. It may use `{image}`, `{dat}`, and `{dsc}` as complete
+argument placeholders; when it has no placeholders, DAT and DSC are appended:
+
+```shell
+export ACORN_FILE_FORGE_COMMAND='file-forge-client --image {dat} --descriptor {dsc}'
+```
+
+The launcher must treat both paths as read-only inputs and copy or upload them
+into File Forge's private working session; it must not edit the source pair.
+
+Set this in the graphical login environment before starting Files. A missing
+launcher produces an explanatory dialog. AcornFS deliberately does not upload
+the pair directly to `http://localhost:8666`: the browser application isolates
+working images by a private browser owner, so an external upload cannot be
+safely attached to the active browser session without a File Forge hand-off
+endpoint. This keeps large local image paths and session credentials out of
+URLs and command shells.
 
 Desktop mounts default to `~/AcornFS Mounts`, which gives Files the most reliable
 sidebar presentation. Select a private session-runtime location, inspect the
@@ -138,6 +164,11 @@ preflights image space, and commits the data and metadata as one checkpointed
 image mutation. Use
 `--sidecar PATH` to select one explicitly, `--ignore-sidecar` for neutral
 metadata, or `--name NAME` to override the imported ADFS leaf name.
+
+Nautilus and dialog interface chrome uses gettext and falls back to English;
+technical values and core validation/repair findings remain English for now. See
+[docs/localisation.md](docs/localisation.md) for extracting messages, adding a
+catalogue, packaging it, and completing the manual accessibility checks.
 
 ## Validate an image
 

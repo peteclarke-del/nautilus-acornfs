@@ -32,6 +32,8 @@ from acornfs.core import (
     validate_image_report,
 )
 from acornfs.errors import AcornFSError, OperationCancelled
+from acornfs.file_forge import open_in_file_forge
+from acornfs.i18n import _
 from acornfs.mounts import (
     is_mounted,
     mount_at,
@@ -185,7 +187,7 @@ def _show_desktop_message(title: str, message: str, *, error: bool = False) -> N
             "--error" if error else "--info",
             f"--title={title}",
             f"--text={message}",
-            "--ok-label=Close",
+            f"--ok-label={_('Close')}",
             "--width=560",
         ],
         check=False,
@@ -214,7 +216,7 @@ def _run_with_progress(
                 "--auto-close",
                 f"--title={title}",
                 f"--text={message}",
-                "--cancel-label=Cancel safely",
+                f"--cancel-label={_('Cancel safely')}",
                 "--width=520",
             ],
             stdin=subprocess.PIPE,
@@ -314,13 +316,13 @@ def _show_validation_report(
     arguments = [
         dialog,
         "--text-info",
-        f"--title=AcornFS validation — {name}",
+        f"--title={_('AcornFS validation — {name}').format(name=name)}",
         "--width=680",
         f"--height={height}",
-        f"--ok-label={'Repair…' if offer_repair else 'Close'}",
+        f"--ok-label={_('Repair…') if offer_repair else _('Close')}",
     ]
     if offer_repair:
-        arguments.append("--cancel-label=Cancel")
+        arguments.append(f"--cancel-label={_('Cancel')}")
     else:
         arguments.append("--no-cancel")
     result = subprocess.run(
@@ -361,8 +363,10 @@ def background_mount(
         existing = mount_at(mountpoint)
         if existing is not None and mount_for_image(pair.dat_path) is None:
             raise AcornFSError(
-                "The image's mount location is occupied by a different file identity. "
-                "Unmount that location before mounting the replacement image."
+                _(
+                    "The image's mount location is occupied by a different file identity. "
+                    "Unmount that location before mounting the replacement image."
+                )
             )
         if existing is None:
             command = [sys.executable, "-m", "acornfs.cli", "mount"]
@@ -381,7 +385,11 @@ def background_mount(
                 )
                 if launch.returncode:
                     detail = launch.stderr.strip() or "systemd-run failed"
-                    raise AcornFSError(f"Could not start the AcornFS user service: {detail}")
+                    raise AcornFSError(
+                        _("Could not start the AcornFS user service: {detail}").format(
+                            detail=detail
+                        )
+                    )
             else:
                 with log_path.open("ab") as log:
                     process = subprocess.Popen(
@@ -399,26 +407,35 @@ def background_mount(
                 if process is not None and process.poll() is not None:
                     detail = _last_log_line(log_path)
                     raise AcornFSError(
-                        detail or f"Mount process exited with status {process.returncode}."
+                        detail
+                        or _("Mount process exited with status {status}.").format(
+                            status=process.returncode
+                        )
                     )
                 if unit is not None and not _unit_active(unit):
                     detail = _unit_log_line(unit)
-                    raise AcornFSError(detail or "The AcornFS user service exited before mounting.")
+                    raise AcornFSError(
+                        detail or _("The AcornFS user service exited before mounting.")
+                    )
                 time.sleep(0.1)
             else:
                 if process is not None:
                     process.terminate()
                 if unit is not None:
                     _stop_unit(unit)
-                raise AcornFSError(f"Timed out mounting {pair.dat_path.name}.")
+                raise AcornFSError(
+                    _("Timed out mounting {image}.").format(image=pair.dat_path.name)
+                )
 
     if open_folder:
         _open_folder(mountpoint)
     if notify:
-        mode = "read-write" if read_write else "read-only"
+        mode = _("read-write") if read_write else _("read-only")
         _notify(
-            "AcornFS image mounted",
-            f"{pair.dat_path.name} is available in Files ({mode}).",
+            _("AcornFS image mounted"),
+            _("{image} is available in Files ({mode}).").format(
+                image=pair.dat_path.name, mode=mode
+            ),
         )
     return mountpoint
 
@@ -435,7 +452,7 @@ def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:
     try:
         background_mount(image_path, read_write=read_write)
     except AcornFSError as exc:
-        _notify("AcornFS mount failed", str(exc), error=True)
+        _notify(_("AcornFS mount failed"), str(exc), error=True)
         raise
     return 0
 
@@ -449,14 +466,14 @@ def local_image_reference(reference: str | Path) -> Path:
     if not parsed.scheme:
         return Path(reference).expanduser()
     if parsed.scheme not in {"file", "acornfs"}:
-        raise AcornFSError(f"Unsupported image URI scheme: {parsed.scheme}")
+        raise AcornFSError(_("Unsupported image URI scheme: {scheme}").format(scheme=parsed.scheme))
     if parsed.netloc not in {"", "localhost"}:
-        raise AcornFSError("AcornFS can open only local image URIs.")
+        raise AcornFSError(_("AcornFS can open only local image URIs."))
     if parsed.params or parsed.query or parsed.fragment or not parsed.path:
-        raise AcornFSError("The image URI must contain one unambiguous local path.")
+        raise AcornFSError(_("The image URI must contain one unambiguous local path."))
     path = unquote(parsed.path)
     if "\0" in path:
-        raise AcornFSError("The image URI contains an invalid path.")
+        raise AcornFSError(_("The image URI contains an invalid path."))
     return Path(path)
 
 
@@ -467,9 +484,20 @@ def desktop_open(image_references: list[str]) -> int:
         try:
             image_path = local_image_reference(reference)
         except AcornFSError as exc:
-            _notify("AcornFS open failed", str(exc), error=True)
+            _notify(_("AcornFS open failed"), str(exc), error=True)
             raise
         desktop_mount(image_path, read_write=False)
+    return 0
+
+
+def desktop_open_file_forge(image_path: str | Path) -> int:
+    """Hand a local DAT/DSC pair to an installed File Forge desktop launcher."""
+
+    try:
+        open_in_file_forge(image_path)
+    except AcornFSError as exc:
+        _show_desktop_message(_("Could not open Acorn File Forge"), str(exc), error=True)
+        raise
     return 0
 
 
@@ -480,21 +508,23 @@ def desktop_create(directory: str | Path) -> int:
     dialog = shutil.which("zenity")
     if dialog is None:
         raise AcornFSError(
-            f"Run 'acornfs create-beebscsi {destination}' to create an image without Zenity."
+            _(
+                "Run 'acornfs create-beebscsi {destination}' to create an image without Zenity."
+            ).format(destination=destination)
         )
     separator = "\x1f"
     choice = subprocess.run(
         [
             dialog,
             "--forms",
-            "--title=Create BeebSCSI image",
-            f"--text=Create an empty, validated ADFS hard-disc pair in:\n{destination}",
-            "--add-entry=Base filename (default: scsi0)",
-            "--add-entry=ADFS title (default: BLANK)",
-            "--add-entry=Capacity (default: 20MB)",
+            f"--title={_('Create BeebSCSI image')}",
+            f"--text={_('Create an empty, validated ADFS hard-disc pair in:')}\n{destination}",
+            f"--add-entry={_('Base filename (default: scsi0)')}",
+            f"--add-entry={_('ADFS title (default: BLANK)')}",
+            f"--add-entry={_('Capacity (default: 20MB)')}",
             f"--separator={separator}",
-            "--ok-label=Create",
-            "--cancel-label=Cancel",
+            f"--ok-label={_('Create')}",
+            f"--cancel-label={_('Cancel')}",
             "--width=600",
         ],
         check=False,
@@ -505,12 +535,12 @@ def desktop_create(directory: str | Path) -> int:
         return 0
     values = choice.stdout.rstrip("\n").split(separator)
     if len(values) != 3:
-        raise AcornFSError("The image settings dialog returned an invalid response.")
+        raise AcornFSError(_("The image settings dialog returned an invalid response."))
     name, title, capacity = values
     try:
         created = _run_with_reported_progress(
-            "Creating BeebSCSI image",
-            "Checking image settings…",
+            _("Creating BeebSCSI image"),
+            _("Checking image settings…"),
             lambda progress: create_beebscsi_image(
                 destination,
                 name=name,
@@ -520,12 +550,14 @@ def desktop_create(directory: str | Path) -> int:
             ),
         )
     except AcornFSError as exc:
-        _show_desktop_message("AcornFS image creation failed", str(exc), error=True)
+        _show_desktop_message(_("AcornFS image creation failed"), str(exc), error=True)
         raise
     _show_desktop_message(
-        "BeebSCSI image created",
-        f"Created and verified {created.pair.dat_path.name} and "
-        f"{created.pair.dsc_path.name}.\n\nRight-click either file to open or validate it.",
+        _("BeebSCSI image created"),
+        _(
+            "Created and verified {dat} and {dsc}.\n\n"
+            "Right-click either file to open or validate it."
+        ).format(dat=created.pair.dat_path.name, dsc=created.pair.dsc_path.name),
     )
     return 0
 
@@ -539,23 +571,24 @@ def desktop_configure_mount_location() -> int:
         preference_note = ""
     except AcornFSError:
         displayed = "sidebar"
-        preference_note = "\nThe saved preference is invalid; saving will replace it."
+        preference_note = _("\nThe saved preference is invalid; saving will replace it.")
     dialog = shutil.which("zenity")
     if dialog is None:
-        raise AcornFSError("Run 'acornfs config-mount-location' to configure mount locations.")
+        raise AcornFSError(_("Run 'acornfs config-mount-location' to configure mount locations."))
     prompt = (
-        "Enter sidebar, runtime, or an absolute directory path.\n"
-        f"The setting applies to future mounts; existing mounts are unchanged.{preference_note}"
+        _("Enter sidebar, runtime, or an absolute directory path.\n")
+        + _("The setting applies to future mounts; existing mounts are unchanged.")
+        + preference_note
     )
     choice = subprocess.run(
         [
             dialog,
             "--entry",
-            "--title=AcornFS mount location",
+            f"--title={_('AcornFS mount location')}",
             f"--text={prompt}",
             f"--entry-text={displayed}",
-            "--ok-label=Save",
-            "--cancel-label=Cancel",
+            f"--ok-label={_('Save')}",
+            f"--cancel-label={_('Cancel')}",
             "--width=620",
         ],
         check=False,
@@ -567,17 +600,19 @@ def desktop_configure_mount_location() -> int:
     try:
         saved = set_mount_location(choice.stdout.rstrip("\n"))
     except AcornFSError as exc:
-        _show_desktop_message("AcornFS mount location was not changed", str(exc), error=True)
+        _show_desktop_message(_("AcornFS mount location was not changed"), str(exc), error=True)
         raise
     effective = mount_location()
     override = (
-        "\n\nACORNFS_MOUNT_ROOT still overrides this preference for the current environment."
+        _("\n\nACORNFS_MOUNT_ROOT still overrides this preference for the current environment.")
         if effective.source == "environment"
         else ""
     )
     _show_desktop_message(
-        "AcornFS mount location saved",
-        f"Saved mount location:\n{saved.root}\n\nMode: {saved.mode}{override}",
+        _("AcornFS mount location saved"),
+        _("Saved mount location:\n{root}\n\nMode: {mode}{override}").format(
+            root=saved.root, mode=saved.mode, override=override
+        ),
     )
     return 0
 
@@ -588,14 +623,17 @@ def desktop_unmount(mountpoint: str | Path) -> int:
     if record is None:
         with suppress(OSError):
             target.rmdir()
-        _notify("AcornFS image unmounted", f"{target.name} was already detached.")
+        _notify(
+            _("AcornFS image unmounted"),
+            _("{mountpoint} was already detached.").format(mountpoint=target.name),
+        )
         return 0
     if record.read_write is None:
-        detail = (
+        detail = _(
             "This mount has no lifecycle identity record, so AcornFS cannot prove its write "
             "mode or final flush state. Unmount it from a terminal before remounting it."
         )
-        _notify("AcornFS unmount refused", detail, error=True)
+        _notify(_("AcornFS unmount refused"), detail, error=True)
         raise AcornFSError(detail)
     command = ["fusermount3", "-u"]
     if record.read_write is False:
@@ -608,32 +646,40 @@ def desktop_unmount(mountpoint: str | Path) -> int:
         text=True,
     )
     if result.returncode:
-        detail = result.stderr.strip() or "fusermount3 failed"
-        _notify("AcornFS unmount failed", detail, error=True)
-        raise AcornFSError(f"Could not unmount {target}: {detail}")
+        detail = result.stderr.strip() or _("fusermount3 failed")
+        _notify(_("AcornFS unmount failed"), detail, error=True)
+        raise AcornFSError(
+            _("Could not unmount {mountpoint}: {detail}").format(mountpoint=target, detail=detail)
+        )
     if record.read_write:
         if not wait_for_mount_shutdown(target):
-            detail = (
+            detail = _(
                 "The image detached but its writable daemon has not confirmed a safe flush. "
                 "Do not reuse the image until the daemon has exited."
             )
-            _notify("AcornFS unmount not confirmed", detail, error=True)
+            _notify(_("AcornFS unmount not confirmed"), detail, error=True)
             raise AcornFSError(detail)
         if record.image_path is not None and pending_recovery(record.image_path) is not None:
-            detail = (
+            detail = _(
                 "The image detached but final validation did not complete safely; "
                 "resolve its recovery checkpoint before mounting it read-write again."
             )
-            _notify("AcornFS final validation failed", detail, error=True)
+            _notify(_("AcornFS final validation failed"), detail, error=True)
             raise AcornFSError(detail)
     with suppress(OSError):
         target.rmdir()
     with suppress(OSError):
         target.parent.rmdir()
     if record.read_write:
-        _notify("AcornFS image unmounted", f"{target.name} was flushed and validated safely.")
+        _notify(
+            _("AcornFS image unmounted"),
+            _("{mountpoint} was flushed and validated safely.").format(mountpoint=target.name),
+        )
     else:
-        _notify("AcornFS image detached", f"{target.name} was detached read-only.")
+        _notify(
+            _("AcornFS image detached"),
+            _("{mountpoint} was detached read-only.").format(mountpoint=target.name),
+        )
     return 0
 
 
@@ -647,7 +693,11 @@ def cleanup_stale_mountpoint(mountpoint: str | Path) -> bool:
         os.listdir(target)
     except OSError as exc:
         if exc.errno not in {errno.ENOTCONN, errno.EIO, errno.ESTALE}:
-            raise AcornFSError(f"Could not inspect mounted image {target}: {exc}") from exc
+            raise AcornFSError(
+                _("Could not inspect mounted image {mountpoint}: {error}").format(
+                    mountpoint=target, error=exc
+                )
+            ) from exc
         result = subprocess.run(
             ["fusermount3", "-u", "-z", str(target)],
             check=False,
@@ -655,8 +705,12 @@ def cleanup_stale_mountpoint(mountpoint: str | Path) -> bool:
             text=True,
         )
         if result.returncode:
-            detail = result.stderr.strip() or "fusermount3 failed"
-            raise AcornFSError(f"Could not clean up stale mount {target}: {detail}") from exc
+            detail = result.stderr.strip() or _("fusermount3 failed")
+            raise AcornFSError(
+                _("Could not clean up stale mount {mountpoint}: {detail}").format(
+                    mountpoint=target, detail=detail
+                )
+            ) from exc
         return True
     return False
 
@@ -666,15 +720,15 @@ def desktop_validate(image_path: str | Path) -> int:
 
     try:
         report = _run_with_progress(
-            "Validating AcornFS image",
-            "Checking geometry, directories and allocation…",
+            _("Validating AcornFS image"),
+            _("Checking geometry, directories and allocation…"),
             lambda cancelled: validate_image_report(image_path, cancelled=cancelled),
         )
     except OperationCancelled:
-        _notify("AcornFS validation cancelled", "The image was not modified.")
+        _notify(_("AcornFS validation cancelled"), _("The image was not modified."))
         return 0
     except AcornFSError as exc:
-        _notify("AcornFS validation failed", str(exc), error=True)
+        _notify(_("AcornFS validation failed"), str(exc), error=True)
         raise
     pair = discover_pair(image_path)
     name = pair.dat_path.name
@@ -686,14 +740,23 @@ def desktop_validate(image_path: str | Path) -> int:
         if choice is None:
             first = (*report.fatal_findings, *report.warning_findings)[0]
             remaining = len(report.findings) - 1
-            suffix = f" (+{remaining} more)" if remaining else ""
+            suffix = _(" (+{count} more)").format(count=remaining) if remaining else ""
             _notify(
-                "AcornFS validation found problems",
-                f"{name}: [{first.severity.value.upper()}] {first.code}: {first.message}{suffix}",
+                _("AcornFS validation found problems"),
+                _("{image}: [{severity}] {code}: {message}{suffix}").format(
+                    image=name,
+                    severity=first.severity.value.upper(),
+                    code=first.code,
+                    message=first.message,
+                    suffix=suffix,
+                ),
                 error=True,
             )
         return 1
-    _notify("AcornFS validation passed", f"{name} has no reported ADFS problems.")
+    _notify(
+        _("AcornFS validation passed"),
+        _("{image} has no reported ADFS problems.").format(image=name),
+    )
     return 0
 
 
@@ -703,18 +766,19 @@ def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
     dialog = shutil.which("zenity")
     if dialog is None:
         raise AcornFSError(
-            f"Run 'acornfs repair {pair.dat_path} --confirm {pair.dat_path.name}' "
-            "to apply the eligible repair."
+            _("Run 'acornfs repair {image} --confirm {name}' to apply the eligible repair.").format(
+                image=pair.dat_path, name=pair.dat_path.name
+            )
         )
     actions = "\n".join(f"• {action.title}" for action in plan.actions)
     result = subprocess.run(
         [
             dialog,
             "--entry",
-            "--title=Repair AcornFS image",
-            f"--text=Eligible low-risk repair(s):\n{actions}\n\n"
-            f"A recovery checkpoint and audit will be created.\n"
-            f"Type {pair.dat_path.name} to confirm:",
+            f"--title={_('Repair AcornFS image')}",
+            f"--text={_('Eligible low-risk repair(s):')}\n{actions}\n\n"
+            f"{_('A recovery checkpoint and audit will be created.')}\n"
+            f"{_('Type {name} to confirm:').format(name=pair.dat_path.name)}",
             "--width=620",
         ],
         check=False,
@@ -726,8 +790,8 @@ def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
     confirmation = result.stdout.rstrip("\n")
     try:
         repair = _run_with_reported_progress(
-            "Repairing AcornFS image",
-            "Preparing the repair…",
+            _("Repairing AcornFS image"),
+            _("Preparing the repair…"),
             lambda progress: apply_repairs(
                 pair.dat_path,
                 confirmation=confirmation,
@@ -735,12 +799,13 @@ def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
             ),
         )
     except AcornFSError as exc:
-        _show_desktop_message("AcornFS repair failed", str(exc), error=True)
+        _show_desktop_message(_("AcornFS repair failed"), str(exc), error=True)
         raise
     _show_desktop_message(
-        "AcornFS repair completed",
-        f"{pair.dat_path.name} was repaired and fully verified.\n\n"
-        f"Audit report:\n{repair.audit_path}",
+        _("AcornFS repair completed"),
+        _("{image} was repaired and fully verified.\n\nAudit report:\n{audit}").format(
+            image=pair.dat_path.name, audit=repair.audit_path
+        ),
     )
     return 0
 
@@ -751,13 +816,16 @@ def desktop_repair(image_path: str | Path) -> int:
     pair = discover_pair(image_path)
     plan = plan_repairs(pair.dat_path)
     if plan.clean:
-        _notify("AcornFS repair", f"{pair.dat_path.name} needs no repair.")
+        _notify(
+            _("AcornFS repair"),
+            _("{image} needs no repair.").format(image=pair.dat_path.name),
+        )
         return 0
     if not plan.application_supported:
         if _show_validation_report(pair.dat_path.name, plan.report) is None:
             _notify(
-                "AcornFS automatic repair refused",
-                "This image has no complete low-risk automatic repair plan.",
+                _("AcornFS automatic repair refused"),
+                _("This image has no complete low-risk automatic repair plan."),
                 error=True,
             )
         return 1
@@ -770,21 +838,23 @@ def desktop_recover(image_path: str | Path) -> int:
     dialog = shutil.which("zenity")
     if dialog is None:
         raise AcornFSError(
-            "Recovery needs a choice. Run 'acornfs recover IMAGE --restore' or '--discard'."
+            _("Recovery needs a choice. Run 'acornfs recover IMAGE --restore' or '--discard'.")
         )
+    restore_choice = _("Restore image to the pre-mount checkpoint")
+    discard_choice = _("Keep the current image and discard the checkpoint")
     result = subprocess.run(
         [
             dialog,
             "--list",
             "--radiolist",
-            "--title=Resolve interrupted AcornFS read-write mount",
-            "--text=Choose how to resolve the retained pre-mount checkpoint.",
-            "--column=Selected",
-            "--column=Action",
+            f"--title={_('Resolve interrupted AcornFS read-write mount')}",
+            f"--text={_('Choose how to resolve the retained pre-mount checkpoint.')}",
+            f"--column={_('Selected')}",
+            f"--column={_('Action')}",
             "TRUE",
-            "Restore image to the pre-mount checkpoint",
+            restore_choice,
             "FALSE",
-            "Keep the current image and discard the checkpoint",
+            discard_choice,
             "--width=620",
             "--height=280",
         ],
@@ -796,34 +866,36 @@ def desktop_recover(image_path: str | Path) -> int:
         return 0
     choice = result.stdout.strip()
     try:
-        if choice == "Restore image to the pre-mount checkpoint":
+        if choice == restore_choice:
             message = _run_with_progress(
-                "Restoring AcornFS image",
-                "Staging the checkpoint safely before replacing the image pair…",
+                _("Restoring AcornFS image"),
+                _("Staging the checkpoint safely before replacing the image pair…"),
                 lambda cancelled: recover_image(image_path, restore=True, cancelled=cancelled),
             )
-        elif choice == "Keep the current image and discard the checkpoint":
+        elif choice == discard_choice:
             message = recover_image(image_path, discard=True)
         else:
             return 0
     except OperationCancelled:
         _show_desktop_message(
-            "AcornFS recovery cancelled",
-            "Recovery stopped before the commit boundary. The image was not replaced and "
-            "the checkpoint is still available.",
+            _("AcornFS recovery cancelled"),
+            _(
+                "Recovery stopped before the commit boundary. The image was not replaced and "
+                "the checkpoint is still available."
+            ),
         )
         return 0
     except AcornFSError as exc:
-        _show_desktop_message("AcornFS recovery failed", str(exc), error=True)
+        _show_desktop_message(_("AcornFS recovery failed"), str(exc), error=True)
         raise
-    _show_desktop_message("AcornFS recovery complete", message)
+    _show_desktop_message(_("AcornFS recovery complete"), message)
     return 0
 
 
 def notify_mount_failure(message: str) -> None:
     """Surface a detached mount or final-validation failure to the desktop."""
 
-    _notify("AcornFS mount failed", message, error=True)
+    _notify(_("AcornFS mount failed"), message, error=True)
 
 
 __all__ = [
@@ -833,6 +905,7 @@ __all__ = [
     "desktop_create",
     "desktop_mount",
     "desktop_open",
+    "desktop_open_file_forge",
     "desktop_repair",
     "desktop_recover",
     "desktop_unmount",
