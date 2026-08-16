@@ -463,8 +463,8 @@ class ReadOnlyImage:
             raise ValueError("ADFS filenames must use 7-bit ASCII") from exc
         if not encoded or len(encoded) > 10:
             raise ValueError("ADFS filenames must contain between 1 and 10 bytes")
-        if any(character in decoded for character in ".:\r"):
-            raise ValueError("ADFS filenames cannot contain '.', ':' or carriage return")
+        if any(character in decoded for character in "\0.:\r"):
+            raise ValueError("ADFS filenames cannot contain NUL, '.', ':' or carriage return")
         return decoded
 
     def _child_path(self, parent_inode: int, name: str) -> str:

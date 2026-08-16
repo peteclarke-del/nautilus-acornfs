@@ -226,7 +226,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Truncated, oversized, sparse and corrupt DAT files.
 - [ ] Old ADFS directory formats used by BBC, Master and Electron hardware.
 - [ ] Newer ADFS formats where supported by the underlying library.
-- [ ] Deep trees, maximum directory entries and boundary-length names.
+- [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.
 - [x] Interrupted writes, daemon crashes and forced termination.
 - [ ] Host shutdown during an active writable mount.
@@ -240,7 +240,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Real BeebSCSI hardware after every write-path release candidate.
 - [x] New-image creation, validation, collision refusal and partial-publication rollback.
 - [x] Sidebar, runtime and custom mount-location preference resolution.
-- [ ] Filenames containing every supported display mapping and case-collision combination.
+- [x] Filenames containing every supported display mapping and case-collision combination.
 - [ ] Images stored on NFS, removable media, read-only media and filesystems without reflink support.
 - [ ] Low-memory, low-disk-space and interrupted preference/audit/checkpoint writes.
 
