@@ -33,6 +33,7 @@ the remaining lifecycle and format work.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
+- Identify ADFS DAT content without claiming generic DAT files and open image or `acornfs:` URIs read-only.
 - Cancel long validation and recovery work only at boundaries that leave images and checkpoints safe.
 - Apply eligible low-risk catalogue repairs with confirmation, checkpointing and retained audits.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
@@ -65,7 +66,7 @@ host permitted to create FUSE mounts with:
 make test-live
 ```
 
-Install the per-user Nautilus extension and restart Files:
+Install the per-user Nautilus extension, MIME types and desktop handler, then restart Files:
 
 ```shell
 acornfs install-nautilus --restart
@@ -78,8 +79,10 @@ offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
 The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
+Double-clicking a recognised image member opens the pair read-only. The same
+handler accepts a local URI such as `acornfs:///path/to/scsi0.dat`.
 
-To remove the integration:
+To remove the extension, MIME types and desktop handler:
 
 ```shell
 acornfs uninstall-nautilus --restart

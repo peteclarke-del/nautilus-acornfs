@@ -87,6 +87,12 @@ def test_desktop_mount_forwards_writable_choice() -> None:
     desktop_mount.assert_called_once_with("/image.dat", read_write=True)
 
 
+def test_desktop_open_forwards_uri_list() -> None:
+    with patch("acornfs.desktop.desktop_open", return_value=0) as desktop_open:
+        assert main(["desktop-open", "file:///image.dat", "acornfs:///image.dsc"]) == 0
+    desktop_open.assert_called_once_with(["file:///image.dat", "acornfs:///image.dsc"])
+
+
 def test_validate_command_reports_clean_image(tmp_path: Path, capsys: object) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     assert main(["validate", str(dat_path)]) == 0
