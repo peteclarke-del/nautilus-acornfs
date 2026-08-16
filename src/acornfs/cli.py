@@ -135,6 +135,8 @@ def _parser() -> argparse.ArgumentParser:
     desktop_repair_parser.add_argument("image")
     desktop_validate_parser = subparsers.add_parser("desktop-validate")
     desktop_validate_parser.add_argument("image")
+    desktop_file_forge_parser = subparsers.add_parser("desktop-open-file-forge")
+    desktop_file_forge_parser.add_argument("image")
     desktop_open_parser = subparsers.add_parser("desktop-open")
     desktop_open_parser.add_argument("images", nargs="+")
     desktop_create_parser = subparsers.add_parser("desktop-create")
@@ -406,6 +408,12 @@ def _desktop_open(args: argparse.Namespace) -> int:
     return desktop_open(args.images)
 
 
+def _desktop_open_file_forge(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_open_file_forge
+
+    return desktop_open_file_forge(args.image)
+
+
 def _desktop_create(args: argparse.Namespace) -> int:
     from acornfs.desktop import desktop_create
 
@@ -445,6 +453,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-recover": _desktop_recover,
         "desktop-repair": _desktop_repair,
         "desktop-validate": _desktop_validate,
+        "desktop-open-file-forge": _desktop_open_file_forge,
         "desktop-open": _desktop_open,
         "desktop-create": _desktop_create,
         "desktop-configure-mount-location": _desktop_configure_mount_location,

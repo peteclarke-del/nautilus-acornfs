@@ -112,7 +112,9 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Add `Mount read-only`.
 - [x] Add `Unmount` for mounted images.
 - [x] Add `Validate image`.
-- [ ] Add `Open in Acorn File Forge`.
+- [ ] Add `Open in Acorn File Forge` end to end.
+- [x] Add the AcornFS-side shell-free File Forge desktop launcher contract.
+- [ ] Add the corresponding browser-session hand-off endpoint/helper to Acorn File Forge.
 - [x] Add `Create BeebSCSI image` where appropriate.
 - [x] Keep all AcornFS commands beneath one `Acorn FS Support` submenu.
 - [x] Add desktop configuration for future mount locations.
@@ -123,7 +125,9 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
 - [ ] Test light mode, dark mode, narrow windows and 200 percent scaling.
 - [ ] Test drag-and-drop, clipboard copy/move, trash/delete and atomic-save workflows in Nautilus.
-- [ ] Make user-facing desktop strings translatable and add localisation guidance.
+- [ ] Make all user-facing desktop strings translatable.
+- [x] Add the gettext foundation, catalogue template and localisation guidance for desktop UI chrome.
+- [ ] Localise core validation, repair and image-property values displayed by the desktop UI.
 - [ ] Verify dialogs and notifications with a screen reader.
 
 ## Phase 6: lifecycle and desktop service

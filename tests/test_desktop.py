@@ -15,6 +15,7 @@ from acornfs.desktop import (
     desktop_configure_mount_location,
     desktop_create,
     desktop_open,
+    desktop_open_file_forge,
     desktop_recover,
     desktop_repair,
     desktop_unmount,
@@ -83,6 +84,16 @@ def test_desktop_open_notifies_for_refused_uri() -> None:
     notify.assert_called_once_with(
         "AcornFS open failed", "Unsupported image URI scheme: https", error=True
     )
+
+
+def test_desktop_file_forge_handoff_reports_launcher_failure() -> None:
+    with (
+        patch("acornfs.desktop.open_in_file_forge", side_effect=AcornFSError("not installed")),
+        patch("acornfs.desktop._show_desktop_message") as show,
+        pytest.raises(AcornFSError, match="not installed"),
+    ):
+        desktop_open_file_forge("/image.dat")
+    show.assert_called_once_with("Could not open Acorn File Forge", "not installed", error=True)
 
 
 def test_desktop_create_collects_settings_and_reports_success(tmp_path: Path) -> None:

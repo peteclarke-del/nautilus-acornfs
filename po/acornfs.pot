@@ -1,0 +1,627 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-16 22:25+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: src/acornfs/desktop.py:607
+msgid ""
+"\n"
+"\n"
+"ACORNFS_MOUNT_ROOT still overrides this preference for the current environment."
+msgstr ""
+
+#: src/acornfs/desktop.py:574
+msgid ""
+"\n"
+"The saved preference is invalid; saving will replace it."
+msgstr ""
+
+#: src/acornfs/desktop.py:743
+#, python-brace-format
+msgid " (+{count} more)"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:42
+#, python-brace-format
+msgid " ({warnings}, {advice})"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:64
+msgid "ADFS size"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:62
+msgid "Acorn FS Support"
+msgstr ""
+
+#: src/acornfs/file_forge.py:48
+#, python-brace-format
+msgid "Acorn File Forge has no desktop launcher installed. Install an '{executable}' command, or set {variable} to its safe argv command. The browser-only service cannot securely receive a local image without a desktop hand-off helper."
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:280
+msgid "Acorn disk image"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:282
+msgid "Acorn metadata"
+msgstr ""
+
+#: src/acornfs/desktop.py:827
+msgid "AcornFS automatic repair refused"
+msgstr ""
+
+#: src/acornfs/desktop.py:471
+msgid "AcornFS can open only local image URIs."
+msgstr ""
+
+#: src/acornfs/desktop.py:667
+msgid "AcornFS final validation failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:553
+msgid "AcornFS image creation failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:680
+msgid "AcornFS image detached"
+msgstr ""
+
+#: src/acornfs/desktop.py:435
+msgid "AcornFS image mounted"
+msgstr ""
+
+#: src/acornfs/desktop.py:627 src/acornfs/desktop.py:675
+msgid "AcornFS image unmounted"
+msgstr ""
+
+#: src/acornfs/desktop.py:455 src/acornfs/desktop.py:898
+msgid "AcornFS mount failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:612
+msgid "AcornFS mount location saved"
+msgstr ""
+
+#: src/acornfs/desktop.py:603
+msgid "AcornFS mount location was not changed"
+msgstr ""
+
+#: src/acornfs/desktop.py:487
+msgid "AcornFS open failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:881
+msgid "AcornFS recovery cancelled"
+msgstr ""
+
+#: src/acornfs/desktop.py:891
+msgid "AcornFS recovery complete"
+msgstr ""
+
+#: src/acornfs/desktop.py:889
+msgid "AcornFS recovery failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:820
+msgid "AcornFS repair"
+msgstr ""
+
+#: src/acornfs/desktop.py:805
+msgid "AcornFS repair completed"
+msgstr ""
+
+#: src/acornfs/desktop.py:802
+msgid "AcornFS repair failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:650
+msgid "AcornFS unmount failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:660
+msgid "AcornFS unmount not confirmed"
+msgstr ""
+
+#: src/acornfs/desktop.py:636
+msgid "AcornFS unmount refused"
+msgstr ""
+
+#: src/acornfs/desktop.py:728
+msgid "AcornFS validation cancelled"
+msgstr ""
+
+#: src/acornfs/desktop.py:731
+msgid "AcornFS validation failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:745
+msgid "AcornFS validation found problems"
+msgstr ""
+
+#: src/acornfs/desktop.py:757
+msgid "AcornFS validation passed"
+msgstr ""
+
+#: src/acornfs/desktop.py:556
+msgid "BeebSCSI image created"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:54
+msgid "Boot option"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:63
+msgid "Capacity"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:126
+#, python-brace-format
+msgid "Check {image} without modifying it"
+msgstr ""
+
+#: src/acornfs/desktop.py:724
+msgid "Checking geometry, directories and allocation…"
+msgstr ""
+
+#: src/acornfs/desktop.py:543
+msgid "Checking image settings…"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:100
+msgid "Choose where future AcornFS desktop mounts appear"
+msgstr ""
+
+#: src/acornfs/desktop.py:710
+#, python-brace-format
+msgid "Could not clean up stale mount {mountpoint}: {detail}"
+msgstr ""
+
+#: src/acornfs/desktop.py:697
+#, python-brace-format
+msgid "Could not inspect mounted image {mountpoint}: {error}"
+msgstr ""
+
+#: src/acornfs/desktop.py:499
+msgid "Could not open Acorn File Forge"
+msgstr ""
+
+#: src/acornfs/file_forge.py:88
+#, python-brace-format
+msgid "Could not start Acorn File Forge: {error}"
+msgstr ""
+
+#: src/acornfs/desktop.py:389
+#, python-brace-format
+msgid "Could not start the AcornFS user service: {detail}"
+msgstr ""
+
+#: src/acornfs/desktop.py:652
+#, python-brace-format
+msgid "Could not unmount {mountpoint}: {detail}"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:109
+msgid "Create BeebSCSI image…"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:110
+#, python-brace-format
+msgid "Create an empty ADFS DAT/DSC pair in {directory}"
+msgstr ""
+
+#: src/acornfs/desktop.py:558
+#, python-brace-format
+msgid ""
+"Created and verified {dat} and {dsc}.\n"
+"\n"
+"Right-click either file to open or validate it."
+msgstr ""
+
+#: src/acornfs/desktop.py:542
+msgid "Creating BeebSCSI image"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:49
+msgid "Directory format"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:53
+msgid "Disc cycle ID"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:52
+msgid "Disc name"
+msgstr ""
+
+#: src/acornfs/desktop.py:579
+msgid "Enter sidebar, runtime, or an absolute directory path.\n"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:92
+msgid "Execute address"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:48
+msgid "Filesystem"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:66
+msgid "Free"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:56
+msgid "Geometry"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:22
+msgid "GiB"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:50
+msgid "Hardware profile"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:47
+msgid "Image type"
+msgstr ""
+
+#: src/acornfs/desktop.py:844
+msgid "Keep the current image and discard the checkpoint"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:22
+msgid "KiB"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:91
+msgid "Load address"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:94
+msgid "Locked"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:22
+msgid "MiB"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:99
+msgid "Mount location…"
+msgstr ""
+
+#: src/acornfs/desktop.py:411
+#, python-brace-format
+msgid "Mount process exited with status {status}."
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:277
+msgid "Mount state"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:227
+#, python-brace-format
+msgid "Mount {image} read-write with a recovery checkpoint"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:136
+#, python-brace-format
+msgid "Mount {image} without allowing changes"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:275
+msgid "Mounted"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:275
+msgid "Not mounted"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:63
+msgid "Open AcornFS image and filesystem actions"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:165
+msgid "Open in Acorn File Forge…"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:135
+msgid "Open read-only"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:226
+msgid "Open read-write"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:166
+#, python-brace-format
+msgid "Open {image} in Acorn File Forge"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:90
+msgid "Original pathname"
+msgstr ""
+
+#: src/acornfs/desktop.py:794
+msgid "Preparing the repair…"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:93
+msgid "RISC OS filetype"
+msgstr ""
+
+#: src/acornfs/desktop.py:841
+msgid "Recovery needs a choice. Run 'acornfs recover IMAGE --restore' or '--discard'."
+msgstr ""
+
+#: src/acornfs/desktop.py:883
+msgid "Recovery stopped before the commit boundary. The image was not replaced and the checkpoint is still available."
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:145
+msgid "Repair image…"
+msgstr ""
+
+#: src/acornfs/desktop.py:793
+msgid "Repairing AcornFS image"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:69
+msgid "Reserved tail"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:208
+msgid "Resolve interrupted read-write mount…"
+msgstr ""
+
+#: src/acornfs/desktop.py:843
+msgid "Restore image to the pre-mount checkpoint"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:209
+msgid "Restore the pre-mount checkpoint or keep the current image"
+msgstr ""
+
+#: src/acornfs/desktop.py:871
+msgid "Restoring AcornFS image"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:146
+#, python-brace-format
+msgid "Review eligible low-risk repairs for {image}"
+msgstr ""
+
+#: src/acornfs/desktop.py:577
+msgid "Run 'acornfs config-mount-location' to configure mount locations."
+msgstr ""
+
+#: src/acornfs/desktop.py:512
+#, python-brace-format
+msgid "Run 'acornfs create-beebscsi {destination}' to create an image without Zenity."
+msgstr ""
+
+#: src/acornfs/desktop.py:769
+#, python-brace-format
+msgid "Run 'acornfs repair {image} --confirm {name}' to apply the eligible repair."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:34
+msgid "Safe for read-write mounting"
+msgstr ""
+
+#: src/acornfs/desktop.py:613
+#, python-brace-format
+msgid ""
+"Saved mount location:\n"
+"{root}\n"
+"\n"
+"Mode: {mode}{override}"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:88
+msgid "Source filesystem"
+msgstr ""
+
+#: src/acornfs/desktop.py:872
+msgid "Staging the checkpoint safely before replacing the image pair…"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:279
+msgid "Status"
+msgstr ""
+
+#: src/acornfs/desktop.py:418
+msgid "The AcornFS user service exited before mounting."
+msgstr ""
+
+#: src/acornfs/desktop.py:476
+msgid "The image URI contains an invalid path."
+msgstr ""
+
+#: src/acornfs/desktop.py:473
+msgid "The image URI must contain one unambiguous local path."
+msgstr ""
+
+#: src/acornfs/desktop.py:664
+msgid "The image detached but final validation did not complete safely; resolve its recovery checkpoint before mounting it read-write again."
+msgstr ""
+
+#: src/acornfs/desktop.py:657
+msgid "The image detached but its writable daemon has not confirmed a safe flush. Do not reuse the image until the daemon has exited."
+msgstr ""
+
+#: src/acornfs/desktop.py:538
+msgid "The image settings dialog returned an invalid response."
+msgstr ""
+
+#: src/acornfs/desktop.py:728
+msgid "The image was not modified."
+msgstr ""
+
+#: src/acornfs/desktop.py:367
+msgid "The image's mount location is occupied by a different file identity. Unmount that location before mounting the replacement image."
+msgstr ""
+
+#: src/acornfs/desktop.py:580
+msgid "The setting applies to future mounts; existing mounts are unchanged."
+msgstr ""
+
+#: src/acornfs/desktop.py:828
+msgid "This image has no complete low-risk automatic repair plan."
+msgstr ""
+
+#: src/acornfs/desktop.py:633
+msgid "This mount has no lifecycle identity record, so AcornFS cannot prove its write mode or final flush state. Unmount it from a terminal before remounting it."
+msgstr ""
+
+#: src/acornfs/desktop.py:427
+#, python-brace-format
+msgid "Timed out mounting {image}."
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:51
+msgid "Title"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:279
+#, python-brace-format
+msgid "Unavailable: {error}"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:155
+msgid "Unmount"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:156
+#, python-brace-format
+msgid "Unmount {mountpoint}"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:34
+msgid "Unsafe"
+msgstr ""
+
+#: src/acornfs/desktop.py:469
+#, python-brace-format
+msgid "Unsupported image URI scheme: {scheme}"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:65
+msgid "Used"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:125
+msgid "Validate image"
+msgstr ""
+
+#: src/acornfs/desktop.py:723
+msgid "Validating AcornFS image"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:70
+msgid "Validation"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:22 src/acornfs_nautilus/logic.py:26
+msgid "bytes"
+msgstr ""
+
+#: src/acornfs/desktop.py:649 src/acornfs/desktop.py:708
+msgid "fusermount3 failed"
+msgstr ""
+
+#: src/acornfs/desktop.py:433
+msgid "read-only"
+msgstr ""
+
+#: src/acornfs/desktop.py:433
+msgid "read-write"
+msgstr ""
+
+#: src/acornfs_nautilus/logic.py:41
+#, python-brace-format
+msgid "{count} advice"
+msgid_plural "{count} advice"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/acornfs_nautilus/logic.py:38
+#, python-brace-format
+msgid "{count} warning"
+msgid_plural "{count} warnings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/acornfs_nautilus/logic.py:57
+#, python-brace-format
+msgid "{cylinders} cylinders × {heads} heads × {sectors} sectors/track"
+msgstr ""
+
+#: src/acornfs/desktop.py:758
+#, python-brace-format
+msgid "{image} has no reported ADFS problems."
+msgstr ""
+
+#: src/acornfs/desktop.py:436
+#, python-brace-format
+msgid "{image} is available in Files ({mode})."
+msgstr ""
+
+#: src/acornfs/desktop.py:821
+#, python-brace-format
+msgid "{image} needs no repair."
+msgstr ""
+
+#: src/acornfs/desktop.py:806
+#, python-brace-format
+msgid ""
+"{image} was repaired and fully verified.\n"
+"\n"
+"Audit report:\n"
+"{audit}"
+msgstr ""
+
+#: src/acornfs/desktop.py:746
+#, python-brace-format
+msgid "{image}: [{severity}] {code}: {message}{suffix}"
+msgstr ""
+
+#: src/acornfs/desktop.py:628
+#, python-brace-format
+msgid "{mountpoint} was already detached."
+msgstr ""
+
+#: src/acornfs/desktop.py:681
+#, python-brace-format
+msgid "{mountpoint} was detached read-only."
+msgstr ""
+
+#: src/acornfs/desktop.py:676
+#, python-brace-format
+msgid "{mountpoint} was flushed and validated safely."
+msgstr ""
+
+#: src/acornfs/file_forge.py:35
+#, python-brace-format
+msgid "{variable} is not valid command syntax: {error}"
+msgstr ""
+
+#: src/acornfs/file_forge.py:41
+#, python-brace-format
+msgid "{variable} must name an executable."
+msgstr ""
