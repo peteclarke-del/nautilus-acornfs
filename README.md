@@ -54,10 +54,11 @@ python -m pip install -e '.[dev,fuse]'
 pytest
 ```
 
-The suite includes a real writable FUSE lifecycle test. Because some CI hosts
-expose `/dev/fuse` without granting mount permission, ordinary test runs skip it
-unless explicitly enabled. Run it on a Linux host permitted to create FUSE
-mounts with:
+The suite includes real writable FUSE lifecycle tests for direct mounts,
+Nautilus-style transient systemd user services and forced-daemon recovery.
+Because some CI hosts expose `/dev/fuse` without granting mount permission,
+ordinary test runs skip them unless explicitly enabled. Run them on a Linux
+host permitted to create FUSE mounts with:
 
 ```shell
 make test-live

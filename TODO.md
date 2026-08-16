@@ -177,7 +177,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [ ] Deep trees, maximum directory entries and boundary-length names.
 - [ ] Locked files and every supported metadata combination.
-- [ ] Interrupted writes, daemon crashes, forced termination and host shutdown.
+- [x] Interrupted writes, daemon crashes and forced termination.
+- [ ] Host shutdown during an active writable mount.
 - [x] Concurrent readers and conflicting writers.
 - [x] External modification while mounted.
 - [x] Files larger than available image space.
