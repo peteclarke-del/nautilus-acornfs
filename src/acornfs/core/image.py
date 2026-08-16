@@ -289,6 +289,12 @@ class ReadOnlyImage:
         data = self._cached_file(inode, node)
         return data[offset : offset + size]
 
+    def uses_ranged_reads(self, inode: int) -> bool:
+        """Return whether this file bypasses the bounded whole-file cache."""
+
+        node = self.nodes[inode]
+        return not node.is_dir and node.size > self._cache_limit
+
     def _read_range(self, node: ImageNode, offset: int, size: int) -> bytes:
         """Read only the sectors needed for a range of an uncached large file."""
 

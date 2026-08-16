@@ -45,7 +45,11 @@ operation do not produce multiple ID increments.
 The same re-entrant lock covers on-disc mutation and the in-memory inode index
 commit. This serialises writers while allowing ordinary reads from the stable
 index. Large files bypass the whole-file LRU cache and read only the requested
-sector range; FUSE growth is capacity-checked before its memory buffer expands.
+sector range. Two adjacent reads on one FUSE handle establish a sequential
+stream; subsequent reads fetch up to 256 KiB ahead. Speculative data is private
+to that handle, discarded on a seek or writable access, and held under a 4 MiB
+global LRU budget across the mount. FUSE growth is capacity-checked before its
+memory buffer expands.
 
 All writable handles for one inode share one userspace buffer. Writes and
 truncation through any handle are immediately visible through every other

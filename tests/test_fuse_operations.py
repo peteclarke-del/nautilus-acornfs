@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pyfuse3
 import pytest
@@ -37,6 +37,99 @@ def test_lookup_and_read_nested_file(operations: ReadOnlyOperations) -> None:
     info = run_async(operations.open, guide.st_ino, 0, context)
     assert run_async(operations.read, info.fh, 0, 1024) == b"Nested file\r"
     assert guide.st_mode & 0o777 == 0o444
+
+
+def test_large_sequential_reads_use_bounded_read_ahead(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    contents = bytes(range(256)) * 16
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        large = image.create_file(ROOT_INODE, b"LARGE")
+        image.replace_file(large.inode, contents)
+
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, cache_bytes=64) as image:
+        large = image.lookup(ROOT_INODE, b"LARGE")
+        assert large is not None
+        operations = ReadOnlyOperations(image, read_ahead_bytes=512, read_ahead_cache_bytes=1024)
+        info = run_async(operations.open, large.inode, os.O_RDONLY, context)
+        with patch.object(image, "read", wraps=image.read) as read:
+            assert run_async(operations.read, info.fh, 0, 256) == contents[:256]
+            assert run_async(operations.read, info.fh, 256, 256) == contents[256:512]
+            assert read.call_args_list == [
+                call(large.inode, 0, 256),
+                call(large.inode, 256, 768),
+            ]
+
+            assert run_async(operations.read, info.fh, 512, 256) == contents[512:768]
+            assert read.call_count == 2
+            assert operations._read_ahead_size <= 1024
+
+            assert run_async(operations.read, info.fh, 3000, 128) == contents[3000:3128]
+            assert read.call_args_list[-1] == call(large.inode, 3000, 128)
+            assert operations._read_ahead_size == 0
+
+        run_async(operations.release, info.fh)
+        assert info.fh not in operations._read_states
+
+
+def test_read_ahead_total_budget_evicts_oldest_handle(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    contents = bytes(range(256)) * 16
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        large = image.create_file(ROOT_INODE, b"LARGE")
+        image.replace_file(large.inode, contents)
+
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, cache_bytes=64) as image:
+        large = image.lookup(ROOT_INODE, b"LARGE")
+        assert large is not None
+        operations = ReadOnlyOperations(image, read_ahead_bytes=512, read_ahead_cache_bytes=512)
+        first = run_async(operations.open, large.inode, os.O_RDONLY, context)
+        second = run_async(operations.open, large.inode, os.O_RDONLY, context)
+
+        for info in (first, second):
+            run_async(operations.read, info.fh, 0, 128)
+            run_async(operations.read, info.fh, 128, 128)
+
+        assert operations._read_states[first.fh].buffer == b""
+        assert len(operations._read_states[second.fh].buffer) == 512
+        assert operations._read_ahead_size == 512
+
+        run_async(operations.release, first.fh)
+        run_async(operations.release, second.fh)
+        assert operations._read_ahead_size == 0
+
+
+def test_writable_access_discards_read_ahead_on_every_handle(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    contents = bytes(range(256)) * 16
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        large = image.create_file(ROOT_INODE, b"LARGE")
+        image.replace_file(large.inode, contents)
+
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True, cache_bytes=64) as image:
+        large = image.lookup(ROOT_INODE, b"LARGE")
+        assert large is not None
+        operations = ReadOnlyOperations(image, read_ahead_bytes=512, read_ahead_cache_bytes=1024)
+        reader = run_async(operations.open, large.inode, os.O_RDONLY, context)
+        run_async(operations.read, reader.fh, 0, 128)
+        run_async(operations.read, reader.fh, 128, 128)
+        assert operations._read_ahead_size == 512
+
+        writer = run_async(operations.open, large.inode, os.O_WRONLY, context)
+        assert operations._read_ahead_size == 0
+        assert operations._read_states[reader.fh].buffer == b""
+
+        run_async(operations.release, writer.fh)
+        run_async(operations.release, reader.fh)
+
+
+def test_read_ahead_configuration_rejects_unsafe_limits(operations: ReadOnlyOperations) -> None:
+    with pytest.raises(ValueError, match="cannot be negative"):
+        ReadOnlyOperations(operations.image, read_ahead_bytes=-1)
+    with pytest.raises(ValueError, match="at least two"):
+        ReadOnlyOperations(operations.image, sequential_read_threshold=1)
 
 
 def test_write_access_is_rejected(operations: ReadOnlyOperations) -> None:

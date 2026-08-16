@@ -226,6 +226,7 @@ def test_large_uncached_reads_fetch_only_the_requested_sector_range(tmp_path: Pa
     with ReadOnlyImage.open(dat_path, cache_bytes=64) as image:
         large = image.lookup(ROOT_INODE, b"LARGE")
         assert large is not None
+        assert image.uses_ranged_reads(large.inode)
         with patch.object(
             image._mount, "read_bytes", side_effect=AssertionError("whole-file read")
         ):
