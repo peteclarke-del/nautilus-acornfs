@@ -153,6 +153,12 @@ def test_desktop_open_forwards_uri_list() -> None:
     desktop_open.assert_called_once_with(["file:///image.dat", "acornfs:///image.dsc"])
 
 
+def test_desktop_file_forge_forwards_image() -> None:
+    with patch("acornfs.desktop.desktop_open_file_forge", return_value=0) as open_file_forge:
+        assert main(["desktop-open-file-forge", "/image.dat"]) == 0
+    open_file_forge.assert_called_once_with("/image.dat")
+
+
 def test_desktop_create_forwards_directory() -> None:
     with patch("acornfs.desktop.desktop_create", return_value=0) as desktop_create:
         assert main(["desktop-create", "/images"]) == 0

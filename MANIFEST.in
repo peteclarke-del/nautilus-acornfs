@@ -5,4 +5,5 @@ include TODO.md
 include docker-bake.hcl
 recursive-include containers *
 recursive-include docs *.md
+graft po
 recursive-include tests *.py

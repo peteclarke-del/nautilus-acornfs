@@ -1,4 +1,4 @@
-.PHONY: benchmark check format lint test test-live typecheck
+.PHONY: benchmark check format lint messages test test-live typecheck
 
 check: lint typecheck test
 
@@ -11,6 +11,12 @@ format:
 lint:
 	python -m ruff check .
 	python -m ruff format --check .
+
+messages:
+	xgettext --language=Python --from-code=UTF-8 --sort-output --no-wrap \
+		--keyword=_ --keyword=ngettext:1,2 --output=po/acornfs.pot \
+		src/acornfs/desktop.py src/acornfs/file_forge.py src/acornfs_nautilus/extension.py \
+		src/acornfs_nautilus/logic.py
 
 typecheck:
 	python -m mypy src
