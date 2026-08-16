@@ -73,4 +73,5 @@ def test_image_actions_are_collapsed_under_one_support_menu(
         "Open read-only",
         "Open read-write",
         "Validate image",
+        "Repair image…",
     ]

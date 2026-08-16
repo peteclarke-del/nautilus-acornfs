@@ -33,8 +33,19 @@ All applicable AcornFS actions are kept in that single submenu. Select
 **Validate image** to run a read-only ADFS structural check without
 mounting or modifying the pair. A clean result is reported as a desktop
 notification. When problems are found, a finite details dialog lists every
-finding and closes without running validation again. `acornfs validate IMAGE`
-prints the same complete report.
+finding. Non-repairable reports have one **Close** button. When the complete
+plan is eligible for low-risk repair, the dialog instead offers **Cancel** and
+**Repair…**; Repair continues to the typed-filename confirmation without
+running the initial validation again. The report window sizes itself to its
+content, and repair completion or failure is shown in a separate compact dialog
+with the audit or recovery detail. `acornfs validate IMAGE` prints the same
+complete report.
+
+Select **Repair image…** to review a complete eligible low-risk plan. AcornFS
+requires the exact DAT filename in the confirmation dialog, creates a recovery
+checkpoint, verifies the complete result and retains an audit. This can safely
+restore a DAT that ends exactly at its ADFS boundary but omits a DSC-declared
+reserved tail. Other geometry and allocation problems remain refused.
 
 Open **Properties** on either image member to see the detected old-map ADFS and
 directory formats, compatibility profile, title, disc cycle ID, boot option,
@@ -62,7 +73,7 @@ A clean unmount flushes pending data, validates the ADFS structure, and removes
 the checkpoint. If the mount process crashes or validation fails, AcornFS keeps
 the checkpoint and refuses another writable mount. First unmount any stale
 sidebar entry, then right-click the DAT/DSC and select **Acorn FS Support →
-Resolve interrupted Acorn write…**. Choose either:
+Resolve interrupted read-write mount…**. Choose either:
 
 - **Restore image to the pre-mount checkpoint** to undo the interrupted session.
 - **Keep the current image and discard the checkpoint** after independently

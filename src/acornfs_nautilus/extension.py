@@ -79,6 +79,9 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _validate(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-validate", str(image_path))
 
+    def _repair(self, _menu: Any, image_path: Path) -> None:
+        _launch("desktop-repair", str(image_path))
+
     def _validate_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Validate",
@@ -97,6 +100,16 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             icon="changes-prevent-symbolic",
         )
         item.connect("activate", self._mount_read_only, path)
+        return item
+
+    def _repair_item(self, path: Path) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::Repair",
+            label="Repair image…",
+            tip=f"Review eligible low-risk repairs for {path.name}",
+            icon="document-edit-symbolic",
+        )
+        item.connect("activate", self._repair, path)
         return item
 
     def _unmount_item(self, mountpoint: Path) -> Any:
@@ -133,8 +146,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if recovery is not None:
             recovery_item = Nautilus.MenuItem(
                 name="AcornFS::Recover",
-                label="Resolve interrupted Acorn write…",
-                tip="Restore the pre-write checkpoint or keep the current image",
+                label="Resolve interrupted read-write mount…",
+                tip="Restore the pre-mount checkpoint or keep the current image",
                 icon="document-revert-symbolic",
             )
             recovery_item.connect("activate", self._recover, path)
@@ -152,7 +165,12 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         writable_item.connect("activate", self._mount_read_write, path)
         return [
             self._support_menu(
-                [self._read_only_item(path), writable_item, self._validate_item(path)]
+                [
+                    self._read_only_item(path),
+                    writable_item,
+                    self._validate_item(path),
+                    self._repair_item(path),
+                ]
             )
         ]
 

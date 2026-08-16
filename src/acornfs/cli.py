@@ -88,6 +88,8 @@ def _parser() -> argparse.ArgumentParser:
     desktop_unmount_parser.add_argument("mountpoint")
     desktop_recover_parser = subparsers.add_parser("desktop-recover")
     desktop_recover_parser.add_argument("image")
+    desktop_repair_parser = subparsers.add_parser("desktop-repair")
+    desktop_repair_parser.add_argument("image")
     desktop_validate_parser = subparsers.add_parser("desktop-validate")
     desktop_validate_parser.add_argument("image")
     recover_parser = subparsers.add_parser(
@@ -285,6 +287,12 @@ def _desktop_recover(args: argparse.Namespace) -> int:
     return desktop_recover(args.image)
 
 
+def _desktop_repair(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_repair
+
+    return desktop_repair(args.image)
+
+
 def _desktop_validate(args: argparse.Namespace) -> int:
     from acornfs.desktop import desktop_validate
 
@@ -312,6 +320,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-mount": _desktop_mount,
         "desktop-unmount": _desktop_unmount,
         "desktop-recover": _desktop_recover,
+        "desktop-repair": _desktop_repair,
         "desktop-validate": _desktop_validate,
         "recover": _recover,
     }

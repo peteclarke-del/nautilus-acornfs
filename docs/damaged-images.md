@@ -32,13 +32,15 @@ incorrect catalogue can make allocated data appear free. Geometry mismatch,
 unreadable structures and conflicting allocated extents always require a human
 decision or restoration from a known-good copy.
 
-Automatic application is limited to normalising unusual directory entry lengths
-and clearing non-zero start sectors from zero-length files. The command requires
-the exact DAT filename as confirmation and refuses the entire plan if any other
-action is present. It locks both files, writes an audit before opening the image
-writable, creates a recovery checkpoint before the first mutation, verifies the
-complete image afterward, and retains the JSON audit in the AcornFS state
-directory. A failed operation retains its checkpoint for `acornfs recover`.
+Automatic application is limited to normalising unusual directory entry
+lengths, clearing non-zero start sectors from zero-length files, and restoring a
+zero-filled DAT tail when the file ends exactly at the validated ADFS boundary
+below its DSC capacity. The command requires the exact DAT filename as
+confirmation and refuses the entire plan if any other action is present. It
+locks both files, writes an audit before opening the image writable, creates a
+recovery checkpoint before the first mutation, verifies the complete image
+afterward, and retains the JSON audit in the AcornFS state directory. A failed
+operation retains its checkpoint for `acornfs recover`.
 
 Free-space-map reconstruction remains a high-risk planning aid only. It is never
 applied automatically, even when labelled a reconstruction candidate.

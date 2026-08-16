@@ -59,6 +59,18 @@ def set_root_entry_start(dat_path: Path, name: str, start_sector: int) -> None:
     set_root_entry_field(dat_path, name, 0x16, start_sector.to_bytes(3, "little"))
 
 
+def reserve_adfs_tail(dat_path: Path, sectors: int) -> None:
+    """Reduce generated ADFS map capacity while retaining the DAT/DSC geometry."""
+
+    def reserve(data: bytearray) -> None:
+        adfs_sectors = int.from_bytes(data[0xFC:0xFF], "little")
+        free_sectors = int.from_bytes(data[0x100:0x103], "little")
+        data[0xFC:0xFF] = (adfs_sectors - sectors).to_bytes(3, "little")
+        data[0x100:0x103] = (free_sectors - sectors).to_bytes(3, "little")
+
+    rewrite_old_map(dat_path, reserve)
+
+
 def create_beebscsi_image(
     directory: Path,
     *,

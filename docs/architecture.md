@@ -79,8 +79,8 @@ Validation findings are converted into typed, deterministic repair-plan actions
 without opening either pair member writable. The planner groups related findings,
 records risk, distinguishes future automatic candidates from mandatory human
 decisions, and exposes equivalent human and JSON representations. Mutation is a
-separate boundary: only complete low-risk catalogue-normalisation plans have an
-apply entry point. It requires exact-filename confirmation, exclusive pair locks,
-a pre-repair checkpoint, full verification and a retained audit record in one
-operation; none of those guarantees is inferred from planning. All other plans
-remain read-only guidance.
+separate boundary: only complete low-risk catalogue-normalisation plans and
+exact-ADFS-boundary reserved-tail padding have an apply entry point. It requires
+exact-filename confirmation, exclusive pair locks, a pre-repair checkpoint, full
+verification and a retained audit record in one operation; none of those
+guarantees is inferred from planning. All other plans remain read-only guidance.
