@@ -12,6 +12,7 @@ from acornfs.desktop import (
     _run_with_reported_progress,
     _systemd_mount_command,
     cleanup_stale_mountpoint,
+    desktop_configure_mount_location,
     desktop_create,
     desktop_open,
     desktop_recover,
@@ -23,6 +24,7 @@ from acornfs.desktop import (
 )
 from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.mounts import MountRecord
+from acornfs.preferences import mount_location, preferences_path
 from tests.image_fixture import create_beebscsi_image, reserve_adfs_tail
 
 
@@ -110,6 +112,44 @@ def test_desktop_create_cancellation_creates_nothing(tmp_path: Path) -> None:
     ):
         assert desktop_create(tmp_path) == 0
     assert list(tmp_path.iterdir()) == []
+
+
+def test_desktop_mount_location_is_saved(tmp_path: Path) -> None:
+    target = tmp_path / "mounts"
+    entry = SimpleNamespace(returncode=0, stdout=f"{target}\n")
+    completed = SimpleNamespace(returncode=0)
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.run", side_effect=[entry, completed]) as run,
+    ):
+        assert desktop_configure_mount_location() == 0
+
+    assert mount_location().root == target
+    entry_arguments = run.call_args_list[0].args[0]
+    assert entry_arguments[:2] == ["/usr/bin/zenity", "--entry"]
+    assert "--ok-label=Save" in entry_arguments
+    result_arguments = run.call_args_list[1].args[0]
+    assert result_arguments[:2] == ["/usr/bin/zenity", "--info"]
+    assert str(target) in next(item for item in result_arguments if item.startswith("--text="))
+
+
+def test_desktop_mount_location_can_replace_corrupt_preference() -> None:
+    preferences_path().parent.mkdir(parents=True)
+    preferences_path().write_text("broken", encoding="utf-8")
+    entry = SimpleNamespace(returncode=0, stdout="sidebar\n")
+    completed = SimpleNamespace(returncode=0)
+
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.run", side_effect=[entry, completed]) as run,
+    ):
+        assert desktop_configure_mount_location() == 0
+
+    form_arguments = run.call_args_list[0].args[0]
+    assert "saved preference is invalid" in next(
+        item for item in form_arguments if item.startswith("--text=")
+    )
+    assert mount_location().mode == "sidebar"
 
 
 def test_desktop_recovery_requires_explicit_dialog_choice() -> None:

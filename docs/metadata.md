@@ -21,6 +21,16 @@ should use the extended attributes.
 
 Filename display maps ADFS `/` to `∕`, control characters to Unicode control
 pictures, and the special names `.` and `..` to full-width forms. New names must
-be representable as 7-bit ASCII and obey the ADFS directory-entry limit. AcornFS
-never silently sanitises a new name. Optional `.inf` export sidecars are not
-currently generated or exposed.
+be representable as 7-bit ASCII, contain at most 10 bytes, and exclude `.`, `:`
+and carriage return. AcornFS never silently sanitises a new name.
+
+ADFS lookup is case-insensitive while the stored spelling remains visible.
+AcornFS therefore resolves Linux lookups case-insensitively and refuses creation
+of a file or directory whose name differs from an existing sibling only by case.
+It does not invent a case-sensitive overlay that the on-disc catalogue cannot
+round trip.
+
+Optional `.inf` export sidecars are hidden: AcornFS neither generates nor
+exposes them in mounted images. Extended attributes are the authoritative
+lossless metadata interface. A future explicit export tool may generate
+sidecars, but mounting will not create them implicitly.

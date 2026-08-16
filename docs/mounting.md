@@ -164,6 +164,18 @@ acornfs diagnostics
 acornfs diagnostics --json > acornfs-diagnostics.json
 ```
 
+Desktop-created mountpoints use the persistent `sidebar` location by default.
+To keep them entirely within the private login-session runtime directory, use:
+
+```shell
+acornfs config-mount-location runtime
+```
+
+This resolves to `$XDG_RUNTIME_DIR/acornfs/images`. The command also accepts an
+absolute path, reports the current setting without an argument, and restores the
+sidebar default with `--reset`. Manual `acornfs mount IMAGE MOUNTPOINT` commands
+continue to use the mountpoint supplied explicitly.
+
 ## Current limits
 
 - Manual mounts are foreground processes. Nautilus actions use a collected transient systemd
