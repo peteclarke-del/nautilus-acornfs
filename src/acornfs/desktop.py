@@ -43,6 +43,7 @@ from acornfs.mounts import (
 )
 from acornfs.preferences import mount_location, mount_root, set_mount_location
 from acornfs.recovery import pending_recovery, recover_image
+from acornfs.retention import cleanup_retained_state
 
 MOUNT_TIMEOUT = 15.0
 WRITABLE_MOUNT_TIMEOUT = 300.0
@@ -346,22 +347,27 @@ def background_mount(
 ) -> Path:
     """Start a detached foreground mount process and wait until it is ready."""
 
+    cleanup_retained_state()
     pair = discover_pair(image_path)
     if timeout is None:
         timeout = WRITABLE_MOUNT_TIMEOUT if read_write else MOUNT_TIMEOUT
     mountpoint = mountpoint_for_image(pair.dat_path)
     root = runtime_root()
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    mountpoint.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    mountpoint.mkdir(mode=0o700, exist_ok=True)
     lock_path = root / f".{mountpoint.name}.lock"
     log_path = root / f"{mountpoint.name}.log"
 
     with lock_path.open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        cleanup_stale_mountpoint(mountpoint)
+        mounted_pair = mount_for_image(pair.dat_path)
+        if mounted_pair is not None:
+            mountpoint = Path(mounted_pair.mountpoint)
+        else:
+            mountpoint.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            mountpoint.mkdir(mode=0o700, exist_ok=True)
+            cleanup_stale_mountpoint(mountpoint)
         existing = mount_at(mountpoint)
-        if existing is not None and mount_for_image(pair.dat_path) is None:
+        if existing is not None and mounted_pair is None:
             raise AcornFSError(
                 _(
                     "The image's mount location is occupied by a different file identity. "

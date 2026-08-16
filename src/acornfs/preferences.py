@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from acornfs.errors import AcornFSError
+from acornfs.i18n import _
 from acornfs.mounts import runtime_root
 
 CONFIG_VERSION = 1
@@ -53,10 +54,12 @@ def _parse_location(value: str, *, source: str) -> MountLocation:
         return MountLocation("runtime", runtime_root() / "images", source)
     path = Path(candidate).expanduser()
     if not path.is_absolute():
-        raise AcornFSError("The mount location must be 'sidebar', 'runtime', or an absolute path.")
+        raise AcornFSError(
+            _("The mount location must be 'sidebar', 'runtime', or an absolute path.")
+        )
     path = path.resolve(strict=False)
     if path == Path("/"):
-        raise AcornFSError("The filesystem root cannot be used as the AcornFS mount location.")
+        raise AcornFSError(_("The filesystem root cannot be used as the AcornFS mount location."))
     return MountLocation("custom", path, source)
 
 
@@ -66,14 +69,18 @@ def _read_preferences() -> dict[str, Any]:
         return {}
     try:
         if path.is_symlink() or path.stat().st_size > 16 * 1024:
-            raise AcornFSError(f"The AcornFS preferences file is unsafe: {path}")
+            raise AcornFSError(
+                _("The AcornFS preferences file is unsafe: {path}").format(path=path)
+            )
         payload = json.loads(path.read_text(encoding="utf-8"))
     except AcornFSError:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise AcornFSError(f"Could not read AcornFS preferences: {exc}") from exc
+        raise AcornFSError(
+            _("Could not read AcornFS preferences: {error}").format(error=exc)
+        ) from exc
     if not isinstance(payload, dict) or payload.get("version") != CONFIG_VERSION:
-        raise AcornFSError("The AcornFS preferences file has an unsupported format.")
+        raise AcornFSError(_("The AcornFS preferences file has an unsupported format."))
     return payload
 
 
@@ -85,7 +92,7 @@ def mount_location() -> MountLocation:
         return _parse_location(environment, source="environment")
     configured = _read_preferences().get("mount_location", "sidebar")
     if not isinstance(configured, str):
-        raise AcornFSError("The configured AcornFS mount location is invalid.")
+        raise AcornFSError(_("The configured AcornFS mount location is invalid."))
     source = "default" if configured == "sidebar" and not preferences_path().exists() else "user"
     return _parse_location(configured, source=source)
 
@@ -103,7 +110,9 @@ def set_mount_location(value: str) -> MountLocation:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     path.parent.chmod(0o700)
     if path.is_symlink():
-        raise AcornFSError(f"Refusing to replace a symbolic-link preferences file: {path}")
+        raise AcornFSError(
+            _("Refusing to replace a symbolic-link preferences file: {path}").format(path=path)
+        )
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     payload = {"version": CONFIG_VERSION, "mount_location": stored}
     try:
@@ -117,7 +126,9 @@ def set_mount_location(value: str) -> MountLocation:
         _sync_directory(path.parent)
     except OSError as exc:
         temporary.unlink(missing_ok=True)
-        raise AcornFSError(f"Could not save AcornFS preferences: {exc}") from exc
+        raise AcornFSError(
+            _("Could not save AcornFS preferences: {error}").format(error=exc)
+        ) from exc
     return parsed
 
 
@@ -126,13 +137,17 @@ def reset_mount_location() -> MountLocation:
 
     path = preferences_path()
     if path.is_symlink():
-        raise AcornFSError(f"Refusing to remove a symbolic-link preferences file: {path}")
+        raise AcornFSError(
+            _("Refusing to remove a symbolic-link preferences file: {path}").format(path=path)
+        )
     try:
         path.unlink(missing_ok=True)
         if path.parent.is_dir():
             _sync_directory(path.parent)
     except OSError as exc:
-        raise AcornFSError(f"Could not reset AcornFS preferences: {exc}") from exc
+        raise AcornFSError(
+            _("Could not reset AcornFS preferences: {error}").format(error=exc)
+        ) from exc
     return mount_location()
 
 

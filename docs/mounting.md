@@ -21,7 +21,9 @@ python -m pip install -e '.[fuse]'
 To exercise the real kernel FUSE lifecycle rather than the in-process adapter
 tests, use `make test-live`. This is deliberately opt-in because an exposed
 `/dev/fuse` device alone does not prove that a container or CI runner has mount
-permission.
+permission. The dedicated amd64 live-FUSE CI job therefore verifies that the
+runner can open the device before executing the suite; it fails instead of
+silently accepting skipped live tests when that capability is unavailable.
 
 ## Mount and browse
 
@@ -182,7 +184,16 @@ acornfs config-mount-location runtime
 This resolves to `$XDG_RUNTIME_DIR/acornfs/images`. The command also accepts an
 absolute path, reports the current setting without an argument, and restores the
 sidebar default with `--reset`. Manual `acornfs mount IMAGE MOUNTPOINT` commands
-continue to use the mountpoint supplied explicitly.
+continue to use the mountpoint supplied explicitly. Changing the preference
+does not relocate active images: AcornFS continues to recognise and reuse each
+existing mount at its original path, while later images use the new root.
+
+Desktop mount startup performs conservative housekeeping. Inactive fallback
+logs and non-authoritative orphan checkpoint fragments are retained for 7 days;
+completed repair audits without retained recovery state are retained for 90
+days. Active logs, readable checkpoint manifests, failed audits, audits linked
+to a retained checkpoint, symlinks, and unrecognised files are never removed by
+automatic cleanup.
 
 ## Current limits
 

@@ -80,3 +80,10 @@ def test_corrupt_preferences_fail_closed(monkeypatch: pytest.MonkeyPatch) -> Non
 
     with pytest.raises(AcornFSError, match="Could not read"):
         mount_location()
+
+
+def test_preference_errors_are_translatable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("acornfs.preferences._", lambda message: f"translated: {message}")
+
+    with pytest.raises(AcornFSError, match="translated: The mount location"):
+        set_mount_location("relative/path")
