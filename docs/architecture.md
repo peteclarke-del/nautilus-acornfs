@@ -72,3 +72,13 @@ wait for the lifecycle record to disappear and then verify that no recovery
 checkpoint remains before claiming a safe unmount. Diagnostics deliberately
 reduce paths to basenames and hash device/inode identities; they never inspect
 or copy image content.
+
+## Repair boundary
+
+Validation findings are converted into typed, deterministic repair-plan actions
+without opening either pair member writable. The planner groups related findings,
+records risk, distinguishes future automatic candidates from mandatory human
+decisions, and exposes equivalent human and JSON representations. It has no apply
+entry point. Mutation remains a separate boundary requiring explicit confirmation,
+a pre-repair checkpoint, full verification and a retained audit record in one
+operation; none of those guarantees is inferred from planning.

@@ -1,4 +1,4 @@
-from collections.abc import Callable
+import shutil
 from pathlib import Path
 
 import pytest
@@ -7,30 +7,7 @@ from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.core.validation import FindingSeverity, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.recovery import pending_recovery
-from tests.image_fixture import create_beebscsi_image
-
-
-def _old_map_checksum(data: bytearray, start: int) -> int:
-    total = 0
-    carry = 0
-    for offset in range(0xFE, -1, -1):
-        total += data[start + offset] + carry
-        if total > 0xFF:
-            carry = 1
-            total &= 0xFF
-        else:
-            carry = 0
-    return total
-
-
-def _rewrite_map(dat_path: Path, mutation: Callable[[bytearray], None]) -> None:
-    data = bytearray(dat_path.read_bytes())
-    mutation(data)
-    data[0xFF] = 0
-    data[0x1FF] = 0
-    data[0xFF] = _old_map_checksum(data, 0)
-    data[0x1FF] = _old_map_checksum(data, 0x100)
-    dat_path.write_bytes(data)
+from tests.image_fixture import create_beebscsi_image, rewrite_old_map
 
 
 def _set_root_entry_start(dat_path: Path, name: str, start_sector: int) -> None:
@@ -81,7 +58,7 @@ def test_free_space_overlapping_allocated_data_is_fatal(tmp_path: Path) -> None:
     def overlap(data: bytearray) -> None:
         data[0:3] = (7).to_bytes(3, "little")
 
-    _rewrite_map(dat_path, overlap)
+    rewrite_old_map(dat_path, overlap)
     report = validate_image_report(dat_path)
     assert not report.safe_for_write
     assert "extent.free_used_overlap" in {item.code for item in report.fatal_findings}
@@ -104,7 +81,7 @@ def test_unaccounted_sector_range_is_fatal(tmp_path: Path) -> None:
         length = int.from_bytes(data[0x100:0x103], "little")
         data[0x100:0x103] = (length - 1).to_bytes(3, "little")
 
-    _rewrite_map(dat_path, lose_last_sector)
+    rewrite_old_map(dat_path, lose_last_sector)
     assert "extent.unaccounted" in _codes(dat_path)
 
 
@@ -133,7 +110,7 @@ def test_warning_and_reserved_tail_advice_do_not_block_writes(tmp_path: Path) ->
         data[0xFC:0xFF] = (old_size - 1).to_bytes(3, "little")
         data[0x100:0x103] = (free_length - 1).to_bytes(3, "little")
 
-    _rewrite_map(advice_dat, reserve_tail)
+    rewrite_old_map(advice_dat, reserve_tail)
     advice_report = validate_image_report(advice_dat)
     assert advice_report.safe_for_write
     assert advice_report.advice_findings[0].code == "geometry.reserved_tail"
@@ -149,6 +126,67 @@ def test_writable_gate_refuses_overlap_without_creating_checkpoint(tmp_path: Pat
     assert pending_recovery(dat_path) is None
     with ReadOnlyImage.open(dat_path) as image:
         assert image.lookup(ROOT_INODE, b"README") is not None
+
+
+def test_invalid_map_checksum_and_broken_directory_fail_cleanly(tmp_path: Path) -> None:
+    bad_map, _dsc_path = create_beebscsi_image(tmp_path, stem="bad-map")
+    with bad_map.open("r+b") as handle:
+        handle.seek(0)
+        original = handle.read(1)
+        handle.seek(0)
+        handle.write(bytes([original[0] ^ 0x01]))
+    map_report = validate_image_report(bad_map)
+    assert {item.code for item in map_report.fatal_findings} == {"adfs.open_failed"}
+    with pytest.raises(AcornFSError, match="could not be opened safely"):
+        ReadOnlyImage.open(bad_map)
+
+    bad_directory, _dsc_path = create_beebscsi_image(tmp_path, stem="bad-directory")
+    with ReadOnlyImage.open(bad_directory) as image:
+        docs = image.lookup(ROOT_INODE, b"DOCS")
+        assert docs is not None
+        _parent, entry = image._mount._navigate(docs.acorn_path)._resolve()  # type: ignore[attr-defined]
+        checksum_offset = entry.start_sector * 256 + (5 * 256 - 1)
+    with bad_directory.open("r+b") as handle:
+        handle.seek(checksum_offset)
+        original = handle.read(1)
+        handle.seek(checksum_offset)
+        handle.write(bytes([original[0] ^ 0xFF]))
+    directory_report = validate_image_report(bad_directory)
+    assert "directory.unreadable" in {item.code for item in directory_report.fatal_findings}
+    with pytest.raises(AcornFSError, match="could not be opened safely"):
+        ReadOnlyImage.open(bad_directory)
+
+
+def test_truncated_oversized_sparse_and_mismatched_pairs_are_classified(tmp_path: Path) -> None:
+    truncated, _dsc_path = create_beebscsi_image(tmp_path, stem="truncated")
+    with truncated.open("r+b") as handle:
+        handle.truncate(truncated.stat().st_size - 256)
+    assert "geometry.dat_short" in _codes(truncated)
+
+    oversized, _dsc_path = create_beebscsi_image(tmp_path, stem="oversized")
+    with oversized.open("ab") as handle:
+        handle.write(bytes(256))
+    assert "geometry.dat_oversized" in _codes(oversized)
+
+    source, source_dsc = create_beebscsi_image(tmp_path, stem="source")
+    sparse = tmp_path / "sparse.dat"
+    sparse_dsc = tmp_path / "sparse.dsc"
+    source_data = source.read_bytes()
+    with sparse.open("wb") as handle:
+        handle.truncate(len(source_data))
+        for offset in range(0, len(source_data), 4096):
+            block = source_data[offset : offset + 4096]
+            if any(block):
+                handle.seek(offset)
+                handle.write(block)
+    shutil.copyfile(source_dsc, sparse_dsc)
+    assert validate_image_report(sparse).safe_for_write
+
+    mismatched, mismatched_dsc = create_beebscsi_image(tmp_path, stem="mismatched")
+    descriptor = bytearray(mismatched_dsc.read_bytes())
+    descriptor[13:15] = (81).to_bytes(2, "big")
+    mismatched_dsc.write_bytes(descriptor)
+    assert "geometry.dat_short" in _codes(mismatched)
 
 
 def test_fragmented_and_completely_full_images_remain_valid(tmp_path: Path) -> None:
