@@ -2,9 +2,33 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from oaknut.filesystem import create_filesystem, reader_for, winchester_geometry
+
+
+def _old_map_checksum(data: bytearray, start: int) -> int:
+    total = 0
+    carry = 0
+    for offset in range(0xFE, -1, -1):
+        total += data[start + offset] + carry
+        if total > 0xFF:
+            carry = 1
+            total &= 0xFF
+        else:
+            carry = 0
+    return total
+
+
+def rewrite_old_map(dat_path: Path, mutation: Callable[[bytearray], None]) -> None:
+    """Mutate generated old-map fixture bytes and restore valid checksums."""
+
+    data = bytearray(dat_path.read_bytes())
+    mutation(data)
+    data[0xFF] = _old_map_checksum(data, 0)
+    data[0x1FF] = _old_map_checksum(data, 0x100)
+    dat_path.write_bytes(data)
 
 
 def create_beebscsi_image(

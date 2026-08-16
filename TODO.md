@@ -38,14 +38,14 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Parse and validate DSC geometry before opening the DAT image.
 - [x] Cross-check descriptor geometry, DAT length and the ADFS free-space map.
 - [x] Detect the ADFS format and target hardware characteristics.
-- [ ] Mount uncertain or damaged images read-only when safe traversal is still possible.
+- [x] Mount uncertain or damaged images read-only when safe traversal is still possible.
 - [x] Implement FUSE lookup, getattr, open, read, release, opendir, readdir and statfs operations.
 - [x] Traverse the complete ADFS directory tree.
 - [x] Return stable inode identities for the life of a mount.
 - [x] Report meaningful file sizes, ownership, permissions and timestamps.
 - [x] Cache directory metadata and filesystem structures for the life of the mount.
 - [x] Bound cache memory and invalidate entries predictably.
-- [ ] Provide clean handling for truncated images, broken directories, invalid maps and out-of-range sectors.
+- [x] Provide clean handling for truncated images, broken directories, invalid maps and out-of-range sectors.
 - [x] Add an `acornfs mount IMAGE MOUNTPOINT` command.
 - [x] Add `acornfs unmount MOUNTPOINT` and mount-status commands.
 - [x] Mount with `nosuid`, `nodev` and `noexec` by default.
@@ -123,7 +123,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Add `acornfs inspect IMAGE` with machine-readable and human-readable output.
 - [x] Validate geometry, directory sequences, map checksums, free-space extents and file extents.
 - [x] Distinguish fatal errors, safe warnings and compatibility advice.
-- [ ] Add a dry-run repair plan.
+- [x] Add a dry-run repair plan.
 - [ ] Require explicit confirmation before applying any repair.
 - [ ] Create a checkpoint before every repair.
 - [ ] Verify the complete image after repair and retain an audit report.
@@ -163,7 +163,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Restart Nautilus only when required and explain the action to the user.
 - [ ] Add signed source archives and checksums.
 - [ ] Add a complete administrator and user manual.
-- [ ] Document backup, recovery and damaged-image procedures.
+- [x] Document backup, recovery and damaged-image procedures.
 - [ ] Document limitations of Acorn-to-POSIX filename and metadata mapping.
 - [ ] Publish a security policy and responsible disclosure route.
 
@@ -171,8 +171,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 
 - [x] Empty, lightly populated, nearly full and full images.
 - [x] Valid DAT/DSC pairs across supported geometries.
-- [ ] Missing, mismatched, truncated and corrupt DSC files.
-- [ ] Truncated, oversized, sparse and corrupt DAT files.
+- [x] Missing, mismatched, truncated and corrupt DSC files.
+- [x] Truncated, oversized, sparse and corrupt DAT files.
 - [ ] Old ADFS directory formats used by BBC, Master and Electron hardware.
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [ ] Deep trees, maximum directory entries and boundary-length names.

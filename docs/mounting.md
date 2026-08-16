@@ -123,6 +123,11 @@ and a `safe_for_write` boolean for scripts. The command exits non-zero for fatal
 findings or warnings so unattended validation can use a strict policy; advice
 alone is successful. Validation never repairs or modifies the image.
 
+For a damaged image, `acornfs repair-plan IMAGE` produces a read-only assessment
+of candidate and manual recovery actions. It does not offer an apply flag and it
+does not modify either member of the pair. Follow the preservation workflow in
+[damaged-images.md](damaged-images.md) before investigating valuable media.
+
 ## Status and unmounting
 
 ```shell
