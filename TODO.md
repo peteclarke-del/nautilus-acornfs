@@ -38,7 +38,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Define supported Ubuntu and GNOME/Nautilus versions.
 - [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
 - [x] Pin the shared Oaknut dependency used by Acorn File Forge.
-- [ ] Add a changelog and documented versioning/release policy.
+- [x] Add a changelog and documented versioning/release policy.
 
 ## Phase 2: read-only BeebSCSI mounting
 
@@ -72,7 +72,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Map Acorn locked files to a sensible read-only POSIX presentation.
 - [x] Keep optional `.inf` sidecars hidden and use extended attributes as the authoritative mounted representation.
 - [x] Document lossy and lossless metadata mappings.
-- [ ] Add explicit metadata-aware import/export commands before offering generated `.inf` sidecars.
+- [x] Add explicit metadata-aware import/export commands before offering generated `.inf` sidecars.
 
 ## Phase 4: safe write support
 

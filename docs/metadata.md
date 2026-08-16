@@ -32,7 +32,17 @@ of a file or directory whose name differs from an existing sibling only by case.
 It does not invent a case-sensitive overlay that the on-disc catalogue cannot
 round trip.
 
-Optional `.inf` export sidecars are hidden: AcornFS neither generates nor
-exposes them in mounted images. Extended attributes are the authoritative
-lossless metadata interface. A future explicit export tool may generate
-sidecars, but mounting will not create them implicitly.
+Optional `.inf` sidecars remain hidden from mounted images; mounting never
+creates them implicitly. The explicit `export-file` command creates a host file
+and matching traditional `.inf` record containing the full Acorn path, load and
+execution words, byte length and lock state. Publication is create-only with
+complete rollback, so neither destination is overwritten or left half-published
+when the command returns.
+
+`import-file` accepts the same Acorn File Forge/Oaknut-compatible record,
+including quoted paths and `L`/`Locked` markers. It validates a recorded length
+before opening the image writable, then creates the data and metadata in one
+rollback-protected mutation. Without a sidecar it recognises Oaknut's supported
+`,xxx`, `,load,exec` and `,load-exec` filename encodings, then falls back to
+neutral zero addresses. Extended attributes remain the authoritative metadata
+interface inside a live mount.
