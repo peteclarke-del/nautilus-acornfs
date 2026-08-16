@@ -495,6 +495,8 @@ class ReadOnlyImage:
 
     def create_file(self, parent_inode: int, name: bytes) -> ImageNode:
         decoded = self._new_name(name)
+        if self.lookup(parent_inode, name) is not None:
+            raise FileExistsError(decoded)
         path = self._child_path(parent_inode, decoded)
         return self._run_atomic(
             "create",
@@ -505,6 +507,8 @@ class ReadOnlyImage:
 
     def make_directory(self, parent_inode: int, name: bytes) -> ImageNode:
         decoded = self._new_name(name)
+        if self.lookup(parent_inode, name) is not None:
+            raise FileExistsError(decoded)
         path = self._child_path(parent_inode, decoded)
         maker = cast(Any, self._mount).make_directory
         return self._run_atomic(

@@ -41,6 +41,7 @@ the remaining lifecycle and format work.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
+- Persist a per-user sidebar, runtime, or custom desktop mount location.
 - Track mounted pairs by canonical path and DAT/DSC device/inode identity.
 - Wait for writable flush and final validation before confirming unmount success.
 - Export privacy-safe support information through `acornfs diagnostics --json`.
@@ -83,6 +84,20 @@ The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
 Double-clicking a recognised image member opens the pair read-only. The same
 handler accepts a local URI such as `acornfs:///path/to/scsi0.dat`.
+
+Desktop mounts default to `~/AcornFS Mounts`, which gives Files the most reliable
+sidebar presentation. Select a private session-runtime location, inspect the
+effective setting, or restore the default with:
+
+```shell
+acornfs config-mount-location runtime
+acornfs config-mount-location
+acornfs config-mount-location --reset
+```
+
+An absolute directory is also accepted. `ACORNFS_MOUNT_ROOT` remains available
+as a temporary environment override and takes precedence over the saved value.
+The same setting is available as **Acorn FS Support → Mount location…** in Files.
 
 To create an image, right-click the background of a writable local folder and
 choose **Acorn FS Support → Create BeebSCSI image…**. Enter a basename, ADFS

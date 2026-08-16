@@ -133,6 +133,25 @@ validate and remove a clean checkpoint. A detached-process fallback is retained
 for desktop sessions without a systemd user manager. A dead FUSE endpoint is
 detected and detached automatically before the next mount attempt.
 
+The mount location is a persistent per-user preference. The default `sidebar`
+mode uses `~/AcornFS Mounts`; `runtime` uses the private session path
+`$XDG_RUNTIME_DIR/acornfs/images` (normally `/run/user/$UID/acornfs/images`),
+and an absolute custom directory is also supported:
+
+```shell
+acornfs config-mount-location runtime
+acornfs config-mount-location /srv/acorn-mounts
+acornfs config-mount-location --reset
+```
+
+Use `acornfs config-mount-location` without an argument to inspect the effective
+mode. Runtime mounts are removed with the login session and may be less prominent
+in the Files sidebar than the default home-directory location. The preference is
+stored privately under `${XDG_CONFIG_HOME:-$HOME/.config}/acornfs`; the
+`ACORNFS_MOUNT_ROOT` environment variable is a temporary higher-priority override.
+The grouped **Acorn FS Support → Mount location…** action exposes the same
+setting without requiring a terminal and applies it to future mounts.
+
 The opt-in live-FUSE suite exercises this exact transient-service path and also
 kills a writable daemon deliberately to prove that its pre-mount checkpoint can
 restore and completely revalidate the original image.

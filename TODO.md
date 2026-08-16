@@ -2,7 +2,15 @@
 
 ## Objective
 
-Build a safe userspace filesystem for Acorn disk images, starting with paired BeebSCSI DAT and DSC files. Mounted images should behave like ordinary folders in Nautilus, terminals, editors and Linux file dialogs. A small Nautilus extension should provide convenient mount, unmount, validation and properties actions while a FUSE daemon provides the actual filesystem.
+Build a safe userspace filesystem for Acorn disk images, starting with paired
+BeebSCSI DAT and DSC files. Mounted images behave like ordinary folders in
+Nautilus, terminals, editors and Linux file dialogs. A Nautilus extension
+provides mount, unmount, creation, validation, repair, recovery, configuration
+and properties actions while a FUSE daemon provides the actual filesystem.
+
+A checked item means the behaviour is implemented and backed by automated tests
+or explicit documentation. Hardware, distribution, live-desktop and release
+acceptance items stay open until they have been exercised in that environment.
 
 ## Guiding principles
 
@@ -29,6 +37,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Add generated test fixtures so private sample images are not required.
 - [x] Define supported Ubuntu and GNOME/Nautilus versions.
 - [x] Decide how reusable Acorn File Forge filesystem code will be extracted into a shared package.
+- [x] Pin the shared Oaknut dependency used by Acorn File Forge.
+- [ ] Add a changelog and documented versioning/release policy.
 
 ## Phase 2: read-only BeebSCSI mounting
 
@@ -60,8 +70,9 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Define extended attributes for source filesystem and original pathname information.
 - [x] Implement getxattr and listxattr in read-only mode.
 - [x] Map Acorn locked files to a sensible read-only POSIX presentation.
-- [ ] Decide whether optional `.inf` sidecars should be exposed, generated on export, or hidden by default.
+- [x] Keep optional `.inf` sidecars hidden and use extended attributes as the authoritative mounted representation.
 - [x] Document lossy and lossless metadata mappings.
+- [ ] Add explicit metadata-aware import/export commands before offering generated `.inf` sidecars.
 
 ## Phase 4: safe write support
 
@@ -87,6 +98,9 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Provide a mandatory pre-write checkpoint.
 - [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
 - [x] Add safe cancellation boundaries for long validation and recovery operations.
+- [x] Add failure-injection coverage for every catalogue, data and metadata mutation class.
+- [ ] Define safe semantics for applications holding multiple writable handles to the same file.
+- [ ] Exercise host logout and shutdown while dirty writable handles remain open.
 
 ## Phase 5: Nautilus integration
 
@@ -99,12 +113,17 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
 - [x] Add `Create BeebSCSI image` where appropriate.
+- [x] Keep all AcornFS commands beneath one `Acorn FS Support` submenu.
+- [x] Add desktop configuration for future mount locations.
 - [x] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile, mount state and validation state.
 - [x] Add file properties for load address, execute address, RISC OS filetype and lock state.
 - [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
 - [x] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
 - [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
 - [ ] Test light mode, dark mode, narrow windows and 200 percent scaling.
+- [ ] Test drag-and-drop, clipboard copy/move, trash/delete and atomic-save workflows in Nautilus.
+- [ ] Make user-facing desktop strings translatable and add localisation guidance.
+- [ ] Verify dialogs and notifications with a screen reader.
 
 ## Phase 6: lifecycle and desktop service
 
@@ -115,8 +134,11 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Support graceful logout and shutdown handling through systemd `SIGINT` cleanup.
 - [x] Record systemd-managed mount output in the user journal.
 - [x] Add diagnostics that can be exported without including image contents.
-- [ ] Provide configurable per-user mount locations under `/run/user/$UID/acornfs`.
+- [x] Provide configurable per-user mount locations under `/run/user/$UID/acornfs`.
+- [x] Persist mount-location preferences atomically with environment overrides and privacy-safe diagnostics.
 - [x] Avoid requiring global `/etc/fuse.conf` changes for ordinary operation.
+- [ ] Handle a changed mount-location preference while older images remain mounted.
+- [ ] Define cleanup and retention for stale runtime logs, repair audits and abandoned checkpoints.
 
 ## Phase 7: validation and repair tooling
 
@@ -127,20 +149,29 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Require explicit confirmation before applying any repair.
 - [x] Create a checkpoint before every repair.
 - [x] Verify the complete image after repair and retain an audit report.
+- [x] Repair a DAT that safely omits only the DSC-declared reserved tail.
+- [x] Show determinate byte-level progress throughout desktop repair.
+- [x] Show explicit desktop completion or failure details after repair and recovery.
 - [ ] Reuse Acorn File Forge compatibility checks for BBC, Master, Electron and BeebSCSI targets.
 - [ ] Test images edited by the filesystem on real BeebSCSI hardware.
+- [ ] Add a machine-readable compatibility profile/version to validation reports.
+- [ ] Add automatic repairs only for further cases with complete rollback and hardware evidence.
 
 ## Phase 8: performance and concurrency
 
 - [ ] Benchmark initial mounting, root listing, deep traversal, large reads and small-file workloads.
 - [ ] Benchmark large DAT images on Raspberry Pi 4 and Pi 5 hardware.
-- [ ] Avoid mounting or reparsing the ADFS image for each filesystem call.
-- [ ] Add bounded read caching with sequential-read detection.
+- [x] Keep one Oaknut mount and one eagerly built directory index for the life of each FUSE mount.
+- [x] Add a bounded whole-file LRU cache and ranged reads for files larger than the cache limit.
+- [ ] Add sequential-read detection and bounded read-ahead for large files.
 - [ ] Batch compatible metadata updates.
 - [x] Define and test the concurrency model for simultaneous readers and a single writer.
-- [ ] Invalidate kernel and userspace caches after mutations.
+- [x] Update or invalidate the userspace inode, directory and file caches after mutations.
+- [ ] Notify the kernel to invalidate cached entries/data after mutations where zero timeouts are insufficient.
 - [x] Ensure external image changes are detected rather than overwritten.
 - [ ] Record throughput and latency regressions in CI artefacts.
+- [ ] Establish amd64 performance budgets before the first release candidate.
+- [ ] Profile memory use for maximum supported node counts and large open-write buffers.
 
 ## Phase 9: additional Acorn formats
 
@@ -153,6 +184,8 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Add ROMFS images.
 - [ ] Consider read-only UEF and archive traversal after disk filesystems are stable.
 - [ ] Keep unsupported operations disabled and return accurate errors for each format.
+- [ ] Define format detection precedence when one extension or container can hold multiple filesystems.
+- [ ] Add capability-driven menu actions so unsupported formats never offer write or repair commands.
 
 ## Phase 10: packaging and release
 
@@ -160,12 +193,29 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Package the FUSE daemon, command-line tools and Nautilus extension separately where useful.
 - [ ] Declare FUSE 3, Python/runtime and Nautilus extension dependencies accurately.
 - [ ] Add installation, upgrade and uninstall scripts that preserve user data.
-- [ ] Restart Nautilus only when required and explain the action to the user.
+- [x] Restart Nautilus only when explicitly requested and otherwise explain the required action.
 - [ ] Add signed source archives and checksums.
 - [ ] Add a complete administrator and user manual.
 - [x] Document backup, recovery and damaged-image procedures.
-- [ ] Document limitations of Acorn-to-POSIX filename and metadata mapping.
+- [x] Document limitations of Acorn-to-POSIX filename and metadata mapping.
 - [ ] Publish a security policy and responsible disclosure route.
+- [ ] Add clean-install, upgrade and uninstall smoke tests on each supported Ubuntu release.
+- [ ] Produce reproducible release artefacts and a software bill of materials.
+- [ ] Add release-candidate migration tests that preserve checkpoints, preferences and audits.
+- [ ] Document support boundaries and a release-readiness checklist.
+
+## Phase 11: security and robustness
+
+- [x] Bound indexed node count, directory depth and file-cache memory for untrusted images.
+- [x] Refuse ambiguous pairs, remote desktop URIs and unsafe writable geometry.
+- [x] Keep lifecycle records and persistent preferences in private per-user directories.
+- [ ] Write and review a threat model covering malicious images, paths, FUSE callers and desktop IPC.
+- [ ] Add coverage-guided fuzzing for DSC parsing, ADFS map/catalogue validation and URI handling.
+- [ ] Test symlink, hard-link, rename and time-of-check/time-of-use attacks around images, checkpoints and mount roots.
+- [ ] Add dependency vulnerability and licence scanning to CI.
+- [ ] Review subprocess environments, command construction and desktop file generation against injection.
+- [ ] Define resource limits and timeouts for validation, properties and repair on adversarial images.
+- [ ] Ensure logs, notifications and errors never disclose unrelated paths or image contents.
 
 ## Test matrix
 
@@ -176,7 +226,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Old ADFS directory formats used by BBC, Master and Electron hardware.
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [ ] Deep trees, maximum directory entries and boundary-length names.
-- [ ] Locked files and every supported metadata combination.
+- [x] Locked files and every supported metadata combination.
 - [x] Interrupted writes, daemon crashes and forced termination.
 - [ ] Host shutdown during an active writable mount.
 - [x] Concurrent readers and conflicting writers.
@@ -187,6 +237,11 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [ ] Ubuntu on amd64, arm64 and 32-bit arm/v7.
 - [ ] Raspberry Pi 4 and Pi 5 native builds.
 - [ ] Real BeebSCSI hardware after every write-path release candidate.
+- [x] New-image creation, validation, collision refusal and partial-publication rollback.
+- [x] Sidebar, runtime and custom mount-location preference resolution.
+- [ ] Filenames containing every supported display mapping and case-collision combination.
+- [ ] Images stored on NFS, removable media, read-only media and filesystems without reflink support.
+- [ ] Low-memory, low-disk-space and interrupted preference/audit/checkpoint writes.
 
 ## Initial release acceptance criteria
 
@@ -198,8 +253,12 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Interrupted mutations are either rolled back or recoverable.
 - [x] Unmount verifies and flushes the image before reporting success.
 - [ ] An image edited through AcornFS works reliably on real BeebSCSI hardware.
-- [ ] No operation requires running the daemon or Nautilus as root.
-- [ ] Documentation covers installation, use, recovery, limitations and uninstalling.
+- [x] No normal operation requires running the daemon or Nautilus as root.
+- [x] Documentation covers installation, use, recovery, limitations and uninstalling.
+- [ ] All supported Nautilus workflows pass the accessibility and visual test matrix.
+- [ ] Clean install, upgrade and uninstall preserve images, preferences, checkpoints and audits.
+- [ ] amd64 performance remains within the published release budgets.
+- [ ] Security review and fuzzing find no unresolved release-blocking issue.
 
 ## Decisions to record before implementation
 
@@ -207,8 +266,10 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Shared-library boundary with Acorn File Forge.
 - [x] Transaction and recovery format.
 - [x] POSIX timestamp policy for filesystems without equivalent timestamps.
-- [ ] Filename mapping and case-sensitivity policy.
-- [ ] Extended-attribute and optional `.inf` sidecar policy.
+- [x] Filename display, creation and case-insensitivity policy.
+- [x] Extended-attribute and hidden-by-default `.inf` sidecar policy.
 - [ ] MMB directory and write-semantics design.
 - [x] Supported Ubuntu, GNOME and Nautilus versions.
 - [x] Initial operating-system architecture (amd64; Raspberry Pi remains future work).
+- [x] Default sidebar mount location and optional runtime/custom location policy.
+- [ ] Support and compatibility policy for Oaknut private APIs across dependency updates.
