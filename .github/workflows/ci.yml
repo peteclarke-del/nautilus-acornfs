@@ -37,3 +37,20 @@ jobs:
         with:
           load: false
           push: false
+
+  benchmark-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install '.[dev]'
+      - run: make benchmark
+      - if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: performance-amd64
+          path: build/performance/amd64.json
+          if-no-files-found: error

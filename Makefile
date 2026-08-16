@@ -1,6 +1,9 @@
-.PHONY: check format lint test test-live typecheck
+.PHONY: benchmark check format lint test test-live typecheck
 
 check: lint typecheck test
+
+benchmark:
+	python -m acornfs.benchmark --output build/performance/amd64.json --check-budgets
 
 format:
 	python -m ruff format .
