@@ -98,6 +98,18 @@ recovery checkpoint is created. Warnings and compatibility advice do not block
 mounting, although warnings make the validation command exit non-zero for
 strict unattended checks. Validation does not repair or modify the image.
 
+Generate a deterministic, read-only repair assessment with:
+
+```shell
+acornfs repair-plan /path/to/scsi0.dat
+acornfs repair-plan --json /path/to/scsi0.dsc
+```
+
+The plan groups findings into candidate operations, records risk and identifies
+steps that require a human decision. Applying repairs is intentionally disabled
+until confirmation, checkpoint, post-repair verification and audit reporting are
+implemented together. See [docs/damaged-images.md](docs/damaged-images.md).
+
 For terminal use, create an empty mountpoint and mount either member manually:
 
 ```shell

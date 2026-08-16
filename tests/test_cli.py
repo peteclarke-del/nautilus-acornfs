@@ -129,3 +129,16 @@ def test_validate_command_rejects_truncated_dat_cleanly(tmp_path: Path, capsys: 
     output = capsys.readouterr().out  # type: ignore[attr-defined]
     assert "geometry.dat_short" in output
     assert "adfs.open_failed" in output
+
+
+def test_repair_plan_json_is_dry_run_and_does_not_modify_image(
+    tmp_path: Path, capsys: object
+) -> None:
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    dsc_path.write_bytes(b"broken")
+    before = dat_path.read_bytes()
+    assert main(["repair-plan", "--json", str(dat_path)]) == 1
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert '"mode": "dry-run"' in output
+    assert '"application_supported": false' in output
+    assert dat_path.read_bytes() == before
