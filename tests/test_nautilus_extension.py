@@ -17,17 +17,21 @@ class _MenuItem:
     def __init__(self, **values: str) -> None:
         self.label = values["label"]
         self.submenu: _Menu | None = None
+        self.callback: Any = None
+        self.arguments: tuple[Any, ...] = ()
 
-    def connect(self, *_args: Any) -> None:
-        pass
+    def connect(self, _signal: str, callback: Any, *arguments: Any) -> None:
+        self.callback = callback
+        self.arguments = arguments
 
     def set_submenu(self, submenu: _Menu) -> None:
         self.submenu = submenu
 
 
 class _FileInfo:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, directory: bool = False) -> None:
         self.path = path
+        self.directory = directory
 
     def get_uri_scheme(self) -> str:
         return "file"
@@ -36,7 +40,7 @@ class _FileInfo:
         return SimpleNamespace(get_path=lambda: str(self.path))
 
     def is_directory(self) -> bool:
-        return False
+        return self.directory
 
 
 def _load_extension(monkeypatch: Any) -> Any:
@@ -75,3 +79,30 @@ def test_image_actions_are_collapsed_under_one_support_menu(
         "Validate image",
         "Repair image…",
     ]
+
+
+def test_writable_folder_offers_create_in_support_menu(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "is_mounted", lambda _path: False)
+
+    items = extension.AcornFSMenuProvider().get_background_items(_FileInfo(tmp_path))
+
+    assert len(items) == 1
+    assert items[0].label == "Acorn FS Support"
+    assert [item.label for item in items[0].submenu.items] == ["Create BeebSCSI image…"]
+
+
+def test_create_action_launches_desktop_command(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "is_mounted", lambda _path: False)
+    launched: list[tuple[str, ...]] = []
+    monkeypatch.setattr(extension, "_launch", lambda *arguments: launched.append(arguments))
+    item = (
+        extension.AcornFSMenuProvider()
+        .get_file_items([_FileInfo(tmp_path, directory=True)])[0]
+        .submenu.items[0]
+    )
+
+    item.callback(None, *item.arguments)
+
+    assert launched == [("desktop-create", str(tmp_path))]

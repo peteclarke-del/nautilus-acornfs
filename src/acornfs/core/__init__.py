@@ -1,6 +1,7 @@
 """Filesystem-independent Acorn image handling."""
 
 from .beebscsi import BeebSCSIGeometry, BeebSCSIPair, discover_pair, inspect_pair
+from .create import CreatedImage, create_beebscsi_image
 from .image import ImageNode, ReadOnlyImage, validate_image
 from .properties import ImageProperties, read_image_properties
 from .repair import (
@@ -22,6 +23,7 @@ from .validation import (
 __all__ = [
     "BeebSCSIGeometry",
     "BeebSCSIPair",
+    "CreatedImage",
     "ImageNode",
     "ImageProperties",
     "FindingSeverity",
@@ -33,6 +35,7 @@ __all__ = [
     "RepairResult",
     "RepairRisk",
     "discover_pair",
+    "create_beebscsi_image",
     "apply_repairs",
     "inspect_pair",
     "read_image_properties",
