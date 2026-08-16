@@ -52,6 +52,7 @@ the remaining lifecycle and format work. Release history and policy are in
 - Wait for writable flush and final validation before confirming unmount success.
 - Export privacy-safe support information through `acornfs diagnostics --json`.
 - Import and export individual files with Acorn load, execution and lock metadata sidecars.
+- Translate validation findings, repair plans/progress and known image-property values through gettext.
 
 ## Development
 
@@ -165,8 +166,10 @@ image mutation. Use
 `--sidecar PATH` to select one explicitly, `--ignore-sidecar` for neutral
 metadata, or `--name NAME` to override the imported ADFS leaf name.
 
-Nautilus and dialog interface chrome uses gettext and falls back to English;
-technical values and core validation/repair findings remain English for now. See
+Nautilus interface chrome, validation findings, repair plans/progress and known
+technical property values use gettext and fall back to English. Image-owned
+names, stable finding/action codes and low-level third-party error details are
+not translated. See
 [docs/localisation.md](docs/localisation.md) for extracting messages, adding a
 catalogue, packaging it, and completing the manual accessibility checks.
 

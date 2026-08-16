@@ -35,3 +35,18 @@ def test_properties_follow_descriptor_geometry(tmp_path: Path, cylinders: int, h
     assert properties.cylinders == cylinders
     assert properties.heads == heads
     assert properties.capacity_bytes == cylinders * heads * 33 * 256
+
+
+def test_known_property_values_are_localised_but_image_text_is_preserved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    properties = read_image_properties(dat_path)
+    monkeypatch.setattr("acornfs_nautilus.logic._", lambda message: f"translated:{message}")
+
+    rows = dict(image_property_rows(properties))
+
+    assert rows["translated:Image type"] == "translated:BeebSCSI DAT/DSC pair"
+    assert rows["translated:Directory format"] == "translated:Old directory (Hugo)"
+    assert rows["translated:Boot option"] == "translated:Off (0)"
+    assert rows["translated:Title"] == "ACORNFS"

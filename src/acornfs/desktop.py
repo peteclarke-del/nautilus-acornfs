@@ -745,7 +745,7 @@ def desktop_validate(image_path: str | Path) -> int:
                 _("AcornFS validation found problems"),
                 _("{image}: [{severity}] {code}: {message}{suffix}").format(
                     image=name,
-                    severity=first.severity.value.upper(),
+                    severity=first.severity_label,
                     code=first.code,
                     message=first.message,
                     suffix=suffix,

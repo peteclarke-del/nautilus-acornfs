@@ -112,9 +112,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Add `Mount read-only`.
 - [x] Add `Unmount` for mounted images.
 - [x] Add `Validate image`.
-- [ ] Add `Open in Acorn File Forge` end to end.
 - [x] Add the AcornFS-side shell-free File Forge desktop launcher contract.
-- [ ] Add the corresponding browser-session hand-off endpoint/helper to Acorn File Forge.
 - [x] Add `Create BeebSCSI image` where appropriate.
 - [x] Keep all AcornFS commands beneath one `Acorn FS Support` submenu.
 - [x] Add desktop configuration for future mount locations.
@@ -127,7 +125,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Test drag-and-drop, clipboard copy/move, trash/delete and atomic-save workflows in Nautilus.
 - [ ] Make all user-facing desktop strings translatable.
 - [x] Add the gettext foundation, catalogue template and localisation guidance for desktop UI chrome.
-- [ ] Localise core validation, repair and image-property values displayed by the desktop UI.
+- [x] Localise core validation, repair and image-property values displayed by the desktop UI.
+- [ ] Localise remaining lifecycle, creation, recovery and preference errors surfaced by the desktop UI.
 - [ ] Verify dialogs and notifications with a screen reader.
 
 ## Phase 6: lifecycle and desktop service
@@ -157,7 +156,6 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Repair a DAT that safely omits only the DSC-declared reserved tail.
 - [x] Show determinate byte-level progress throughout desktop repair.
 - [x] Show explicit desktop completion or failure details after repair and recovery.
-- [ ] Reuse Acorn File Forge compatibility checks for BBC, Master, Electron and BeebSCSI targets.
 - [ ] Test images edited by the filesystem on real BeebSCSI hardware.
 - [ ] Add a machine-readable compatibility profile/version to validation reports.
 - [ ] Add automatic repairs only for further cases with complete rollback and hardware evidence.
@@ -264,6 +262,12 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Clean install, upgrade and uninstall preserve images, preferences, checkpoints and audits.
 - [ ] amd64 performance remains within the published release budgets.
 - [ ] Security review and fuzzing find no unresolved release-blocking issue.
+
+## Deferred until last: Acorn File Forge integration
+
+- [ ] Add `Open in Acorn File Forge` end to end.
+- [ ] Add the corresponding browser-session hand-off endpoint/helper to Acorn File Forge.
+- [ ] Reuse Acorn File Forge compatibility checks for BBC, Master, Electron and BeebSCSI targets.
 
 ## Decisions to record before implementation
 
