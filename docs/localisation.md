@@ -4,10 +4,15 @@ AcornFS uses the gettext domain `acornfs` for the Nautilus menu, properties,
 notifications, and Zenity dialogs. English remains the fallback when a
 catalogue or individual translation is missing.
 
-This first localisation boundary covers interface chrome. Technical values and
-messages produced by the filesystem validation and repair core are not yet
-catalogued, so the top-level backlog item remains open until those strings are
-also translated.
+The catalogue covers interface chrome, validation summaries and findings,
+repair plans and progress, and known image-property values. Stable finding
+codes, repair action identifiers, audit status values, Acorn paths, disc titles
+and other image-owned data are deliberately unchanged. Low-level details
+originating in Oaknut or the operating system remain verbatim after a translated
+context phrase, so diagnostics retain the original technical evidence.
+
+Lifecycle, creation, recovery and preference errors that originate below the
+desktop helper remain a separate open backlog item.
 
 ## Update the template
 
@@ -17,7 +22,8 @@ Install GNU gettext, then run:
 make messages
 ```
 
-This regenerates `po/acornfs.pot` from the desktop-facing Python modules. Keep
+This regenerates `po/acornfs.pot` from the desktop-facing and report-formatting
+Python modules. Keep
 format placeholders such as `{image}`, `{mountpoint}`, and `{count}` unchanged;
 translators may reorder them. Preserve command names and environment variables
 verbatim.

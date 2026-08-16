@@ -21,6 +21,7 @@ from acornfs.core.beebscsi import (
     parse_descriptor,
 )
 from acornfs.errors import AcornFSError, OperationCancelled
+from acornfs.i18n import _, ngettext
 from acornfs.operations import CancellationCheck, cancellation_point
 
 
@@ -36,6 +37,16 @@ class IntegrityFinding:
     code: str
     message: str
     path: str | None = None
+
+    @property
+    def severity_label(self) -> str:
+        """Return the translated human label without changing the stable enum value."""
+
+        return {
+            FindingSeverity.FATAL: _("FATAL"),
+            FindingSeverity.WARNING: _("WARNING"),
+            FindingSeverity.ADVICE: _("ADVICE"),
+        }[self.severity]
 
     def as_dict(self) -> dict[str, str | None]:
         return asdict(self)
@@ -90,16 +101,28 @@ class IntegrityReport:
         """Return the same complete, readable report for CLI and desktop UIs."""
 
         if not self.findings:
-            return "ADFS validation passed with no problems."
+            return _("ADFS validation passed with no problems.")
+        finding_label = ngettext("finding", "findings", len(self.findings))
         lines = [
-            f"Validation found {len(self.fatal_findings)} fatal, "
-            f"{len(self.warning_findings)} warning, and "
-            f"{len(self.advice_findings)} advice finding(s):"
+            _(
+                "Validation found {fatal} fatal, {warning} warning, and "
+                "{advice} advice {finding_label}:"
+            ).format(
+                fatal=len(self.fatal_findings),
+                warning=len(self.warning_findings),
+                advice=len(self.advice_findings),
+                finding_label=finding_label,
+            )
         ]
         for finding in self.findings:
             location = f" {finding.path}" if finding.path else ""
             lines.append(
-                f"- [{finding.severity.value.upper()}] {finding.code}{location}: {finding.message}"
+                _("- [{severity}] {code}{location}: {message}").format(
+                    severity=finding.severity_label,
+                    code=finding.code,
+                    location=location,
+                    message=finding.message,
+                )
             )
         return "\n".join(lines)
 
@@ -133,8 +156,16 @@ def _overlap_findings(extents: list[_Extent], *, code: str, label: str) -> list[
                 _finding(
                     FindingSeverity.FATAL,
                     code,
-                    f"{label} extents overlap in sectors {current.start}.."
-                    f"{min(current.end, furthest.end) - 1}: {furthest.owner} and {current.owner}.",
+                    _(
+                        "{label} extents overlap in sectors {start}..{end}: "
+                        "{first_owner} and {second_owner}."
+                    ).format(
+                        label=label,
+                        start=current.start,
+                        end=min(current.end, furthest.end) - 1,
+                        first_owner=furthest.owner,
+                        second_owner=current.owner,
+                    ),
                     current.owner if current.owner.startswith("$") else None,
                 )
             )
@@ -159,8 +190,9 @@ def _cross_overlap_findings(used: list[_Extent], free: list[_Extent]) -> list[In
                 _finding(
                     FindingSeverity.FATAL,
                     "extent.free_used_overlap",
-                    f"Sectors {start}..{end - 1} are both allocated to "
-                    f"{used_extent.owner} and marked free.",
+                    _(
+                        "Sectors {start}..{end} are both allocated to {owner} and marked free."
+                    ).format(start=start, end=end - 1, owner=used_extent.owner),
                     used_extent.owner if used_extent.owner.startswith("$") else None,
                 )
             )
@@ -195,7 +227,9 @@ def _geometry_findings(
             _finding(
                 FindingSeverity.FATAL,
                 "geometry.dat_unaligned",
-                f"DAT length {dat_bytes} is not a multiple of {SECTOR_SIZE} bytes.",
+                _("DAT length {length} is not a multiple of {sector_size} bytes.").format(
+                    length=dat_bytes, sector_size=SECTOR_SIZE
+                ),
             )
         )
     if dat_bytes < descriptor_geometry.capacity:
@@ -203,8 +237,9 @@ def _geometry_findings(
             _finding(
                 FindingSeverity.FATAL,
                 "geometry.dat_short",
-                f"DAT length {dat_bytes} is shorter than DSC capacity "
-                f"{descriptor_geometry.capacity}.",
+                _("DAT length {length} is shorter than DSC capacity {capacity}.").format(
+                    length=dat_bytes, capacity=descriptor_geometry.capacity
+                ),
             )
         )
     elif dat_bytes > descriptor_geometry.capacity:
@@ -212,7 +247,9 @@ def _geometry_findings(
             _finding(
                 FindingSeverity.FATAL,
                 "geometry.dat_oversized",
-                f"DAT length {dat_bytes} exceeds DSC capacity {descriptor_geometry.capacity}.",
+                _("DAT length {length} exceeds DSC capacity {capacity}.").format(
+                    length=dat_bytes, capacity=descriptor_geometry.capacity
+                ),
             )
         )
     return findings
@@ -247,9 +284,13 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.WARNING,
                 "geometry.dat_missing_reserved_tail",
-                f"DAT ends exactly at the ADFS boundary and omits "
-                f"{geometry_sectors - adfs_sectors} reserved DSC sector(s); "
-                "the missing tail can be restored without changing ADFS data.",
+                ngettext(
+                    "DAT ends exactly at the ADFS boundary and omits {count} reserved DSC "
+                    "sector; the missing tail can be restored without changing ADFS data.",
+                    "DAT ends exactly at the ADFS boundary and omits {count} reserved DSC "
+                    "sectors; the missing tail can be restored without changing ADFS data.",
+                    geometry_sectors - adfs_sectors,
+                ).format(count=geometry_sectors - adfs_sectors),
             )
         )
     if adfs_sectors > dat_sectors:
@@ -257,7 +298,9 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.FATAL,
                 "geometry.map_exceeds_dat",
-                f"ADFS claims {adfs_sectors} sectors but the DAT contains {dat_sectors}.",
+                _("ADFS claims {adfs} sectors but the DAT contains {dat}.").format(
+                    adfs=adfs_sectors, dat=dat_sectors
+                ),
             )
         )
     if adfs_sectors > geometry_sectors:
@@ -265,7 +308,9 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.FATAL,
                 "geometry.map_exceeds_dsc",
-                f"ADFS claims {adfs_sectors} sectors but the DSC allows {geometry_sectors}.",
+                _("ADFS claims {adfs} sectors but the DSC allows {dsc}.").format(
+                    adfs=adfs_sectors, dsc=geometry_sectors
+                ),
             )
         )
     elif adfs_sectors < geometry_sectors:
@@ -273,8 +318,10 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.ADVICE,
                 "geometry.reserved_tail",
-                f"ADFS occupies {adfs_sectors} of {geometry_sectors} DSC sectors; "
-                "the remaining tail may host another filesystem.",
+                _(
+                    "ADFS occupies {adfs} of {dsc} DSC sectors; the remaining tail may host "
+                    "another filesystem."
+                ).format(adfs=adfs_sectors, dsc=geometry_sectors),
             )
         )
 
@@ -282,7 +329,13 @@ def validate_open_mount(
     if callable(validator):
         for problem in validator():
             cancellation_point(cancelled)
-            findings.append(_finding(FindingSeverity.FATAL, "adfs.structure", str(problem)))
+            findings.append(
+                _finding(
+                    FindingSeverity.FATAL,
+                    "adfs.structure",
+                    _("ADFS structure error: {error}").format(error=problem),
+                )
+            )
 
     free_extents: list[_Extent] = []
     try:
@@ -295,20 +348,30 @@ def validate_open_mount(
                     _finding(
                         FindingSeverity.FATAL,
                         "extent.free_empty",
-                        f"Free-space entry {index} has zero length.",
+                        _("Free-space entry {index} has zero length.").format(index=index),
                     )
                 )
                 continue
-            extent = _Extent(start, start + length, f"free-space entry {index}")
+            extent = _Extent(
+                start,
+                start + length,
+                _("free-space entry {index}").format(index=index),
+            )
             free_extents.append(extent)
             if extent.start < 7 or extent.end > adfs_sectors:
                 findings.append(
                     _finding(
                         FindingSeverity.FATAL,
                         "extent.free_out_of_range",
-                        f"Free-space entry {index} covers sectors {extent.start}.."
-                        f"{extent.end - 1}, outside allocatable ADFS sectors 7.."
-                        f"{adfs_sectors - 1}.",
+                        _(
+                            "Free-space entry {index} covers sectors {start}..{end}, outside "
+                            "allocatable ADFS sectors 7..{adfs_end}."
+                        ).format(
+                            index=index,
+                            start=extent.start,
+                            end=extent.end - 1,
+                            adfs_end=adfs_sectors - 1,
+                        ),
                     )
                 )
     except OperationCancelled:
@@ -318,11 +381,11 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.FATAL,
                 "extent.free_unreadable",
-                f"The free-space extent list could not be read: {exc}",
+                _("The free-space extent list could not be read: {error}").format(error=exc),
             )
         )
 
-    used_extents = [_Extent(0, 2, "ADFS free-space map"), _Extent(2, 7, "$")]
+    used_extents = [_Extent(0, 2, _("ADFS free-space map")), _Extent(2, 7, "$")]
     seen_directories: set[int] = {2}
     directory_sectors = int(adfs._dir_format.size_in_sectors)
     directory_bytes = int(adfs._dir_format.size_in_bytes)
@@ -340,8 +403,9 @@ def validate_open_mount(
                         _finding(
                             FindingSeverity.WARNING,
                             "directory.length_unusual",
-                            f"Directory entry length is {entry.length}; "
-                            f"expected {directory_bytes}.",
+                            _("Directory entry length is {length}; expected {expected}.").format(
+                                length=entry.length, expected=directory_bytes
+                            ),
                             child_path,
                         )
                     )
@@ -350,7 +414,9 @@ def validate_open_mount(
                         _finding(
                             FindingSeverity.FATAL,
                             "directory.cycle",
-                            f"Directory reuses sector {start}, creating a cycle or alias.",
+                            _(
+                                "Directory reuses sector {sector}, creating a cycle or alias."
+                            ).format(sector=start),
                             child_path,
                         )
                     )
@@ -363,7 +429,9 @@ def validate_open_mount(
                         _finding(
                             FindingSeverity.FATAL,
                             "directory.unreadable",
-                            f"Directory at sector {start} cannot be read: {exc}",
+                            _("Directory at sector {sector} cannot be read: {error}").format(
+                                sector=start, error=exc
+                            ),
                             child_path,
                         )
                     )
@@ -380,7 +448,9 @@ def validate_open_mount(
                         _finding(
                             FindingSeverity.WARNING,
                             "file.empty_has_extent",
-                            f"Empty file records non-zero start sector {start}.",
+                            _("Empty file records non-zero start sector {sector}.").format(
+                                sector=start
+                            ),
                             child_path,
                         )
                     )
@@ -395,7 +465,7 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.FATAL,
                 "directory.root_unreadable",
-                f"The root directory cannot be traversed: {exc}",
+                _("The root directory cannot be traversed: {error}").format(error=exc),
                 "$",
             )
         )
@@ -407,15 +477,23 @@ def validate_open_mount(
                 _finding(
                     FindingSeverity.FATAL,
                     "extent.used_out_of_range",
-                    f"Allocated extent covers sectors {extent.start}..{extent.end - 1}, "
-                    f"outside ADFS sectors 0..{adfs_sectors - 1}.",
+                    _(
+                        "Allocated extent covers sectors {start}..{end}, outside ADFS sectors "
+                        "0..{adfs_end}."
+                    ).format(
+                        start=extent.start,
+                        end=extent.end - 1,
+                        adfs_end=adfs_sectors - 1,
+                    ),
                     extent.owner if extent.owner.startswith("$") else None,
                 )
             )
 
     cancellation_point(cancelled)
-    findings.extend(_overlap_findings(used_extents, code="extent.used_overlap", label="Allocated"))
-    findings.extend(_overlap_findings(free_extents, code="extent.free_overlap", label="Free"))
+    findings.extend(
+        _overlap_findings(used_extents, code="extent.used_overlap", label=_("Allocated"))
+    )
+    findings.extend(_overlap_findings(free_extents, code="extent.free_overlap", label=_("Free")))
     findings.extend(_cross_overlap_findings(used_extents, free_extents))
 
     gaps = _gap_ranges([*used_extents, *free_extents], adfs_sectors)
@@ -426,8 +504,11 @@ def validate_open_mount(
             _finding(
                 FindingSeverity.FATAL,
                 "extent.unaccounted",
-                f"{len(gaps)} ADFS sector range(s) are neither allocated nor free: "
-                f"{preview}{suffix}.",
+                ngettext(
+                    "{count} ADFS sector range is neither allocated nor free: {ranges}{suffix}.",
+                    "{count} ADFS sector ranges are neither allocated nor free: {ranges}{suffix}.",
+                    len(gaps),
+                ).format(count=len(gaps), ranges=preview, suffix=suffix),
             )
         )
 
@@ -469,7 +550,7 @@ def validate_image_report(
                 _finding(
                     FindingSeverity.FATAL,
                     "geometry.descriptor_invalid",
-                    str(exc),
+                    _("The DSC descriptor is invalid: {error}").format(error=exc),
                 ),
             ),
         )
@@ -490,7 +571,7 @@ def validate_image_report(
             _finding(
                 FindingSeverity.FATAL,
                 "adfs.open_failed",
-                f"The ADFS image could not be opened for validation: {exc}",
+                _("The ADFS image could not be opened for validation: {error}").format(error=exc),
             )
         )
         return IntegrityReport(
@@ -522,9 +603,13 @@ def require_safe_for_write(report: IntegrityReport) -> None:
     if report.safe_for_write:
         return
     first = report.fatal_findings[0]
+    count = len(report.fatal_findings)
     raise AcornFSError(
-        f"Writable mount refused: validation found {len(report.fatal_findings)} fatal "
-        f"problem(s). {first.code}: {first.message}"
+        ngettext(
+            "Writable mount refused: validation found {count} fatal problem. {code}: {message}",
+            "Writable mount refused: validation found {count} fatal problems. {code}: {message}",
+            count,
+        ).format(count=count, code=first.code, message=first.message)
     )
 
 

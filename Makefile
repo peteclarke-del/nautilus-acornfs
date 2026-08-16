@@ -14,8 +14,9 @@ lint:
 
 messages:
 	xgettext --language=Python --from-code=UTF-8 --sort-output --no-wrap \
-		--keyword=_ --keyword=ngettext:1,2 --output=po/acornfs.pot \
-		src/acornfs/desktop.py src/acornfs/file_forge.py src/acornfs_nautilus/extension.py \
+		--keyword=_ --keyword=N_ --keyword=ngettext:1,2 --output=po/acornfs.pot \
+		src/acornfs/core/repair.py src/acornfs/core/validation.py src/acornfs/desktop.py \
+		src/acornfs/file_forge.py src/acornfs_nautilus/extension.py \
 		src/acornfs_nautilus/logic.py
 
 typecheck:
