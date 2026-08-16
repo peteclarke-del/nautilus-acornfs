@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import FindingSeverity, inspect_pair, validate_image_report
+from acornfs.core import FindingSeverity, inspect_pair, plan_repairs, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.mounts import active_mounts, mount_at, wait_for_mount_shutdown
 from acornfs.recovery import pending_recovery, recover_image
@@ -28,6 +28,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     validate_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    repair_parser = subparsers.add_parser(
+        "repair-plan", help="create a read-only dry-run repair plan"
+    )
+    repair_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    repair_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     mount_parser = subparsers.add_parser(
         "mount", help="mount an image with FUSE 3 (read-only by default)"
     )
@@ -125,6 +130,15 @@ def _validate(args: argparse.Namespace) -> int:
     else:
         print(report.format_text())
     return 1 if any(item.severity is not FindingSeverity.ADVICE for item in report.findings) else 0
+
+
+def _repair_plan(args: argparse.Namespace) -> int:
+    plan = plan_repairs(args.image)
+    if args.json:
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
+    else:
+        print(plan.format_text())
+    return 1 if plan.report.fatal_findings else 0
 
 
 def _unmount(args: argparse.Namespace) -> int:
@@ -259,6 +273,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     handlers = {
         "inspect": _inspect,
         "validate": _validate,
+        "repair-plan": _repair_plan,
         "mount": _mount,
         "unmount": _unmount,
         "status": _status,
