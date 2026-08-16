@@ -82,6 +82,14 @@ Resolve interrupted read-write mount…**. Choose either:
 The equivalent terminal commands are `acornfs recover IMAGE`, `acornfs recover
 IMAGE --restore`, and `acornfs recover IMAGE --discard`.
 
+Validation and checkpoint restoration display a pulsing progress dialog. **Cancel
+safely** stops validation between structural checks. During restoration it stops
+while replacement files are still being staged, removes those temporary files,
+and retains both the current image and checkpoint. After staging completes, the
+short DAT/DSC commit boundary is deliberately non-cancellable so the pair cannot
+be abandoned half-replaced. A separate result confirms whether cancellation or
+recovery completed.
+
 Each image receives a stable location under `~/AcornFS Mounts/IMAGE-HASH`.
 GNOME deliberately exposes user FUSE mounts below the home directory in the
 Files sidebar. Runtime locks and logs remain under `$XDG_RUNTIME_DIR/acornfs`.
