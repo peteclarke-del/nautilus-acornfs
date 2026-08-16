@@ -5,10 +5,19 @@ from pathlib import Path
 import pytest
 
 from acornfs.errors import AcornFSError
-from acornfs.nautilus_install import install_extension, uninstall_extension
+from acornfs.nautilus_install import (
+    DESKTOP_FILE_NAME,
+    MIME_PACKAGE_NAME,
+    desktop_file_path,
+    install_extension,
+    mime_package_path,
+    uninstall_extension,
+)
 
 
-def test_installs_and_removes_user_extension(tmp_path: Path, monkeypatch: object) -> None:
+def test_installs_and_removes_complete_desktop_integration(
+    tmp_path: Path, monkeypatch: object
+) -> None:
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))  # type: ignore[attr-defined]
     target = install_extension()
     content = target.read_text(encoding="utf-8")
@@ -17,8 +26,20 @@ def test_installs_and_removes_user_extension(tmp_path: Path, monkeypatch: object
     assert str(sysconfig.get_path("purelib")) in content
     assert "AcornFSMenuProvider" in content
     assert "AcornFSPropertiesModelProvider" in content
+    mime_content = mime_package_path().read_text(encoding="utf-8")
+    assert mime_package_path() == tmp_path / "mime" / "packages" / MIME_PACKAGE_NAME
+    assert 'value="Hugo" offset="513"' in mime_content
+    assert 'pattern="*.dsc"' in mime_content
+    assert 'pattern="*.dat"' not in mime_content
+    desktop_content = desktop_file_path().read_text(encoding="utf-8")
+    assert desktop_file_path() == tmp_path / "applications" / DESKTOP_FILE_NAME
+    assert "desktop-open %U" in desktop_content
+    assert "x-scheme-handler/acornfs" in desktop_content
+    assert "NoDisplay=true" in desktop_content
     assert uninstall_extension() == target
     assert not target.exists()
+    assert not mime_package_path().exists()
+    assert not desktop_file_path().exists()
 
 
 def test_refuses_to_remove_foreign_extension(tmp_path: Path, monkeypatch: object) -> None:

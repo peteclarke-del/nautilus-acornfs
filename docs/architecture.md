@@ -54,6 +54,12 @@ sector range; FUSE growth is capacity-checked before its memory buffer expands.
 - `acornfs.cli`: commands that call the same application services as FUSE.
 - `acornfs_nautilus`: thin Nautilus menu and properties integration.
 
+The per-user desktop installer also registers two narrow MIME types and a hidden
+URI handler. DAT recognition uses old-format ADFS content magic rather than a
+generic filename glob; DSC selection is extension-based but must still pass core
+pair and descriptor validation. MIME, double-click and `acornfs:` URI opens all
+converge on the same read-only desktop-mount path.
+
 The Nautilus extension communicates with the CLI, which runs desktop mounts as
 collected transient systemd user services when available. It must not hold
 writable images open or implement filesystem parsing itself.

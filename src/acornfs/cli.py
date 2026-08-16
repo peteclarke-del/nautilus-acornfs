@@ -74,11 +74,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     diagnostics_parser.add_argument("--json", action="store_true", help="emit JSON")
     install_parser = subparsers.add_parser(
-        "install-nautilus", help="install the per-user Nautilus context-menu extension"
+        "install-nautilus", help="install the per-user Nautilus and MIME integration"
     )
     install_parser.add_argument("--restart", action="store_true", help="restart Nautilus now")
     uninstall_parser = subparsers.add_parser(
-        "uninstall-nautilus", help="remove the per-user Nautilus extension"
+        "uninstall-nautilus", help="remove the per-user Nautilus and MIME integration"
     )
     uninstall_parser.add_argument("--restart", action="store_true", help="restart Nautilus now")
     desktop_mount_parser = subparsers.add_parser("desktop-mount")
@@ -92,6 +92,8 @@ def _parser() -> argparse.ArgumentParser:
     desktop_repair_parser.add_argument("image")
     desktop_validate_parser = subparsers.add_parser("desktop-validate")
     desktop_validate_parser.add_argument("image")
+    desktop_open_parser = subparsers.add_parser("desktop-open")
+    desktop_open_parser.add_argument("images", nargs="+")
     recover_parser = subparsers.add_parser(
         "recover", help="inspect or resolve an interrupted writable session"
     )
@@ -255,7 +257,7 @@ def _install_nautilus(args: argparse.Namespace) -> int:
     from acornfs.nautilus_install import install_extension
 
     target = install_extension(restart=args.restart)
-    print(f"Installed Nautilus extension: {target}")
+    print(f"Installed AcornFS desktop integration: {target}")
     if not args.restart:
         print("Restart Nautilus to load it: nautilus --quit")
     return 0
@@ -265,7 +267,7 @@ def _uninstall_nautilus(args: argparse.Namespace) -> int:
     from acornfs.nautilus_install import uninstall_extension
 
     target = uninstall_extension(restart=args.restart)
-    print(f"Removed Nautilus extension: {target}")
+    print(f"Removed AcornFS desktop integration: {target}")
     return 0
 
 
@@ -299,6 +301,12 @@ def _desktop_validate(args: argparse.Namespace) -> int:
     return desktop_validate(args.image)
 
 
+def _desktop_open(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_open
+
+    return desktop_open(args.images)
+
+
 def _recover(args: argparse.Namespace) -> int:
     print(recover_image(args.image, restore=args.restore, discard=args.discard))
     return 0
@@ -322,6 +330,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-recover": _desktop_recover,
         "desktop-repair": _desktop_repair,
         "desktop-validate": _desktop_validate,
+        "desktop-open": _desktop_open,
         "recover": _recover,
     }
     try:
