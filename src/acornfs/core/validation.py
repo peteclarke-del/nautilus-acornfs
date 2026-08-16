@@ -20,7 +20,8 @@ from acornfs.core.beebscsi import (
     open_locked_reader,
     parse_descriptor,
 )
-from acornfs.errors import AcornFSError
+from acornfs.errors import AcornFSError, OperationCancelled
+from acornfs.operations import CancellationCheck, cancellation_point
 
 
 class FindingSeverity(StrEnum):
@@ -223,9 +224,11 @@ def validate_open_mount(
     descriptor_geometry: BeebSCSIGeometry,
     *,
     initial_findings: tuple[IntegrityFinding, ...] = (),
+    cancelled: CancellationCheck | None = None,
 ) -> IntegrityReport:
     """Validate geometry, directory structures, and used/free extent accounting."""
 
+    cancellation_point(cancelled)
     findings = [*initial_findings, *_geometry_findings(pair, descriptor_geometry)]
     dat_bytes = pair.dat_path.stat().st_size
     geometry_sectors = descriptor_geometry.sectors
@@ -278,11 +281,13 @@ def validate_open_mount(
     validator = getattr(mount, "validate", None)
     if callable(validator):
         for problem in validator():
+            cancellation_point(cancelled)
             findings.append(_finding(FindingSeverity.FATAL, "adfs.structure", str(problem)))
 
     free_extents: list[_Extent] = []
     try:
         for index, (start_bytes, length_bytes) in enumerate(fsm.free_space_entries()):
+            cancellation_point(cancelled)
             start = int(start_bytes) // SECTOR_SIZE
             length = int(length_bytes) // SECTOR_SIZE
             if length <= 0:
@@ -306,6 +311,8 @@ def validate_open_mount(
                         f"{adfs_sectors - 1}.",
                     )
                 )
+    except OperationCancelled:
+        raise
     except Exception as exc:
         findings.append(
             _finding(
@@ -322,6 +329,7 @@ def validate_open_mount(
 
     def walk(directory: Any, path: str) -> None:
         for entry in directory.entries:
+            cancellation_point(cancelled)
             child_path = f"{path}.{entry.name}"
             if entry.is_directory:
                 start = int(entry.start_sector)
@@ -380,6 +388,8 @@ def validate_open_mount(
     try:
         root = adfs._read_root_directory()
         walk(root, "$")
+    except OperationCancelled:
+        raise
     except Exception as exc:
         findings.append(
             _finding(
@@ -391,6 +401,7 @@ def validate_open_mount(
         )
 
     for extent in used_extents:
+        cancellation_point(cancelled)
         if extent.start < 0 or extent.end > adfs_sectors or extent.start >= extent.end:
             findings.append(
                 _finding(
@@ -402,6 +413,7 @@ def validate_open_mount(
                 )
             )
 
+    cancellation_point(cancelled)
     findings.extend(_overlap_findings(used_extents, code="extent.used_overlap", label="Allocated"))
     findings.extend(_overlap_findings(free_extents, code="extent.free_overlap", label="Free"))
     findings.extend(_cross_overlap_findings(used_extents, free_extents))
@@ -433,9 +445,12 @@ def validate_open_mount(
     )
 
 
-def validate_image_report(selected: str | Path) -> IntegrityReport:
+def validate_image_report(
+    selected: str | Path, *, cancelled: CancellationCheck | None = None
+) -> IntegrityReport:
     """Open and validate one pair read-only, returning fatal findings where possible."""
 
+    cancellation_point(cancelled)
     pair = discover_pair(selected)
     dat_bytes = pair.dat_path.stat().st_size
     try:
@@ -466,7 +481,9 @@ def validate_image_report(selected: str | Path) -> IntegrityReport:
         geometry = geometry_from_dsc(descriptor)
         reader, closeables = open_locked_reader(pair, writable=False)
         mount = create_filesystem("adfs").open(reader, geometry)
-        return validate_open_mount(pair, mount, descriptor_geometry)
+        return validate_open_mount(pair, mount, descriptor_geometry, cancelled=cancelled)
+    except OperationCancelled:
+        raise
     except Exception as exc:
         findings = _geometry_findings(pair, descriptor_geometry)
         findings.append(

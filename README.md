@@ -33,6 +33,7 @@ the remaining lifecycle and format work.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
+- Cancel long validation and recovery work only at boundaries that leave images and checkpoints safe.
 - Apply eligible low-risk catalogue repairs with confirmation, checkpointing and retained audits.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.

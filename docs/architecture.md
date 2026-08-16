@@ -91,3 +91,10 @@ exact-ADFS-boundary reserved-tail padding have an apply entry point. It requires
 exact-filename confirmation, exclusive pair locks, a pre-repair checkpoint, full
 verification and a retained audit record in one operation; none of those
 guarantees is inferred from planning. All other plans remain read-only guidance.
+
+Long read-only validation uses cooperative cancellation points between directory
+and extent checks. Recovery stages complete DAT and DSC replacements alongside
+their targets and may be cancelled during those copies without modifying either
+target. The final replacement sequence has no cancellation point: it is a short
+commit boundary, after which the checkpoint is removed only when both replacements
+and their parent-directory synchronisation have completed.

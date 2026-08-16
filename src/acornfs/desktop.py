@@ -12,9 +12,13 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import threading
 import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from pathlib import Path
+from typing import TypeVar
 
 from acornfs.core import (
     BeebSCSIPair,
@@ -26,7 +30,7 @@ from acornfs.core import (
     plan_repairs_from_report,
     validate_image_report,
 )
-from acornfs.errors import AcornFSError
+from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.mounts import (
     is_mounted,
     mount_at,
@@ -38,6 +42,7 @@ from acornfs.recovery import pending_recovery, recover_image
 
 MOUNT_TIMEOUT = 15.0
 WRITABLE_MOUNT_TIMEOUT = 300.0
+_T = TypeVar("_T")
 
 
 def mount_root() -> Path:
@@ -195,6 +200,58 @@ def _show_desktop_message(title: str, message: str, *, error: bool = False) -> N
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
+
+def _run_with_progress(
+    title: str,
+    message: str,
+    operation: Callable[[Callable[[], bool]], _T],
+) -> _T:
+    """Run work beside a cancellable pulse dialog using cooperative boundaries."""
+
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        return operation(lambda: False)
+    cancelled = threading.Event()
+    try:
+        progress = subprocess.Popen(
+            [
+                dialog,
+                "--progress",
+                "--pulsate",
+                "--auto-close",
+                f"--title={title}",
+                f"--text={message}",
+                "--cancel-label=Cancel safely",
+                "--width=520",
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except OSError:
+        return operation(lambda: False)
+
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="acornfs-operation") as executor:
+        future = executor.submit(operation, cancelled.is_set)
+        while not future.done():
+            if progress.poll() is not None:
+                cancelled.set()
+                break
+            time.sleep(0.05)
+        try:
+            return future.result()
+        finally:
+            if progress.poll() is None:
+                if progress.stdin is not None:
+                    with suppress(BrokenPipeError, OSError):
+                        progress.stdin.write("100\n")
+                        progress.stdin.close()
+                with suppress(subprocess.TimeoutExpired):
+                    progress.wait(timeout=2)
+                if progress.poll() is None:
+                    progress.terminate()
 
 
 def _show_validation_report(
@@ -420,7 +477,14 @@ def desktop_validate(image_path: str | Path) -> int:
     """Validate an image structure read-only and report the result on the desktop."""
 
     try:
-        report = validate_image_report(image_path)
+        report = _run_with_progress(
+            "Validating AcornFS image",
+            "Checking geometry, directories and allocation…",
+            lambda cancelled: validate_image_report(image_path, cancelled=cancelled),
+        )
+    except OperationCancelled:
+        _notify("AcornFS validation cancelled", "The image was not modified.")
+        return 0
     except AcornFSError as exc:
         _notify("AcornFS validation failed", str(exc), error=True)
         raise
@@ -537,11 +601,22 @@ def desktop_recover(image_path: str | Path) -> int:
     choice = result.stdout.strip()
     try:
         if choice == "Restore image to the pre-mount checkpoint":
-            message = recover_image(image_path, restore=True)
+            message = _run_with_progress(
+                "Restoring AcornFS image",
+                "Staging the checkpoint safely before replacing the image pair…",
+                lambda cancelled: recover_image(image_path, restore=True, cancelled=cancelled),
+            )
         elif choice == "Keep the current image and discard the checkpoint":
             message = recover_image(image_path, discard=True)
         else:
             return 0
+    except OperationCancelled:
+        _show_desktop_message(
+            "AcornFS recovery cancelled",
+            "Recovery stopped before the commit boundary. The image was not replaced and "
+            "the checkpoint is still available.",
+        )
+        return 0
     except AcornFSError as exc:
         _show_desktop_message("AcornFS recovery failed", str(exc), error=True)
         raise
