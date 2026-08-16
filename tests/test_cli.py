@@ -4,7 +4,7 @@ from unittest.mock import patch
 from acornfs.cli import main
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.mounts import MountRecord
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_beebscsi_image, set_root_entry_length
 
 
 def test_inspect_error_is_concise(tmp_path: Path, capsys: object) -> None:
@@ -142,3 +142,17 @@ def test_repair_plan_json_is_dry_run_and_does_not_modify_image(
     assert '"mode": "dry-run"' in output
     assert '"application_supported": false' in output
     assert dat_path.read_bytes() == before
+
+
+def test_repair_command_applies_eligible_plan_and_reports_audit(
+    tmp_path: Path, capsys: object, monkeypatch: object
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    set_root_entry_length(dat_path, "DOCS", 0)
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))  # type: ignore[attr-defined]
+
+    assert main(["repair", str(dat_path), "--confirm", dat_path.name]) == 0
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert "Applied 1 repair action" in output
+    assert "passed with no problems" in output
+    assert "Audit report:" in output

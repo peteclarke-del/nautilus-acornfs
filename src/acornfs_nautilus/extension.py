@@ -50,6 +50,20 @@ def _launch(*arguments: str) -> None:
 class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     """Add mount lifecycle actions for paired BeebSCSI images."""
 
+    @staticmethod
+    def _support_menu(items: list[Any]) -> Any:
+        submenu = Nautilus.Menu()
+        for item in items:
+            submenu.append_item(item)
+        parent = Nautilus.MenuItem(
+            name="AcornFS::Support",
+            label="Acorn FS Support",
+            tip="Open AcornFS image and filesystem actions",
+            icon="drive-harddisk-symbolic",
+        )
+        parent.set_submenu(submenu)
+        return parent
+
     def _mount_read_only(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-mount", str(image_path))
 
@@ -68,7 +82,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _validate_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Validate",
-            label="Validate Acorn image",
+            label="Validate image",
             tip=f"Check {path.name} without modifying it",
             icon="emblem-default-symbolic",
         )
@@ -78,7 +92,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _read_only_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::MountReadOnly",
-            label="Mount Acorn image read-only",
+            label="Open read-only",
             tip=f"Mount {path.name} without allowing changes",
             icon="changes-prevent-symbolic",
         )
@@ -88,7 +102,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _unmount_item(self, mountpoint: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Unmount",
-            label="Unmount Acorn image",
+            label="Unmount",
             tip=f"Unmount {mountpoint.name}",
             icon="media-eject-symbolic",
         )
@@ -103,7 +117,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if path is None:
             return []
         if file_info.is_directory():
-            return [self._unmount_item(path)] if is_mounted(path) else []
+            return [self._support_menu([self._unmount_item(path)])] if is_mounted(path) else []
         if not is_supported_image(path):
             return []
         try:
@@ -111,7 +125,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         except AcornFSError:
             return []
         if mounted is not None:
-            return [self._unmount_item(Path(mounted.mountpoint))]
+            return [self._support_menu([self._unmount_item(Path(mounted.mountpoint))])]
         try:
             recovery = pending_recovery(path)
         except AcornFSError:
@@ -124,21 +138,29 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                 icon="document-revert-symbolic",
             )
             recovery_item.connect("activate", self._recover, path)
-            return [recovery_item, self._read_only_item(path), self._validate_item(path)]
+            return [
+                self._support_menu(
+                    [recovery_item, self._read_only_item(path), self._validate_item(path)]
+                )
+            ]
         writable_item = Nautilus.MenuItem(
             name="AcornFS::MountReadWrite",
-            label="Mount Acorn image read-write",
+            label="Open read-write",
             tip=f"Mount {path.name} read-write with a recovery checkpoint",
             icon="drive-harddisk-symbolic",
         )
         writable_item.connect("activate", self._mount_read_write, path)
-        return [writable_item, self._read_only_item(path), self._validate_item(path)]
+        return [
+            self._support_menu(
+                [self._read_only_item(path), writable_item, self._validate_item(path)]
+            )
+        ]
 
     def get_background_items(self, current_folder: Any) -> list[Any]:
         path = _local_path(current_folder)
         if path is None or not is_mounted(path):
             return []
-        return [self._unmount_item(path)]
+        return [self._support_menu([self._unmount_item(path)])]
 
 
 class AcornFSPropertiesModelProvider(GObject.GObject, Nautilus.PropertiesModelProvider):

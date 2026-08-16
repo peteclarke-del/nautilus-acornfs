@@ -12,7 +12,9 @@ addressed.
 2. Run `acornfs validate IMAGE` on a working copy.
 3. Save `acornfs validate --json IMAGE` with the working copy.
 4. Run `acornfs repair-plan IMAGE` to group findings into possible operations.
-5. Mount read-only only when AcornFS can safely traverse the complete directory
+5. If the complete plan is marked applicable, run `acornfs repair IMAGE --confirm
+   DAT_FILENAME` only on the working copy.
+6. Mount read-only only when AcornFS can safely traverse the complete directory
    tree. Copy important files out before considering any future repair.
 
 A fatal allocation finding blocks read-write mounting but does not necessarily
@@ -30,9 +32,16 @@ incorrect catalogue can make allocated data appear free. Geometry mismatch,
 unreadable structures and conflicting allocated extents always require a human
 decision or restoration from a known-good copy.
 
-There is currently no repair-apply command. It will remain unavailable until a
-single workflow provides explicit confirmation, a pre-repair checkpoint,
-complete post-repair validation and a retained audit report.
+Automatic application is limited to normalising unusual directory entry lengths
+and clearing non-zero start sectors from zero-length files. The command requires
+the exact DAT filename as confirmation and refuses the entire plan if any other
+action is present. It locks both files, writes an audit before opening the image
+writable, creates a recovery checkpoint before the first mutation, verifies the
+complete image afterward, and retains the JSON audit in the AcornFS state
+directory. A failed operation retains its checkpoint for `acornfs recover`.
+
+Free-space-map reconstruction remains a high-risk planning aid only. It is never
+applied automatically, even when labelled a reconstruction candidate.
 
 ## Interrupted writable sessions
 
