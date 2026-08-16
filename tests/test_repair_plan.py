@@ -59,6 +59,29 @@ def test_invalid_descriptor_requires_manual_geometry_decision(tmp_path: Path) ->
     assert "cannot be applied automatically" in plan.format_text()
 
 
+def test_repair_plan_and_progress_are_localised_at_presentation_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    set_root_entry_length(dat_path, "DOCS", 0)
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr("acornfs.core.repair._", lambda message: f"translated:{message}")
+
+    plan = plan_repairs(dat_path)
+    progress: list[str] = []
+    result = apply_repairs(
+        dat_path,
+        confirmation=dat_path.name,
+        progress=lambda _percent, message: progress.append(message),
+    )
+
+    assert plan.actions[0].action == "normalise_directory_lengths"
+    assert plan.actions[0].title.startswith("translated:")
+    assert plan.format_text().startswith("translated:Dry-run repair plan")
+    assert all(message.startswith("translated:") for message in progress)
+    assert result.report.safe_for_write
+
+
 def test_low_risk_plan_requires_exact_confirmation(tmp_path: Path, monkeypatch: object) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     set_root_entry_length(dat_path, "DOCS", 0)

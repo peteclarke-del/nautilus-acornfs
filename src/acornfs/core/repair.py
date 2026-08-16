@@ -17,6 +17,7 @@ from acornfs.core.beebscsi import discover_pair
 from acornfs.core.image import ReadOnlyImage
 from acornfs.core.validation import IntegrityFinding, IntegrityReport, validate_image_report
 from acornfs.errors import AcornFSError
+from acornfs.i18n import N_, _
 from acornfs.operations import ProgressCallback, report_progress
 
 SUPPORTED_REPAIR_ACTIONS = frozenset(
@@ -79,29 +80,44 @@ class RepairPlan:
 
     def format_text(self) -> str:
         if self.clean:
-            return "No repair actions are needed; validation found no problems."
+            return _("No repair actions are needed; validation found no problems.")
         finding_count = len(self.report.findings)
         action_count = len(self.actions)
         lines = [
-            "Dry-run repair plan (the image was not modified):",
-            f"Validation findings: {finding_count}; planned actions: {action_count}.",
+            _("Dry-run repair plan (the image was not modified):"),
+            _("Validation findings: {findings}; planned actions: {actions}.").format(
+                findings=finding_count, actions=action_count
+            ),
         ]
         if not self.actions:
-            lines.append("No repair action is proposed for informational findings only.")
+            lines.append(_("No repair action is proposed for informational findings only."))
         for index, action in enumerate(self.actions, 1):
-            mode = "candidate" if action.automatic_candidate else "manual decision required"
-            lines.append(f"{index}. {action.title} [{action.risk.value} risk; {mode}]")
+            mode = _("candidate") if action.automatic_candidate else _("manual decision required")
+            risk = {
+                RepairRisk.LOW: _("low"),
+                RepairRisk.MEDIUM: _("medium"),
+                RepairRisk.HIGH: _("high"),
+            }[action.risk]
+            lines.append(
+                _("{index}. {title} [{risk} risk; {mode}]").format(
+                    index=index, title=action.title, risk=risk, mode=mode
+                )
+            )
             lines.append(f"   {action.description}")
-            lines.append(f"   Findings: {', '.join(action.finding_codes)}")
+            lines.append(
+                _("   Findings: {findings}").format(findings=", ".join(action.finding_codes))
+            )
             if action.paths:
-                lines.append(f"   Paths: {', '.join(action.paths)}")
+                lines.append(_("   Paths: {paths}").format(paths=", ".join(action.paths)))
         if self.application_supported:
             lines.append(
-                "This complete plan can be applied with 'acornfs repair IMAGE "
-                "--confirm DAT_FILENAME'."
+                _(
+                    "This complete plan can be applied with 'acornfs repair IMAGE "
+                    "--confirm DAT_FILENAME'."
+                )
             )
         else:
-            lines.append("This plan cannot be applied automatically; no changes are permitted.")
+            lines.append(_("This plan cannot be applied automatically; no changes are permitted."))
         return "\n".join(lines)
 
 
@@ -132,57 +148,62 @@ class _ActionTemplate:
 
 _GEOMETRY = _ActionTemplate(
     "restore_geometry",
-    "Resolve DAT/DSC geometry mismatch",
-    "Restore the correct pair or explicitly choose which trusted geometry and capacity is valid.",
+    N_("Resolve DAT/DSC geometry mismatch"),
+    N_(
+        "Restore the correct pair or explicitly choose which trusted geometry and capacity "
+        "is valid."
+    ),
     RepairRisk.HIGH,
     False,
     True,
 )
 _RESERVED_TAIL = _ActionTemplate(
     "pad_reserved_tail",
-    "Restore omitted reserved DAT tail",
-    "Extend the DAT to its DSC capacity with zero-filled sectors beyond the ADFS boundary.",
+    N_("Restore omitted reserved DAT tail"),
+    N_("Extend the DAT to its DSC capacity with zero-filled sectors beyond the ADFS boundary."),
     RepairRisk.LOW,
     True,
     False,
 )
 _UNREADABLE = _ActionTemplate(
     "restore_unreadable_structure",
-    "Restore unreadable ADFS structures",
-    "The image cannot be parsed deeply enough for safe automatic reconstruction; "
-    "use a known-good copy.",
+    N_("Restore unreadable ADFS structures"),
+    N_(
+        "The image cannot be parsed deeply enough for safe automatic reconstruction; "
+        "use a known-good copy."
+    ),
     RepairRisk.HIGH,
     False,
     True,
 )
 _FREE_MAP = _ActionTemplate(
     "rebuild_free_space_map",
-    "Rebuild free-space accounting from allocated extents",
-    "Recalculate free ranges from the traversable catalogue and regenerate old-map checksums.",
+    N_("Rebuild free-space accounting from allocated extents"),
+    N_("Recalculate free ranges from the traversable catalogue and regenerate old-map checksums."),
     RepairRisk.HIGH,
     True,
     False,
 )
 _CATALOGUE = _ActionTemplate(
     "resolve_catalogue_extents",
-    "Resolve conflicting catalogue extents",
-    "Choose which overlapping or out-of-range catalogue entries own their recorded sectors.",
+    N_("Resolve conflicting catalogue extents"),
+    N_("Choose which overlapping or out-of-range catalogue entries own their recorded sectors."),
     RepairRisk.HIGH,
     False,
     True,
 )
 _DIRECTORY_LENGTH = _ActionTemplate(
     "normalise_directory_lengths",
-    "Normalise directory entry lengths",
-    "Set directory entry lengths to the detected on-disc directory-format size.",
+    N_("Normalise directory entry lengths"),
+    N_("Set directory entry lengths to the detected on-disc directory-format size."),
     RepairRisk.LOW,
     True,
     False,
 )
 _EMPTY_FILE = _ActionTemplate(
     "clear_empty_file_extents",
-    "Clear stale extents from empty files",
-    "Set the start sector of zero-length files to zero without changing file contents.",
+    N_("Clear stale extents from empty files"),
+    N_("Set the start sector of zero-length files to zero without changing file contents."),
     RepairRisk.LOW,
     True,
     False,
@@ -235,8 +256,8 @@ def plan_repairs_from_report(report: IntegrityReport) -> RepairPlan:
     actions = tuple(
         RepairAction(
             action=template.action,
-            title=template.title,
-            description=template.description,
+            title=_(template.title),
+            description=_(template.description),
             risk=template.risk,
             automatic_candidate=template.automatic_candidate,
             requires_manual_decision=template.requires_manual_decision,
@@ -285,20 +306,24 @@ def apply_repairs(
 ) -> RepairResult:
     """Apply a complete low-risk plan with confirmation, checkpointing and audit."""
 
-    report_progress(progress, 0, "Planning repair…")
+    report_progress(progress, 0, _("Planning repair…"))
     pair = discover_pair(selected)
     if confirmation != pair.dat_path.name:
         raise AcornFSError(
-            f"Repair confirmation must exactly match the DAT filename: {pair.dat_path.name}"
+            _("Repair confirmation must exactly match the DAT filename: {name}").format(
+                name=pair.dat_path.name
+            )
         )
     plan = plan_repairs(pair.dat_path)
-    report_progress(progress, 10, "Repair plan validated")
+    report_progress(progress, 10, _("Repair plan validated"))
     if plan.clean:
-        raise AcornFSError("Validation found no problems, so there is nothing to repair.")
+        raise AcornFSError(_("Validation found no problems, so there is nothing to repair."))
     if not plan.application_supported:
         raise AcornFSError(
-            "The complete repair plan is not eligible for automatic application; "
-            "no checkpoint or image change was made."
+            _(
+                "The complete repair plan is not eligible for automatic application; "
+                "no checkpoint or image change was made."
+            )
         )
 
     audit_path = (
@@ -320,14 +345,16 @@ def apply_repairs(
     }
     try:
         _write_audit(audit_path, payload)
-        report_progress(progress, 15, "Repair audit created")
+        report_progress(progress, 15, _("Repair audit created"))
     except OSError as exc:
-        raise AcornFSError(f"Could not create the mandatory repair audit: {exc}") from exc
+        raise AcornFSError(
+            _("Could not create the mandatory repair audit: {error}").format(error=exc)
+        ) from exc
 
     image: ReadOnlyImage | None = None
     checkpoint_completed = False
     try:
-        report_progress(progress, 20, "Revalidating image before checkpoint creation…")
+        report_progress(progress, 20, _("Revalidating image before checkpoint creation…"))
 
         def checkpoint_progress(copied: int, total: int) -> None:
             fraction = copied / total if total else 1.0
@@ -336,7 +363,9 @@ def apply_repairs(
             report_progress(
                 progress,
                 20 + int(fraction * 40),
-                f"Creating recovery checkpoint… {copied_mib:.1f} of {total_mib:.1f} MiB",
+                _("Creating recovery checkpoint… {copied:.1f} of {total:.1f} MiB").format(
+                    copied=copied_mib, total=total_mib
+                ),
             )
 
         image = ReadOnlyImage.open(
@@ -345,13 +374,17 @@ def apply_repairs(
             repair_mode=True,
             checkpoint_progress=checkpoint_progress,
         )
-        report_progress(progress, 60, "Recovery checkpoint ready")
+        report_progress(progress, 60, _("Recovery checkpoint ready"))
         payload["status"] = "applying"
         payload["checkpoint_created"] = True
         _write_audit(audit_path, payload)
         for index, action in enumerate(plan.actions, 1):
             action_percent = 60 + int((index - 1) * 15 / len(plan.actions))
-            report_progress(progress, action_percent, f"Applying: {action.title}")
+            report_progress(
+                progress,
+                action_percent,
+                _("Applying: {action}").format(action=action.title),
+            )
             if action.action == "pad_reserved_tail":
                 image.pad_reserved_tail()
             else:
@@ -359,7 +392,7 @@ def apply_repairs(
             payload["applied_actions"].append(action.as_dict())
             _write_audit(audit_path, payload)
 
-        report_progress(progress, 78, "Verifying the complete repaired image…")
+        report_progress(progress, 78, _("Verifying the complete repaired image…"))
         report = image.integrity_report()
         remaining = {
             finding.code
@@ -368,20 +401,22 @@ def apply_repairs(
         }
         if report.fatal_findings or remaining:
             detail = (
-                "fatal findings remain" if report.fatal_findings else ", ".join(sorted(remaining))
+                _("fatal findings remain")
+                if report.fatal_findings
+                else ", ".join(sorted(remaining))
             )
-            raise AcornFSError(f"Post-repair validation failed: {detail}.")
+            raise AcornFSError(_("Post-repair validation failed: {detail}.").format(detail=detail))
         payload["status"] = "verified"
         payload["post_validation"] = report.as_dict()
         _write_audit(audit_path, payload)
-        report_progress(progress, 92, "Repair verified; finalising checkpoint…")
+        report_progress(progress, 92, _("Repair verified; finalising checkpoint…"))
         image.close()
         checkpoint_completed = True
         image = None
         payload["status"] = "completed"
         payload["completed_at"] = datetime.now(UTC).isoformat()
         _write_audit(audit_path, payload)
-        report_progress(progress, 100, "Repair completed and verified")
+        report_progress(progress, 100, _("Repair completed and verified"))
         return RepairResult(str(audit_path), plan.actions, report)
     except Exception as exc:
         if image is not None:
@@ -396,14 +431,20 @@ def apply_repairs(
         with suppress(OSError):
             _write_audit(audit_path, payload)
         if isinstance(exc, AcornFSError):
-            raise AcornFSError(f"{exc} Audit: {audit_path}") from exc
+            raise AcornFSError(
+                _("{error} Audit: {audit}").format(error=exc, audit=audit_path)
+            ) from exc
         if checkpoint_completed:
             raise AcornFSError(
-                f"Repair completed and verified, but its audit could not be marked complete. "
-                f"The verified audit was retained at {audit_path}: {exc}"
+                _(
+                    "Repair completed and verified, but its audit could not be marked complete. "
+                    "The verified audit was retained at {audit}: {error}"
+                ).format(audit=audit_path, error=exc)
             ) from exc
         raise AcornFSError(
-            f"Repair failed; the checkpoint was retained. Audit: {audit_path}: {exc}"
+            _("Repair failed; the checkpoint was retained. Audit: {audit}: {error}").format(
+                audit=audit_path, error=exc
+            )
         ) from exc
 
 
