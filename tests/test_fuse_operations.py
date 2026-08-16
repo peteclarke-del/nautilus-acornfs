@@ -4,12 +4,14 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import pyfuse3
 import pytest
 from oaknut.file import AcornMeta
 
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
+from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.operations import ReadOnlyOperations
 from tests.image_fixture import create_beebscsi_image
 
@@ -62,6 +64,94 @@ def test_writable_operation_flushes_existing_file(tmp_path: Path) -> None:
         readme_node = image.lookup(ROOT_INODE, b"README")
         assert readme_node is not None
         assert image.read(readme_node.inode, 0, 1024) == b"New contents\r"
+
+
+def test_multiple_writable_handles_share_one_coherent_buffer(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        first = run_async(operations.open, readme.st_ino, os.O_RDWR | os.O_TRUNC, context)
+        second = run_async(operations.open, readme.st_ino, os.O_RDWR, context)
+
+        run_async(operations.write, first.fh, 0, b"shared")
+        assert run_async(operations.read, second.fh, 0, 6) == b"shared"
+        run_async(operations.write, second.fh, 6, b"-buffer")
+        assert run_async(operations.getattr, readme.st_ino, context).st_size == 13
+        run_async(operations.fsync, first.fh, False)
+        run_async(operations.release, first.fh)
+        run_async(operations.write, second.fh, 13, b"!")
+        run_async(operations.release, second.fh)
+
+    with ReadOnlyImage.open(dat_path) as image:
+        readme_node = image.lookup(ROOT_INODE, b"README")
+        assert readme_node is not None
+        assert image.read(readme_node.inode, 0, 14) == b"shared-buffer!"
+
+
+def test_truncate_from_one_handle_is_visible_to_every_handle(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        first = run_async(operations.open, readme.st_ino, os.O_RDWR, context)
+        second = run_async(operations.open, readme.st_ino, os.O_RDWR | os.O_TRUNC, context)
+
+        assert run_async(operations.read, first.fh, 0, 1024) == b""
+        assert run_async(operations.getattr, readme.st_ino, context).st_size == 0
+        run_async(operations.write, second.fh, 0, b"replacement")
+        assert run_async(operations.getattr, readme.st_ino, context).st_size == 11
+        run_async(operations.release, first.fh)
+        run_async(operations.release, second.fh)
+
+    with ReadOnlyImage.open(dat_path) as image:
+        readme_node = image.lookup(ROOT_INODE, b"README")
+        assert readme_node is not None
+        assert image.read(readme_node.inode, 0, 1024) == b"replacement"
+
+
+def test_graceful_shutdown_flushes_dirty_open_handles(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        info = run_async(operations.open, readme.st_ino, os.O_WRONLY | os.O_TRUNC, context)
+        run_async(operations.write, info.fh, 0, b"dirty but recoverable")
+
+        operations.flush_pending()
+
+        assert operations._dirty == set()
+        assert info.fh in operations._handles
+
+    with ReadOnlyImage.open(dat_path) as image:
+        readme_node = image.lookup(ROOT_INODE, b"README")
+        assert readme_node is not None
+        assert image.read(readme_node.inode, 0, 1024) == b"dirty but recoverable"
+
+
+def test_failed_shutdown_flush_keeps_buffer_dirty_for_recovery(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    image = ReadOnlyImage.open(dat_path, writable=True)
+    try:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        info = run_async(operations.open, readme.st_ino, os.O_WRONLY | os.O_TRUNC, context)
+        run_async(operations.write, info.fh, 0, b"cannot be flushed")
+
+        with (
+            patch.object(image, "replace_file", side_effect=AcornFSError("injected failure")),
+            pytest.raises(AcornFSError, match="pending FUSE write buffers"),
+        ):
+            operations.flush_pending()
+
+        assert readme.st_ino in operations._dirty
+        assert bytes(operations._write_buffers[readme.st_ino]) == b"cannot be flushed"
+    finally:
+        image.close(clean=False)
 
 
 def test_writable_fuse_namespace_lifecycle(tmp_path: Path) -> None:

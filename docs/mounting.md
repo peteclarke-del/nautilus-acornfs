@@ -157,6 +157,14 @@ close its window and retry, or detach it explicitly:
 acornfs unmount --lazy "$HOME/AcornFS/scsi0"
 ```
 
+Applications may hold multiple writable descriptors for one file. AcornFS uses
+one coherent per-inode buffer, so writes and truncation are visible through all
+of those descriptors and `fsync` on any one commits their combined state. On a
+graceful unmount, logout `SIGINT`, or normal FUSE-loop exit, any dirty buffers
+left open by applications are committed before final validation. If that flush
+fails, the recovery checkpoint is retained and the unmount is not reported as
+clean.
+
 Generate a support report that omits image contents and absolute paths:
 
 ```shell
