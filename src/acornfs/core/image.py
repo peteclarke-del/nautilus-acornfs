@@ -280,6 +280,15 @@ class ReadOnlyImage:
                 inode = None
         return None if inode is None else self.nodes[inode]
 
+    def node_at_path(self, path: str) -> ImageNode:
+        """Resolve one indexed Acorn path case-insensitively."""
+
+        wanted = path.casefold()
+        for node in self.nodes.values():
+            if node.acorn_path.casefold() == wanted:
+                return node
+        raise FileNotFoundError(path)
+
     def read(self, inode: int, offset: int, size: int) -> bytes:
         node = self.nodes[inode]
         if node.is_dir:
@@ -335,14 +344,53 @@ class ReadOnlyImage:
 
         def commit() -> None:
             self.nodes[inode] = replace(node, size=len(data))
-            old_data = self._cache.pop(inode, None)
-            if old_data is not None:
-                self._cache_size -= len(old_data)
-            if len(data) <= self._cache_limit:
-                self._cache[inode] = data
-                self._cache_size += len(data)
+            self._cache_file(inode, data)
 
         self._run_atomic("replace", prepare=prepare, mutate=mutate, commit=commit)
+
+    def import_file(
+        self, parent_inode: int, name: bytes, data: bytes, metadata: AcornMeta
+    ) -> ImageNode:
+        """Create one file and its Acorn metadata as a single mutation."""
+
+        decoded = self._new_name(name)
+        if self.lookup(parent_inode, name) is not None:
+            raise FileExistsError(decoded)
+        for label, value in (
+            ("load address", metadata.load_address),
+            ("execution address", metadata.exec_address),
+        ):
+            if value is not None and not 0 <= value <= 0xFFFFFFFF:
+                raise ValueError(f"{label} must fit in 32 bits")
+        path = self._child_path(parent_inode, decoded)
+        access = int(metadata.access or 0)
+        if not 0 <= access <= 0xFF:
+            raise ValueError("access metadata must fit in 8 bits")
+        replacement = AcornMeta(
+            load_address=int(metadata.load_address or 0),
+            exec_address=int(metadata.exec_address or 0),
+            access=access,
+        )
+        metadata_api = cast(Any, self._mount)
+
+        def mutate() -> None:
+            self._mount.write_bytes(path, data)
+            metadata_api.set_acorn_meta(path, replacement)
+
+        def commit() -> ImageNode:
+            node = self._add_node(parent_inode, decoded, is_dir=False, size=len(data))
+            if access & 8:
+                node = replace(node, locked=True)
+                self.nodes[node.inode] = node
+            self._cache_file(node.inode, data)
+            return node
+
+        return self._run_atomic(
+            "import",
+            prepare=lambda transaction: transaction.capture_parent(path),
+            mutate=mutate,
+            commit=commit,
+        )
 
     def preflight_file_size(self, inode: int, new_size: int) -> None:
         """Reject a requested file size before a FUSE buffer is expanded."""
@@ -864,13 +912,20 @@ class ReadOnlyImage:
             self._cache[inode] = cached
             return cached
         data = cast(bytes, self._mount.read_bytes(node.acorn_path))
-        if len(data) <= self._cache_limit:
-            while self._cache and self._cache_size + len(data) > self._cache_limit:
-                _old_inode, old_data = self._cache.popitem(last=False)
-                self._cache_size -= len(old_data)
-            self._cache[inode] = data
-            self._cache_size += len(data)
+        self._cache_file(inode, data)
         return data
+
+    def _cache_file(self, inode: int, data: bytes) -> None:
+        old_data = self._cache.pop(inode, None)
+        if old_data is not None:
+            self._cache_size -= len(old_data)
+        if len(data) > self._cache_limit:
+            return
+        while self._cache and self._cache_size + len(data) > self._cache_limit:
+            _old_inode, evicted = self._cache.popitem(last=False)
+            self._cache_size -= len(evicted)
+        self._cache[inode] = data
+        self._cache_size += len(data)
 
     def _reported_size(self, fallback: int) -> int:
         reporter = getattr(self._mount, "size_bytes", None)
