@@ -80,11 +80,23 @@ def test_low_risk_repair_is_checkpointed_verified_and_audited(
     set_root_entry_length(dat_path, "DOCS", 0)
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))  # type: ignore[attr-defined]
 
-    result = apply_repairs(dat_path, confirmation=dat_path.name)
+    progress: list[tuple[int, str]] = []
+    result = apply_repairs(
+        dat_path,
+        confirmation=dat_path.name,
+        progress=lambda percent, message: progress.append((percent, message)),
+    )
 
     assert result.report.findings == ()
     assert plan_repairs(dat_path).clean
     assert pending_recovery(dat_path) is None
+    assert progress[0] == (0, "Planning repair…")
+    assert progress[-1] == (100, "Repair completed and verified")
+    assert [percent for percent, _message in progress] == sorted(
+        percent for percent, _message in progress
+    )
+    assert any("checkpoint" in message.lower() for _percent, message in progress)
+    assert any("verifying" in message.lower() for _percent, message in progress)
     audit = json.loads(Path(result.audit_path).read_text(encoding="utf-8"))
     assert audit["status"] == "completed"
     assert audit["checkpoint_created"] is True

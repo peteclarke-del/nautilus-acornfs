@@ -58,6 +58,23 @@ def test_checkpoint_creation_cleans_orphan_backups_without_a_manifest(tmp_path: 
     replacement.complete()
 
 
+def test_checkpoint_creation_reports_copied_bytes(tmp_path: Path) -> None:
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    pair = discover_pair(dat_path)
+    updates: list[tuple[int, int]] = []
+
+    checkpoint = RecoveryCheckpoint.create(
+        pair, progress=lambda copied, total: updates.append((copied, total))
+    )
+    total = dat_path.stat().st_size + dsc_path.stat().st_size
+    assert updates
+    assert updates[-1] == (total, total)
+    assert all(
+        previous[0] <= current[0] for previous, current in zip(updates, updates[1:], strict=False)
+    )
+    checkpoint.complete()
+
+
 def test_interrupted_session_can_restore_checkpoint(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     image = ReadOnlyImage.open(dat_path, writable=True)

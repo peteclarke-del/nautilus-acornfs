@@ -9,6 +9,7 @@ import os
 import pwd
 import shutil
 import uuid
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -79,7 +80,9 @@ def pending_recovery(selected: str | Path) -> RecoveryInfo | None:
         raise AcornFSError(f"The recovery manifest is unreadable: {path}: {exc}") from exc
 
 
-def _checkpoint_copy(source: Path, destination: Path) -> bool:
+def _checkpoint_copy(
+    source: Path, destination: Path, *, copied: Callable[[int], None] | None = None
+) -> bool:
     reflinked = False
     with source.open("rb") as source_handle, destination.open("xb") as destination_handle:
         try:
@@ -87,7 +90,13 @@ def _checkpoint_copy(source: Path, destination: Path) -> bool:
             reflinked = True
         except OSError:
             source_handle.seek(0)
-            shutil.copyfileobj(source_handle, destination_handle, length=8 * 1024 * 1024)
+            while chunk := source_handle.read(8 * 1024 * 1024):
+                destination_handle.write(chunk)
+                if copied is not None:
+                    copied(len(chunk))
+        else:
+            if copied is not None:
+                copied(source.stat().st_size)
         destination_handle.flush()
         os.fsync(destination_handle.fileno())
     shutil.copystat(source, destination, follow_symlinks=False)
@@ -117,7 +126,12 @@ class RecoveryCheckpoint:
         self.info = info
 
     @classmethod
-    def create(cls, pair: BeebSCSIPair) -> RecoveryCheckpoint:
+    def create(
+        cls,
+        pair: BeebSCSIPair,
+        *,
+        progress: Callable[[int, int], None] | None = None,
+    ) -> RecoveryCheckpoint:
         directory = _manifest_path(pair).parent
         manifest = directory / "manifest.json"
         if manifest.exists():
@@ -142,8 +156,19 @@ class RecoveryCheckpoint:
         )
         _write_manifest(manifest, info)
         try:
-            dat_reflinked = _checkpoint_copy(pair.dat_path, directory / "image.dat")
-            dsc_reflinked = _checkpoint_copy(pair.dsc_path, directory / "image.dsc")
+            total_bytes = pair.dat_path.stat().st_size + pair.dsc_path.stat().st_size
+            copied_bytes = 0
+            if progress is not None:
+                progress(0, total_bytes)
+
+            def copied(length: int) -> None:
+                nonlocal copied_bytes
+                copied_bytes += length
+                if progress is not None:
+                    progress(copied_bytes, total_bytes)
+
+            dat_reflinked = _checkpoint_copy(pair.dat_path, directory / "image.dat", copied=copied)
+            dsc_reflinked = _checkpoint_copy(pair.dsc_path, directory / "image.dsc", copied=copied)
             info = RecoveryInfo(
                 identity=info.identity,
                 dat_path=info.dat_path,

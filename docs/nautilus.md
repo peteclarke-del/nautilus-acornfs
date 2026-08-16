@@ -47,6 +47,13 @@ checkpoint, verifies the complete result and retains an audit. This can safely
 restore a DAT that ends exactly at its ADFS boundary but omits a DSC-declared
 reserved tail. Other geometry and allocation problems remain refused.
 
+After confirmation, a determinate progress dialog remains visible throughout
+planning, byte-counted recovery-checkpoint creation, repair application, complete
+image verification and checkpoint finalisation. The progress dialog cannot be
+cancelled once the transactional repair begins; interrupting it at an arbitrary
+point could be misleading or unsafe. Completion and failure are still reported
+in a separate result dialog with the audit or retained-checkpoint details.
+
 Open **Properties** on either image member to see the detected old-map ADFS and
 directory formats, compatibility profile, title, disc cycle ID, boot option,
 DSC geometry, capacity, ADFS used/free space, reserved tail and current validation

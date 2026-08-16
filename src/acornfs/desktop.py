@@ -254,6 +254,60 @@ def _run_with_progress(
                     progress.terminate()
 
 
+def _run_with_reported_progress(
+    title: str,
+    message: str,
+    operation: Callable[[Callable[[int, str], None]], _T],
+) -> _T:
+    """Run non-cancellable transactional work with determinate progress updates."""
+
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        return operation(lambda _percent, _message: None)
+    try:
+        progress = subprocess.Popen(
+            [
+                dialog,
+                "--progress",
+                "--auto-close",
+                "--no-cancel",
+                "--percentage=0",
+                f"--title={title}",
+                f"--text={message}",
+                "--width=560",
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except OSError:
+        return operation(lambda _percent, _message: None)
+
+    def update(percent: int, detail: str) -> None:
+        if progress.poll() is not None or progress.stdin is None:
+            return
+        with suppress(BrokenPipeError, OSError):
+            progress.stdin.write(f"#{detail}\n{max(0, min(100, percent))}\n")
+            progress.stdin.flush()
+
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="acornfs-repair") as executor:
+        future = executor.submit(operation, update)
+        while not future.done():
+            time.sleep(0.05)
+        try:
+            return future.result()
+        finally:
+            if progress.poll() is None:
+                if progress.stdin is not None:
+                    with suppress(BrokenPipeError, OSError):
+                        progress.stdin.close()
+                with suppress(subprocess.TimeoutExpired):
+                    progress.wait(timeout=2)
+                if progress.poll() is None:
+                    progress.terminate()
+
+
 def _show_validation_report(
     name: str, report: IntegrityReport, *, offer_repair: bool = False
 ) -> bool | None:
@@ -537,7 +591,15 @@ def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
         return 0
     confirmation = result.stdout.rstrip("\n")
     try:
-        repair = apply_repairs(pair.dat_path, confirmation=confirmation)
+        repair = _run_with_reported_progress(
+            "Repairing AcornFS image",
+            "Preparing the repair…",
+            lambda progress: apply_repairs(
+                pair.dat_path,
+                confirmation=confirmation,
+                progress=progress,
+            ),
+        )
     except AcornFSError as exc:
         _show_desktop_message("AcornFS repair failed", str(exc), error=True)
         raise
