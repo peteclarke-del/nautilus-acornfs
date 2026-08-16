@@ -5,6 +5,10 @@ class AcornFSError(Exception):
     """Base class for errors safe to display to a user."""
 
 
+class OperationCancelled(AcornFSError):
+    """A cooperative operation stopped at a persistent-state-safe boundary."""
+
+
 class PairDiscoveryError(AcornFSError):
     """A BeebSCSI DAT/DSC pair cannot be identified safely."""
 

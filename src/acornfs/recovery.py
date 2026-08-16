@@ -8,6 +8,7 @@ import json
 import os
 import pwd
 import shutil
+import uuid
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -16,6 +17,7 @@ from typing import Any
 
 from acornfs.core.beebscsi import BeebSCSIPair, discover_pair
 from acornfs.errors import AcornFSError
+from acornfs.operations import CancellationCheck, cancellation_point
 
 FICLONE = 0x40049409
 
@@ -173,7 +175,36 @@ class RecoveryCheckpoint:
             pass
 
 
-def recover_image(selected: str | Path, *, restore: bool = False, discard: bool = False) -> str:
+def _stage_restore(
+    source: Path,
+    destination: Path,
+    *,
+    cancelled: CancellationCheck | None,
+) -> None:
+    """Copy one replacement without touching its destination."""
+
+    try:
+        with source.open("rb") as source_handle, destination.open("xb") as destination_handle:
+            while chunk := source_handle.read(8 * 1024 * 1024):
+                cancellation_point(cancelled)
+                destination_handle.write(chunk)
+            cancellation_point(cancelled)
+            destination_handle.flush()
+            os.fsync(destination_handle.fileno())
+        shutil.copystat(source, destination, follow_symlinks=False)
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+
+
+def recover_image(
+    selected: str | Path,
+    *,
+    restore: bool = False,
+    discard: bool = False,
+    cancelled: CancellationCheck | None = None,
+) -> str:
+    cancellation_point(cancelled)
     pair = discover_pair(selected)
     info = pending_recovery(pair.dat_path)
     if info is None:
@@ -193,21 +224,27 @@ def recover_image(selected: str | Path, *, restore: bool = False, discard: bool 
                     "The interrupted checkpoint was not completed and cannot be restored."
                 )
             replacements: list[tuple[Path, Path]] = []
-            for backup_name, target in (
-                ("image.dat", pair.dat_path),
-                ("image.dsc", pair.dsc_path),
-            ):
-                backup = directory / backup_name
-                temporary = target.with_name(f".{target.name}.acornfs-restore")
-                with backup.open("rb") as source, temporary.open("wb") as destination:
-                    shutil.copyfileobj(source, destination, length=8 * 1024 * 1024)
-                    destination.flush()
-                    os.fsync(destination.fileno())
-                shutil.copystat(backup, temporary, follow_symlinks=False)
-                replacements.append((temporary, target))
-            for temporary, target in reversed(replacements):
-                os.replace(temporary, target)
-                _fsync_directory(target.parent)
+            try:
+                for backup_name, target in (
+                    ("image.dat", pair.dat_path),
+                    ("image.dsc", pair.dsc_path),
+                ):
+                    cancellation_point(cancelled)
+                    backup = directory / backup_name
+                    temporary = target.with_name(
+                        f".{target.name}.acornfs-restore-{uuid.uuid4().hex}"
+                    )
+                    _stage_restore(backup, temporary, cancelled=cancelled)
+                    replacements.append((temporary, target))
+                # Cancellation is deliberately disabled across this short commit phase:
+                # both staged files must replace the pair as one logical operation.
+                cancellation_point(cancelled)
+                for temporary, target in reversed(replacements):
+                    os.replace(temporary, target)
+                    _fsync_directory(target.parent)
+            finally:
+                for temporary, _target in replacements:
+                    temporary.unlink(missing_ok=True)
             action = "restored"
         else:
             action = "discarded"

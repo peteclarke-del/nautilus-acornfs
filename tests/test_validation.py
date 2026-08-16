@@ -5,7 +5,7 @@ import pytest
 
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.core.validation import FindingSeverity, validate_image_report
-from acornfs.errors import AcornFSError
+from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.recovery import pending_recovery
 from tests.image_fixture import (
     create_beebscsi_image,
@@ -188,6 +188,20 @@ def test_trimmed_reserved_tail_is_repairable_but_blocks_ordinary_writes(tmp_path
     with pytest.raises(AcornFSError, match="low-risk repair"):
         ReadOnlyImage.open(dat_path, writable=True)
     assert pending_recovery(dat_path) is None
+
+
+def test_validation_can_cancel_during_structural_checks(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    calls = 0
+
+    def cancel_during_scan() -> bool:
+        nonlocal calls
+        calls += 1
+        return calls == 3
+
+    with pytest.raises(OperationCancelled, match="cancelled safely"):
+        validate_image_report(dat_path, cancelled=cancel_during_scan)
+    assert calls == 3
 
 
 def test_fragmented_and_completely_full_images_remain_valid(tmp_path: Path) -> None:

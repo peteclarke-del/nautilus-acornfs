@@ -6,6 +6,7 @@ import pytest
 
 from acornfs.core import discover_pair
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
+from acornfs.errors import OperationCancelled
 from acornfs.recovery import RecoveryCheckpoint, pending_recovery, recover_image
 from tests.image_fixture import create_beebscsi_image
 
@@ -99,3 +100,28 @@ os._exit(17)
         readme = restored.lookup(ROOT_INODE, b"README")
         assert readme is not None
         assert restored.read(readme.inode, 0, readme.size) == b"Hello from AcornFS\r"
+
+
+def test_cancelled_restore_keeps_current_pair_and_checkpoint(tmp_path: Path) -> None:
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    image = ReadOnlyImage.open(dat_path, writable=True)
+    readme = image.lookup(ROOT_INODE, b"README")
+    assert readme is not None
+    image.replace_file(readme.inode, b"Current image must remain in place")
+    image.close(clean=False)
+    current_dat = dat_path.read_bytes()
+    current_dsc = dsc_path.read_bytes()
+    calls = 0
+
+    def cancel_during_staging() -> bool:
+        nonlocal calls
+        calls += 1
+        return calls == 4
+
+    with pytest.raises(OperationCancelled, match="cancelled safely"):
+        recover_image(dat_path, restore=True, cancelled=cancel_during_staging)
+
+    assert dat_path.read_bytes() == current_dat
+    assert dsc_path.read_bytes() == current_dsc
+    assert pending_recovery(dat_path) is not None
+    assert not list(tmp_path.glob(".*.acornfs-restore-*"))

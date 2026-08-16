@@ -1,10 +1,13 @@
+import time
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 
 from acornfs.desktop import (
+    _run_with_progress,
     _systemd_mount_command,
     cleanup_stale_mountpoint,
     desktop_recover,
@@ -13,9 +16,17 @@ from acornfs.desktop import (
     desktop_validate,
     mountpoint_for_image,
 )
-from acornfs.errors import AcornFSError
+from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.mounts import MountRecord
 from tests.image_fixture import create_beebscsi_image, reserve_adfs_tail
+
+
+@pytest.fixture(autouse=True)
+def run_progress_inline(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "acornfs.desktop._run_with_progress",
+        lambda _title, _message, operation: operation(lambda: False),
+    )
 
 
 def test_mountpoint_is_stable_for_either_pair_member(tmp_path: Path, monkeypatch: object) -> None:
@@ -41,7 +52,7 @@ def test_desktop_recovery_requires_explicit_dialog_choice() -> None:
         patch("acornfs.desktop._notify"),
     ):
         assert desktop_recover("/image.dat") == 0
-    recover.assert_called_once_with("/image.dat", restore=True)
+    recover.assert_called_once_with("/image.dat", restore=True, cancelled=ANY)
     assert run.call_args_list[1].args[0][:2] == ["/usr/bin/zenity", "--info"]
 
 
@@ -130,6 +141,47 @@ def test_desktop_validation_reports_clean_image(tmp_path: Path) -> None:
         "AcornFS validation passed",
         "scsi0.dat has no reported ADFS problems.",
     )
+
+
+def test_desktop_validation_reports_safe_cancellation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    monkeypatch.setattr(
+        "acornfs.desktop._run_with_progress",
+        lambda *_args: (_ for _ in ()).throw(OperationCancelled("cancelled")),
+    )
+    with patch("acornfs.desktop._notify") as notify:
+        assert desktop_validate(dat_path) == 0
+    notify.assert_called_once_with("AcornFS validation cancelled", "The image was not modified.")
+
+
+def test_progress_dialog_requests_cooperative_cancellation() -> None:
+    class ClosedProgress:
+        stdin = None
+
+        @staticmethod
+        def poll() -> int:
+            return 1
+
+    def operation(cancelled: Callable[[], bool]) -> None:
+        deadline = time.monotonic() + 1
+        while not cancelled() and time.monotonic() < deadline:
+            time.sleep(0.001)
+        if not cancelled():
+            raise AssertionError("progress cancellation was not propagated")
+        raise OperationCancelled("cancelled safely")
+
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.Popen", return_value=ClosedProgress()) as popen,
+        pytest.raises(OperationCancelled, match="cancelled safely"),
+    ):
+        _run_with_progress("Title", "Working…", operation)
+
+    arguments = popen.call_args.args[0]
+    assert arguments[:3] == ["/usr/bin/zenity", "--progress", "--pulsate"]
+    assert "--cancel-label=Cancel safely" in arguments
 
 
 def test_desktop_validation_shows_finite_problem_report(tmp_path: Path) -> None:
