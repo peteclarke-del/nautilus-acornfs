@@ -69,12 +69,12 @@ def mount_image(
             try:
                 trio.run(pyfuse3.main)
             except BaseException as exc:
-                if _contains_keyboard_interrupt(exc):
-                    pyfuse3.close()
-                else:
+                if not _contains_keyboard_interrupt(exc):
                     pyfuse3.close(unmount=False)
                     raise
-            else:
+            try:
+                operations.flush_pending()
+            finally:
                 pyfuse3.close()
     finally:
         if registered:

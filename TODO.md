@@ -99,8 +99,9 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
 - [x] Add safe cancellation boundaries for long validation and recovery operations.
 - [x] Add failure-injection coverage for every catalogue, data and metadata mutation class.
-- [ ] Define safe semantics for applications holding multiple writable handles to the same file.
-- [ ] Exercise host logout and shutdown while dirty writable handles remain open.
+- [x] Define and test coherent per-inode buffering for multiple writable handles to one file.
+- [x] Flush dirty open handles before graceful `SIGINT` shutdown finalises the image.
+- [ ] Exercise an actual desktop logout and host shutdown while dirty writable handles remain open.
 
 ## Phase 5: Nautilus integration
 

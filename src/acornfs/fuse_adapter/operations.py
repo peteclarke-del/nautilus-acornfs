@@ -17,6 +17,7 @@ from oaknut.adfs.exceptions import (
 )
 
 from acornfs.core.image import ROOT_INODE, ImageNode, ReadOnlyImage
+from acornfs.errors import AcornFSError
 
 BLOCK_SIZE = 256
 CACHE_TIMEOUT = 60.0
@@ -86,6 +87,14 @@ class ReadOnlyOperations(pyfuse3.Operations):
         except KeyError as exc:
             raise pyfuse3.FUSEError(errno.ENOENT) from exc
 
+    def _write_buffer(self, inode: int) -> bytearray:
+        data = self._write_buffers.get(inode)
+        if data is None:
+            node = self._node(inode)
+            data = bytearray(self.image.read(inode, 0, node.size))
+            self._write_buffers[inode] = data
+        return data
+
     def _attributes(self, node: ImageNode) -> pyfuse3.EntryAttributes:
         attributes = pyfuse3.EntryAttributes()
         attributes.st_ino = node.inode
@@ -103,9 +112,12 @@ class ReadOnlyOperations(pyfuse3.Operations):
         attributes.st_uid = os.getuid()
         attributes.st_gid = os.getgid()
         attributes.st_rdev = 0
-        attributes.st_size = 0 if node.is_dir else node.size
+        visible_size = (
+            len(self._write_buffers[node.inode]) if node.inode in self._write_buffers else node.size
+        )
+        attributes.st_size = 0 if node.is_dir else visible_size
         attributes.st_blksize = BLOCK_SIZE
-        attributes.st_blocks = (node.size + 511) // 512
+        attributes.st_blocks = (attributes.st_size + 511) // 512
         attributes.st_atime_ns = self.image.timestamp_ns
         attributes.st_mtime_ns = self.image.timestamp_ns
         attributes.st_ctime_ns = self.image.timestamp_ns
@@ -162,17 +174,12 @@ class ReadOnlyOperations(pyfuse3.Operations):
             raise pyfuse3.FUSEError(errno.EACCES)
         if wants_write:
             try:
-                data = bytearray(self.image.read(inode, 0, node.size))
+                data = self._write_buffer(inode)
             except Exception as exc:
                 raise pyfuse3.FUSEError(errno.EIO) from exc
             if flags & os.O_TRUNC:
-                existing = self._write_buffers.get(inode)
-                if existing is not None:
-                    existing.clear()
-                else:
-                    data.clear()
+                data.clear()
                 self._dirty.add(inode)
-            self._write_buffers.setdefault(inode, data)
         return pyfuse3.FileInfo(fh=self._new_handle(inode))
 
     async def read(self, fh: int, off: int, size: int) -> bytes:
@@ -300,9 +307,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
         if fields.update_size:
             if node.is_dir:
                 raise pyfuse3.FUSEError(errno.EISDIR)
-            data = self._write_buffers.setdefault(
-                inode, bytearray(self.image.read(inode, 0, node.size))
-            )
+            data = self._write_buffer(inode)
             new_size = attr.st_size
             try:
                 self.image.preflight_file_size(inode, new_size)
@@ -320,16 +325,28 @@ class ReadOnlyOperations(pyfuse3.Operations):
             self._flush_inode(inode)
         return self._attributes(self._node(inode))
 
-    def _flush_inode(self, inode: int) -> None:
+    def _commit_buffer(self, inode: int) -> None:
         if inode not in self._dirty:
             return
-        try:
-            self.image.replace_file(inode, bytes(self._write_buffers[inode]))
-        except Exception as exc:
-            self._raise_fuse(exc)
+        self.image.replace_file(inode, bytes(self._write_buffers[inode]))
         self._dirty.discard(inode)
         if inode not in self._handles.values():
             self._write_buffers.pop(inode, None)
+
+    def _flush_inode(self, inode: int) -> None:
+        try:
+            self._commit_buffer(inode)
+        except Exception as exc:
+            self._raise_fuse(exc)
+
+    def flush_pending(self) -> None:
+        """Durably commit every dirty per-inode buffer during graceful shutdown."""
+
+        try:
+            for inode in sorted(self._dirty):
+                self._commit_buffer(inode)
+        except Exception as exc:
+            raise AcornFSError(f"Could not flush pending FUSE write buffers safely: {exc}") from exc
 
     async def flush(self, fh: int) -> None:
         self._flush_inode(self._handle_inode(fh))

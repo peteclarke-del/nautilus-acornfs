@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -8,7 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from acornfs.core import validate_image_report
+from acornfs.core import ReadOnlyImage, validate_image_report
+from acornfs.core.image import ROOT_INODE
 from acornfs.desktop import _systemd_user_available, background_mount, desktop_unmount
 from acornfs.fuse_adapter.availability import live_fuse_available
 from acornfs.mounts import active_mounts, is_mounted, mount_for_image, runtime_root
@@ -206,3 +208,63 @@ def test_live_forced_daemon_termination_restores_checkpoint(tmp_path: Path) -> N
     assert dat_path.read_bytes() == original
     assert validate_image_report(dat_path).findings == ()
     assert pending_recovery(dat_path) is None
+
+
+@pytest.mark.skipif(
+    not FUSE_AVAILABLE,
+    reason=FUSE_SKIP_REASON,
+)
+def test_live_sigint_flushes_a_dirty_open_handle(tmp_path: Path) -> None:
+    """Model graceful systemd logout while an application still has dirty data open."""
+
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    mountpoint = tmp_path / "dirty-shutdown-mount"
+    mountpoint.mkdir()
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "acornfs.cli",
+            "mount",
+            "--read-write",
+            str(dat_path),
+            str(mountpoint),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    descriptor: int | None = None
+    try:
+        deadline = time.monotonic() + 15
+        while mount_for_image(dat_path) is None:
+            if process.poll() is not None:
+                stderr = process.stderr.read() if process.stderr is not None else ""
+                pytest.fail(f"FUSE mount exited early: {stderr}")
+            if time.monotonic() >= deadline:
+                pytest.fail("FUSE mount did not become ready within 15 seconds")
+            time.sleep(0.05)
+        descriptor = os.open(mountpoint / "README", os.O_WRONLY | os.O_TRUNC)
+        os.write(descriptor, b"flushed during graceful shutdown")
+        process.send_signal(signal.SIGINT)
+        assert process.wait(timeout=15) == 0
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=15)
+        if is_mounted(mountpoint):
+            subprocess.run(
+                ["fusermount3", "-uz", str(mountpoint)],
+                check=False,
+                capture_output=True,
+                timeout=15,
+            )
+
+    assert pending_recovery(dat_path) is None
+    assert validate_image_report(dat_path).findings == ()
+    with ReadOnlyImage.open(dat_path) as image:
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        assert image.read(readme.inode, 0, 1024) == b"flushed during graceful shutdown"
