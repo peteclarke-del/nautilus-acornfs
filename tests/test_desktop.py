@@ -11,6 +11,7 @@ from acornfs.desktop import (
     _run_with_progress,
     _run_with_reported_progress,
     _systemd_mount_command,
+    background_mount,
     cleanup_stale_mountpoint,
     desktop_configure_mount_location,
     desktop_create,
@@ -48,6 +49,42 @@ def test_mountpoint_is_stable_for_either_pair_member(tmp_path: Path, monkeypatch
     assert mountpoint_for_image(dat_path) == mountpoint_for_image(dsc_path)
     assert mountpoint_for_image(dat_path).parent == mount_root
     assert mountpoint_for_image(dat_path).name.startswith("scsi0-")
+
+
+def test_changed_preference_reuses_an_existing_image_mount(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    old_mountpoint = tmp_path / "old-root" / "scsi0-existing"
+    old_mountpoint.mkdir(parents=True)
+    new_root = tmp_path / "new-root"
+    monkeypatch.setenv("ACORNFS_MOUNT_ROOT", str(new_root))  # type: ignore[attr-defined]
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))  # type: ignore[attr-defined]
+    (tmp_path / "runtime").mkdir()
+    record = MountRecord(
+        str(old_mountpoint),
+        dat_path.name,
+        "ro",
+        image_path=str(dat_path),
+        read_write=False,
+    )
+
+    with (
+        patch("acornfs.desktop.cleanup_retained_state"),
+        patch("acornfs.desktop.mount_for_image", return_value=record),
+        patch("acornfs.desktop.mount_at", return_value=record),
+        patch("acornfs.desktop.cleanup_stale_mountpoint") as cleanup,
+        patch("acornfs.desktop.subprocess.Popen") as launch,
+        patch("acornfs.desktop._open_folder") as open_folder,
+        patch("acornfs.desktop._notify"),
+    ):
+        mounted = background_mount(dat_path)
+
+    assert mounted == old_mountpoint
+    assert not new_root.exists()
+    cleanup.assert_not_called()
+    launch.assert_not_called()
+    open_folder.assert_called_once_with(old_mountpoint)
 
 
 def test_desktop_uri_handler_accepts_only_local_image_paths() -> None:

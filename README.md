@@ -48,11 +48,12 @@ the remaining lifecycle and format work. Release history and policy are in
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
 - Persist a per-user sidebar, runtime, or custom desktop mount location.
+- Reuse mounts at their original path after a location change and safely age disposable state.
 - Track mounted pairs by canonical path and DAT/DSC device/inode identity.
 - Wait for writable flush and final validation before confirming unmount success.
 - Export privacy-safe support information through `acornfs diagnostics --json`.
 - Import and export individual files with Acorn load, execution and lock metadata sidecars.
-- Translate validation findings, repair plans/progress and known image-property values through gettext.
+- Translate desktop lifecycle, creation, validation, repair, recovery and property messages through gettext.
 
 ## Development
 
@@ -70,8 +71,10 @@ pytest
 The suite includes real writable FUSE lifecycle tests for direct mounts,
 Nautilus-style transient systemd user services and forced-daemon recovery.
 Because some CI hosts expose `/dev/fuse` without granting mount permission,
-ordinary test runs skip them unless explicitly enabled. Run them on a Linux
-host permitted to create FUSE mounts with:
+ordinary test runs skip them unless explicitly enabled. A dedicated amd64 CI
+job provisions and checks a usable kernel FUSE device before running the live
+suite, so unavailable FUSE access cannot be reported as a successful CI run.
+Run the same tests on a Linux host permitted to create FUSE mounts with:
 
 ```shell
 make test-live

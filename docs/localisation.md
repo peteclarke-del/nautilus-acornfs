@@ -5,14 +5,13 @@ notifications, and Zenity dialogs. English remains the fallback when a
 catalogue or individual translation is missing.
 
 The catalogue covers interface chrome, validation summaries and findings,
-repair plans and progress, and known image-property values. Stable finding
-codes, repair action identifiers, audit status values, Acorn paths, disc titles
-and other image-owned data are deliberately unchanged. Low-level details
-originating in Oaknut or the operating system remain verbatim after a translated
-context phrase, so diagnostics retain the original technical evidence.
-
-Lifecycle, creation, recovery and preference errors that originate below the
-desktop helper remain a separate open backlog item.
+repair plans and progress, known image-property values, and the lifecycle,
+creation, recovery and preference messages surfaced by desktop workflows.
+Stable finding codes, repair action identifiers, audit and checkpoint state
+values, Acorn paths, disc titles and other image-owned data are deliberately
+unchanged. Low-level details originating in Oaknut or the operating system
+remain verbatim after a translated context phrase, so diagnostics retain the
+original technical evidence.
 
 ## Update the template
 
