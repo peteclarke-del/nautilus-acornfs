@@ -14,6 +14,29 @@ def test_inspect_error_is_concise(tmp_path: Path, capsys: object) -> None:
     assert "does not exist" in captured.err
 
 
+def test_create_beebscsi_command_creates_pair(tmp_path: Path, capsys: object) -> None:
+    assert (
+        main(
+            [
+                "create-beebscsi",
+                str(tmp_path),
+                "--name",
+                "new-disc",
+                "--title",
+                "NEWDISC",
+                "--capacity",
+                "2MB",
+            ]
+        )
+        == 0
+    )
+    assert (tmp_path / "new-disc.dat").is_file()
+    assert (tmp_path / "new-disc.dsc").is_file()
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert "Created and verified" in output
+    assert "ADFS title: NEWDISC" in output
+
+
 def test_status_reports_no_mounts(capsys: object) -> None:
     with patch("acornfs.cli.active_mounts", return_value=[]):
         assert main(["status"]) == 0
@@ -91,6 +114,12 @@ def test_desktop_open_forwards_uri_list() -> None:
     with patch("acornfs.desktop.desktop_open", return_value=0) as desktop_open:
         assert main(["desktop-open", "file:///image.dat", "acornfs:///image.dsc"]) == 0
     desktop_open.assert_called_once_with(["file:///image.dat", "acornfs:///image.dsc"])
+
+
+def test_desktop_create_forwards_directory() -> None:
+    with patch("acornfs.desktop.desktop_create", return_value=0) as desktop_create:
+        assert main(["desktop-create", "/images"]) == 0
+    desktop_create.assert_called_once_with("/images")
 
 
 def test_validate_command_reports_clean_image(tmp_path: Path, capsys: object) -> None:

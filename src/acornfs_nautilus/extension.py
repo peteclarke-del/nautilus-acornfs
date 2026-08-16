@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -82,6 +83,23 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _repair(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-repair", str(image_path))
 
+    def _create(self, _menu: Any, directory: Path) -> None:
+        _launch("desktop-create", str(directory))
+
+    def _create_item(self, directory: Path) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::CreateBeebSCSI",
+            label="Create BeebSCSI image…",
+            tip=f"Create an empty ADFS DAT/DSC pair in {directory.name}",
+            icon="document-new-symbolic",
+        )
+        item.connect("activate", self._create, directory)
+        return item
+
+    @staticmethod
+    def _can_create_in(directory: Path) -> bool:
+        return directory.is_dir() and os.access(directory, os.W_OK | os.X_OK)
+
     def _validate_item(self, path: Path) -> Any:
         item = Nautilus.MenuItem(
             name="AcornFS::Validate",
@@ -130,7 +148,11 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         if path is None:
             return []
         if file_info.is_directory():
-            return [self._support_menu([self._unmount_item(path)])] if is_mounted(path) else []
+            if is_mounted(path):
+                return [self._support_menu([self._unmount_item(path)])]
+            if self._can_create_in(path):
+                return [self._support_menu([self._create_item(path)])]
+            return []
         if not is_supported_image(path):
             return []
         try:
@@ -176,9 +198,13 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
 
     def get_background_items(self, current_folder: Any) -> list[Any]:
         path = _local_path(current_folder)
-        if path is None or not is_mounted(path):
+        if path is None:
             return []
-        return [self._support_menu([self._unmount_item(path)])]
+        if is_mounted(path):
+            return [self._support_menu([self._unmount_item(path)])]
+        if self._can_create_in(path):
+            return [self._support_menu([self._create_item(path)])]
+        return []
 
 
 class AcornFSPropertiesModelProvider(GObject.GObject, Nautilus.PropertiesModelProvider):

@@ -26,6 +26,7 @@ from acornfs.core import (
     IntegrityReport,
     RepairPlan,
     apply_repairs,
+    create_beebscsi_image,
     discover_pair,
     plan_repairs,
     plan_repairs_from_report,
@@ -482,6 +483,63 @@ def desktop_open(image_references: list[str]) -> int:
     return 0
 
 
+def desktop_create(directory: str | Path) -> int:
+    """Collect image settings and create a validated DAT/DSC pair in a folder."""
+
+    destination = Path(directory).expanduser().resolve()
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        raise AcornFSError(
+            f"Run 'acornfs create-beebscsi {destination}' to create an image without Zenity."
+        )
+    separator = "\x1f"
+    choice = subprocess.run(
+        [
+            dialog,
+            "--forms",
+            "--title=Create BeebSCSI image",
+            f"--text=Create an empty, validated ADFS hard-disc pair in:\n{destination}",
+            "--add-entry=Base filename (default: scsi0)",
+            "--add-entry=ADFS title (default: BLANK)",
+            "--add-entry=Capacity (default: 20MB)",
+            f"--separator={separator}",
+            "--ok-label=Create",
+            "--cancel-label=Cancel",
+            "--width=600",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if choice.returncode != 0:
+        return 0
+    values = choice.stdout.rstrip("\n").split(separator)
+    if len(values) != 3:
+        raise AcornFSError("The image settings dialog returned an invalid response.")
+    name, title, capacity = values
+    try:
+        created = _run_with_reported_progress(
+            "Creating BeebSCSI image",
+            "Checking image settings…",
+            lambda progress: create_beebscsi_image(
+                destination,
+                name=name,
+                title=title,
+                capacity=capacity,
+                progress=progress,
+            ),
+        )
+    except AcornFSError as exc:
+        _show_desktop_message("AcornFS image creation failed", str(exc), error=True)
+        raise
+    _show_desktop_message(
+        "BeebSCSI image created",
+        f"Created and verified {created.pair.dat_path.name} and "
+        f"{created.pair.dsc_path.name}.\n\nRight-click either file to open or validate it.",
+    )
+    return 0
+
+
 def desktop_unmount(mountpoint: str | Path) -> int:
     target = Path(mountpoint).expanduser().resolve()
     record = mount_at(target)
@@ -729,6 +787,7 @@ def notify_mount_failure(message: str) -> None:
 __all__ = [
     "background_mount",
     "cleanup_stale_mountpoint",
+    "desktop_create",
     "desktop_mount",
     "desktop_open",
     "desktop_repair",
