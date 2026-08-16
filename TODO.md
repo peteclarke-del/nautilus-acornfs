@@ -164,7 +164,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Benchmark large DAT images on Raspberry Pi 4 and Pi 5 hardware.
 - [x] Keep one Oaknut mount and one eagerly built directory index for the life of each FUSE mount.
 - [x] Add a bounded whole-file LRU cache and ranged reads for files larger than the cache limit.
-- [ ] Add sequential-read detection and bounded read-ahead for large files.
+- [x] Add sequential-read detection and bounded read-ahead for large files.
 - [ ] Batch compatible metadata updates.
 - [x] Define and test the concurrency model for simultaneous readers and a single writer.
 - [x] Update or invalidate the userspace inode, directory and file caches after mutations.
