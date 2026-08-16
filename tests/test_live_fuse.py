@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 import signal
 import subprocess
@@ -250,7 +251,11 @@ def test_live_sigint_flushes_a_dirty_open_handle(tmp_path: Path) -> None:
         assert process.wait(timeout=15) == 0
     finally:
         if descriptor is not None:
-            os.close(descriptor)
+            try:
+                os.close(descriptor)
+            except OSError as exc:
+                if exc.errno not in {errno.ENOTCONN, errno.EIO}:
+                    raise
         if process.poll() is None:
             process.kill()
             process.wait(timeout=15)
