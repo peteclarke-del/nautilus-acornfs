@@ -124,9 +124,9 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Validate geometry, directory sequences, map checksums, free-space extents and file extents.
 - [x] Distinguish fatal errors, safe warnings and compatibility advice.
 - [x] Add a dry-run repair plan.
-- [ ] Require explicit confirmation before applying any repair.
-- [ ] Create a checkpoint before every repair.
-- [ ] Verify the complete image after repair and retain an audit report.
+- [x] Require explicit confirmation before applying any repair.
+- [x] Create a checkpoint before every repair.
+- [x] Verify the complete image after repair and retain an audit report.
 - [ ] Reuse Acorn File Forge compatibility checks for BBC, Master, Electron and BeebSCSI targets.
 - [ ] Test images edited by the filesystem on real BeebSCSI hardware.
 
