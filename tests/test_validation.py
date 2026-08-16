@@ -9,6 +9,7 @@ from acornfs.errors import AcornFSError
 from acornfs.recovery import pending_recovery
 from tests.image_fixture import (
     create_beebscsi_image,
+    reserve_adfs_tail,
     rewrite_old_map,
     set_root_entry_length,
     set_root_entry_start,
@@ -169,7 +170,24 @@ def test_truncated_oversized_sparse_and_mismatched_pairs_are_classified(tmp_path
     descriptor = bytearray(mismatched_dsc.read_bytes())
     descriptor[13:15] = (81).to_bytes(2, "big")
     mismatched_dsc.write_bytes(descriptor)
-    assert "geometry.dat_short" in _codes(mismatched)
+    assert "geometry.dat_missing_reserved_tail" in _codes(mismatched)
+
+
+def test_trimmed_reserved_tail_is_repairable_but_blocks_ordinary_writes(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    capacity = dat_path.stat().st_size
+    reserve_adfs_tail(dat_path, 128)
+    with dat_path.open("r+b") as handle:
+        handle.truncate(capacity - 128 * 256)
+
+    report = validate_image_report(dat_path)
+    assert report.safe_for_write
+    assert {finding.code for finding in report.warning_findings} == {
+        "geometry.dat_missing_reserved_tail"
+    }
+    with pytest.raises(AcornFSError, match="low-risk repair"):
+        ReadOnlyImage.open(dat_path, writable=True)
+    assert pending_recovery(dat_path) is None
 
 
 def test_fragmented_and_completely_full_images_remain_valid(tmp_path: Path) -> None:

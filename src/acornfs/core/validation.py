@@ -234,6 +234,21 @@ def validate_open_mount(
     fsm = adfs._fsm
     adfs_sectors = int(fsm.total_sectors)
     dat_sectors = dat_bytes // SECTOR_SIZE
+    if (
+        dat_bytes < descriptor_geometry.capacity
+        and dat_bytes % SECTOR_SIZE == 0
+        and dat_sectors == adfs_sectors < geometry_sectors
+    ):
+        findings = [finding for finding in findings if finding.code != "geometry.dat_short"]
+        findings.append(
+            _finding(
+                FindingSeverity.WARNING,
+                "geometry.dat_missing_reserved_tail",
+                f"DAT ends exactly at the ADFS boundary and omits "
+                f"{geometry_sectors - adfs_sectors} reserved DSC sector(s); "
+                "the missing tail can be restored without changing ADFS data.",
+            )
+        )
     if adfs_sectors > dat_sectors:
         findings.append(
             _finding(
