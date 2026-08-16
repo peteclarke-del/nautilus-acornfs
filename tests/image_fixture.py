@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from oaknut.filesystem import create_filesystem, reader_for, winchester_geometry
+from oaknut.filesystem import create_filesystem, geometry_from_dsc, reader_for, winchester_geometry
 
 
 def _old_map_checksum(data: bytearray, start: int) -> int:
@@ -29,6 +29,34 @@ def rewrite_old_map(dat_path: Path, mutation: Callable[[bytearray], None]) -> No
     data[0xFF] = _old_map_checksum(data, 0)
     data[0x1FF] = _old_map_checksum(data, 0x100)
     dat_path.write_bytes(data)
+
+
+def set_root_entry_field(dat_path: Path, name: str, offset: int, value: bytes) -> None:
+    """Replace one generated root catalogue field without relying on entry order."""
+
+    reader = reader_for(dat_path)
+    geometry = geometry_from_dsc(dat_path.with_suffix(".dsc").read_bytes())
+    mount = create_filesystem("adfs").open(reader, geometry)
+    try:
+        root = mount._adfs._read_root_directory()  # type: ignore[attr-defined]
+        index = next(index for index, entry in enumerate(root.entries) if entry.name == name)
+    finally:
+        adfs = getattr(mount, "_adfs", None)
+        close = getattr(adfs, "close", None)
+        if callable(close):
+            close()
+        reader.close()
+    with dat_path.open("r+b") as handle:
+        handle.seek(2 * 256 + 5 + index * 26 + offset)
+        handle.write(value)
+
+
+def set_root_entry_length(dat_path: Path, name: str, length: int) -> None:
+    set_root_entry_field(dat_path, name, 0x12, length.to_bytes(4, "little"))
+
+
+def set_root_entry_start(dat_path: Path, name: str, start_sector: int) -> None:
+    set_root_entry_field(dat_path, name, 0x16, start_sector.to_bytes(3, "little"))
 
 
 def create_beebscsi_image(

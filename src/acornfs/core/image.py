@@ -623,6 +623,69 @@ class ReadOnlyImage:
             replacement = replace(replacement, parent_address=parent_sector)
         adfs._write_directory_at(replacement, sector)
 
+    def apply_catalogue_repair(self, action: str, paths: tuple[str, ...]) -> None:
+        """Apply one narrowly-scoped catalogue repair as a single transaction."""
+
+        if action not in {"normalise_directory_lengths", "clear_empty_file_extents"}:
+            raise ValueError(f"unsupported catalogue repair: {action}")
+        if not paths:
+            raise ValueError("a catalogue repair must name at least one path")
+        adfs = cast(Any, self._mount)._adfs
+
+        def prepare(transaction: SectorTransaction) -> None:
+            for path in paths:
+                transaction.capture_parent(path)
+
+        def mutate() -> None:
+            grouped: dict[int, tuple[Any, set[str]]] = {}
+            for path in paths:
+                directory, sector = adfs._resolve_parent(path.split("."))
+                current, names = grouped.setdefault(int(sector), (directory, set()))
+                if current != directory:
+                    raise AcornFSError("A repair resolved one parent directory inconsistently.")
+                names.add(path.rsplit(".", 1)[-1].casefold())
+
+            for sector, (directory, names) in grouped.items():
+                repaired = []
+                matched: set[str] = set()
+                for entry in directory.entries:
+                    key = entry.name.casefold()
+                    if key not in names:
+                        repaired.append(entry)
+                        continue
+                    matched.add(key)
+                    if action == "normalise_directory_lengths":
+                        if not entry.is_directory:
+                            raise AcornFSError(
+                                f"Repair target is no longer a directory: {entry.name}"
+                            )
+                        repaired.append(replace(entry, length=int(adfs._dir_format.size_in_bytes)))
+                    else:
+                        if entry.is_directory or int(entry.length) != 0:
+                            raise AcornFSError(
+                                f"Repair target is no longer an empty file: {entry.name}"
+                            )
+                        repaired.append(replace(entry, indirect_disc_address=0))
+                if matched != names:
+                    missing = ", ".join(sorted(names - matched))
+                    raise AcornFSError(f"Repair target was not found in its parent: {missing}")
+                replacement = replace(
+                    directory,
+                    entries=tuple(repaired),
+                    sequence_number=(int(directory.sequence_number) + 1) & 0xFF,
+                )
+                adfs._write_directory_at(replacement, sector)
+
+        def commit() -> None:
+            if action == "normalise_directory_lengths":
+                wanted = set(paths)
+                expected = int(adfs._dir_format.size_in_bytes)
+                for inode, node in tuple(self.nodes.items()):
+                    if node.acorn_path in wanted:
+                        self.nodes[inode] = replace(node, size=expected)
+
+        self._run_atomic(action, prepare=prepare, mutate=mutate, commit=commit)
+
     def _is_descendant_or_self(self, inode: int, ancestor_inode: int) -> bool:
         cursor = inode
         while True:

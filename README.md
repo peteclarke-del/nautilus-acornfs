@@ -32,7 +32,8 @@ the remaining lifecycle and format work.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
-- Mount read-write, mount read-only, validate, recover and unmount from Nautilus context menus.
+- Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
+- Apply eligible low-risk catalogue repairs with confirmation, checkpointing and retained audits.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
 - Show Acorn load/execute addresses, filetype, lock state and original path for mounted entries.
 - Run desktop mounts as collected systemd user services with graceful logout cleanup.
@@ -68,10 +69,11 @@ Install the per-user Nautilus extension and restart Files:
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair and choose **Mount Acorn image
-read-write** or **Mount Acorn image read-only**. The mounted image opens in
-Nautilus and appears in its sidebar. Right-click the DAT/DSC again to unmount it;
-**Unmount Acorn image** is also available from the mounted root's background menu.
+Right-click either member of a valid pair and open **Acorn FS Support**. Choose
+**Open read-only**, **Open read-write**, or **Validate image**. The mounted image
+opens in Nautilus and appears in its sidebar. The same submenu offers **Unmount**
+on the DAT/DSC and from the mounted root's background menu, keeping Acorn-specific
+actions out of Nautilus's top-level context menu.
 The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
 
@@ -106,9 +108,20 @@ acornfs repair-plan --json /path/to/scsi0.dsc
 ```
 
 The plan groups findings into candidate operations, records risk and identifies
-steps that require a human decision. Applying repairs is intentionally disabled
-until confirmation, checkpoint, post-repair verification and audit reporting are
-implemented together. See [docs/damaged-images.md](docs/damaged-images.md).
+steps that require a human decision. AcornFS can apply a complete plan only when
+every action is a low-risk directory-length or empty-file catalogue
+normalisation. First review the plan, then confirm with the exact DAT filename:
+
+```shell
+acornfs repair /path/to/scsi0.dat --confirm scsi0.dat
+```
+
+Every applied repair obtains the same exclusive pair locks as a writable mount,
+creates a mandatory recovery checkpoint before mutation, performs sector-level
+rollback on failure, completely revalidates the image, and retains a JSON audit
+under `${XDG_STATE_HOME:-$HOME/.local/state}/acornfs/repair-audits`. Free-map,
+geometry, unreadable-structure and overlapping-allocation plans remain refused.
+See [docs/damaged-images.md](docs/damaged-images.md).
 
 For terminal use, create an empty mountpoint and mount either member manually:
 
