@@ -18,7 +18,9 @@ from acornfs.core.image import ReadOnlyImage
 from acornfs.core.validation import IntegrityFinding, IntegrityReport, validate_image_report
 from acornfs.errors import AcornFSError
 
-SUPPORTED_REPAIR_ACTIONS = frozenset({"normalise_directory_lengths", "clear_empty_file_extents"})
+SUPPORTED_REPAIR_ACTIONS = frozenset(
+    {"normalise_directory_lengths", "clear_empty_file_extents", "pad_reserved_tail"}
+)
 
 
 class RepairRisk(StrEnum):
@@ -135,6 +137,14 @@ _GEOMETRY = _ActionTemplate(
     False,
     True,
 )
+_RESERVED_TAIL = _ActionTemplate(
+    "pad_reserved_tail",
+    "Restore omitted reserved DAT tail",
+    "Extend the DAT to its DSC capacity with zero-filled sectors beyond the ADFS boundary.",
+    RepairRisk.LOW,
+    True,
+    False,
+)
 _UNREADABLE = _ActionTemplate(
     "restore_unreadable_structure",
     "Restore unreadable ADFS structures",
@@ -179,6 +189,8 @@ _EMPTY_FILE = _ActionTemplate(
 
 
 def _template_for(finding: IntegrityFinding) -> _ActionTemplate | None:
+    if finding.code == "geometry.dat_missing_reserved_tail":
+        return _RESERVED_TAIL
     if finding.code.startswith("geometry.") and finding.code != "geometry.reserved_tail":
         return _GEOMETRY
     if finding.code in {
@@ -207,10 +219,9 @@ def _template_for(finding: IntegrityFinding) -> _ActionTemplate | None:
     return None
 
 
-def plan_repairs(selected: str | Path) -> RepairPlan:
-    """Validate an image and group its findings into deterministic dry-run actions."""
+def plan_repairs_from_report(report: IntegrityReport) -> RepairPlan:
+    """Group an existing validation report into deterministic dry-run actions."""
 
-    report = validate_image_report(selected)
     grouped: dict[str, tuple[_ActionTemplate, set[str], set[str]]] = {}
     for finding in report.findings:
         template = _template_for(finding)
@@ -234,6 +245,12 @@ def plan_repairs(selected: str | Path) -> RepairPlan:
         for template, codes, paths in sorted(grouped.values(), key=lambda item: item[0].action)
     )
     return RepairPlan(report=report, actions=actions)
+
+
+def plan_repairs(selected: str | Path) -> RepairPlan:
+    """Validate an image and group its findings into deterministic dry-run actions."""
+
+    return plan_repairs_from_report(validate_image_report(selected))
 
 
 def audit_root() -> Path:
@@ -301,12 +318,15 @@ def apply_repairs(selected: str | Path, *, confirmation: str) -> RepairResult:
     image: ReadOnlyImage | None = None
     checkpoint_completed = False
     try:
-        image = ReadOnlyImage.open(pair.dat_path, writable=True)
+        image = ReadOnlyImage.open(pair.dat_path, writable=True, repair_mode=True)
         payload["status"] = "applying"
         payload["checkpoint_created"] = True
         _write_audit(audit_path, payload)
         for action in plan.actions:
-            image.apply_catalogue_repair(action.action, action.paths)
+            if action.action == "pad_reserved_tail":
+                image.pad_reserved_tail()
+            else:
+                image.apply_catalogue_repair(action.action, action.paths)
             payload["applied_actions"].append(action.as_dict())
             _write_audit(audit_path, payload)
 
@@ -363,4 +383,5 @@ __all__ = [
     "apply_repairs",
     "audit_root",
     "plan_repairs",
+    "plan_repairs_from_report",
 ]
