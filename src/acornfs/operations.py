@@ -7,6 +7,7 @@ from collections.abc import Callable
 from acornfs.errors import OperationCancelled
 
 CancellationCheck = Callable[[], bool]
+ProgressCallback = Callable[[int, str], None]
 
 
 def cancellation_point(cancelled: CancellationCheck | None) -> None:
@@ -16,4 +17,11 @@ def cancellation_point(cancelled: CancellationCheck | None) -> None:
         raise OperationCancelled("The operation was cancelled safely.")
 
 
-__all__ = ["CancellationCheck", "cancellation_point"]
+def report_progress(progress: ProgressCallback | None, percent: int, message: str) -> None:
+    """Publish a normalised progress update when a caller requested one."""
+
+    if progress is not None:
+        progress(max(0, min(100, percent)), message)
+
+
+__all__ = ["CancellationCheck", "ProgressCallback", "cancellation_point", "report_progress"]
