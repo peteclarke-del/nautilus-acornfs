@@ -160,7 +160,7 @@ acceptance items stay open until they have been exercised in that environment.
 
 ## Phase 8: performance and concurrency
 
-- [ ] Benchmark initial mounting, root listing, deep traversal, large reads and small-file workloads.
+- [x] Benchmark initial mounting, root listing, deep traversal, large reads and small-file workloads.
 - [ ] Benchmark large DAT images on Raspberry Pi 4 and Pi 5 hardware.
 - [x] Keep one Oaknut mount and one eagerly built directory index for the life of each FUSE mount.
 - [x] Add a bounded whole-file LRU cache and ranged reads for files larger than the cache limit.
@@ -170,8 +170,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Update or invalidate the userspace inode, directory and file caches after mutations.
 - [ ] Notify the kernel to invalidate cached entries/data after mutations where zero timeouts are insufficient.
 - [x] Ensure external image changes are detected rather than overwritten.
-- [ ] Record throughput and latency regressions in CI artefacts.
-- [ ] Establish amd64 performance budgets before the first release candidate.
+- [x] Record throughput and latency regressions in CI artefacts.
+- [x] Establish amd64 performance budgets before the first release candidate.
 - [ ] Profile memory use for maximum supported node counts and large open-write buffers.
 
 ## Phase 9: additional Acorn formats

@@ -33,6 +33,7 @@ the remaining lifecycle and format work.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Keep concurrent handles to one writable file coherent and flush dirty open handles on shutdown.
 - Enforce and test deep-tree, 47-entry old-directory, 10-byte name and display-mapping boundaries.
+- Enforce published amd64 latency, throughput and open-memory budgets in CI artefacts.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
 - Create an empty, validated BeebSCSI DAT/DSC pair from a writable Nautilus folder.
@@ -70,6 +71,10 @@ host permitted to create FUSE mounts with:
 ```shell
 make test-live
 ```
+
+Run the deterministic amd64 performance workload with `make benchmark`. It
+writes a machine-readable report and enforces the first-RC budgets documented
+in [docs/performance.md](docs/performance.md).
 
 Install the per-user Nautilus extension, MIME types and desktop handler, then restart Files:
 
