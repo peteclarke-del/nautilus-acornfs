@@ -47,6 +47,15 @@ commit. This serialises writers while allowing ordinary reads from the stable
 index. Large files bypass the whole-file LRU cache and read only the requested
 sector range; FUSE growth is capacity-checked before its memory buffer expands.
 
+All writable handles for one inode share one userspace buffer. Writes and
+truncation through any handle are immediately visible through every other
+handle; any handle's `flush` or `fsync` commits the combined buffer as one atomic
+image mutation. The buffer remains available until the final handle is released.
+When the FUSE loop stops normally or receives graceful `SIGINT`, the runner
+commits every remaining dirty inode before detaching and before the image
+performs final validation. A failed shutdown flush detaches the mount but makes
+the image context retain its pre-mount recovery checkpoint.
+
 ## Package boundaries
 
 - `acornfs.core`: untrusted-image parsing, validation and filesystem policy.
