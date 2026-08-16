@@ -25,6 +25,17 @@ permission.
 
 ## Mount and browse
 
+Create a new empty old-format ADFS BeebSCSI pair when required:
+
+```shell
+acornfs create-beebscsi /path/to/images --name scsi0 --title BLANK --capacity 20MB
+```
+
+The command accepts a destination directory, never overwrites an existing DAT
+or DSC member, validates the complete temporary filesystem, and publishes the
+pair together. Capacity uses Oaknut size syntax such as `2MB`, `20MB` or `512MB`
+subject to BeebSCSI DSC and old-map ADFS limits.
+
 For normal desktop use, install the Nautilus extension and mount from the file's
 context menu as described in [nautilus.md](nautilus.md). The commands below are
 the foreground terminal workflow.

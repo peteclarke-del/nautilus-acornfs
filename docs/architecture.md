@@ -64,6 +64,13 @@ The Nautilus extension communicates with the CLI, which runs desktop mounts as
 collected transient systemd user services when available. It must not hold
 writable images open or implement filesystem parsing itself.
 
+Image creation follows the same boundary. The extension launches a desktop CLI
+action, while `acornfs.core` asks Oaknut to create the filesystem under unique
+temporary names in the destination directory. AcornFS then performs complete
+structural validation and uses create-only hard links to publish the DAT and DSC
+without an overwrite window. A failure publishing either member removes any
+published member and all temporary files.
+
 ## Mount identity and shutdown
 
 `/proc/self/mountinfo` is authoritative for active FUSE mounts. A private

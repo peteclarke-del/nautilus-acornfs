@@ -12,6 +12,7 @@ from acornfs.desktop import (
     _run_with_reported_progress,
     _systemd_mount_command,
     cleanup_stale_mountpoint,
+    desktop_create,
     desktop_open,
     desktop_recover,
     desktop_repair,
@@ -80,6 +81,35 @@ def test_desktop_open_notifies_for_refused_uri() -> None:
     notify.assert_called_once_with(
         "AcornFS open failed", "Unsupported image URI scheme: https", error=True
     )
+
+
+def test_desktop_create_collects_settings_and_reports_success(tmp_path: Path) -> None:
+    form = SimpleNamespace(returncode=0, stdout="games\x1fGAMES\x1f2MB\n")
+    completed = SimpleNamespace(returncode=0)
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.run", side_effect=[form, completed]) as run,
+    ):
+        assert desktop_create(tmp_path) == 0
+
+    assert (tmp_path / "games.dat").is_file()
+    assert (tmp_path / "games.dsc").is_file()
+    form_arguments = run.call_args_list[0].args[0]
+    assert form_arguments[:2] == ["/usr/bin/zenity", "--forms"]
+    assert "--ok-label=Create" in form_arguments
+    result_arguments = run.call_args_list[1].args[0]
+    assert result_arguments[:2] == ["/usr/bin/zenity", "--info"]
+    assert "games.dat" in next(item for item in result_arguments if item.startswith("--text="))
+
+
+def test_desktop_create_cancellation_creates_nothing(tmp_path: Path) -> None:
+    cancelled = SimpleNamespace(returncode=1, stdout="")
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop.subprocess.run", return_value=cancelled),
+    ):
+        assert desktop_create(tmp_path) == 0
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_desktop_recovery_requires_explicit_dialog_choice() -> None:

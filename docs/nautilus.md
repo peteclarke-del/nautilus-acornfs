@@ -82,6 +82,24 @@ Both modes carry `nodev`, `nosuid`, and `noexec`. A writable mount creates a
 persistent pre-write checkpoint before appearing in Files, so a large non-reflink
 image can take longer to mount.
 
+## Create a BeebSCSI image
+
+Right-click the background of a writable local folder, or right-click the folder
+itself, then choose **Acorn FS Support → Create BeebSCSI image…**. The dialog
+accepts a pair basename, an ADFS title of up to 12 printable ASCII characters,
+and a capacity such as `20MB`. Leaving fields blank uses `scsi0`, `BLANK` and
+`20MB`.
+
+A determinate progress dialog covers filesystem creation, complete validation
+and publication. AcornFS refuses case-insensitive DAT or DSC name collisions and
+does not expose either final file until the newly created pair has passed
+validation. If publishing the second member fails, the first is rolled back.
+Creation is intentionally absent inside a mounted ADFS image.
+
+The separate **Open in Acorn File Forge** backlog item remains pending because
+File Forge does not yet expose a supported desktop file-handoff interface.
+Opening only its web home page would not transfer the selected image.
+
 ## Interrupted writes and recovery
 
 A clean unmount flushes pending data, validates the ADFS structure, and removes

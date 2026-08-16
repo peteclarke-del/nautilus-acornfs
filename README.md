@@ -33,6 +33,7 @@ the remaining lifecycle and format work.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
+- Create an empty, validated BeebSCSI DAT/DSC pair from a writable Nautilus folder.
 - Identify ADFS DAT content without claiming generic DAT files and open image or `acornfs:` URIs read-only.
 - Cancel long validation and recovery work only at boundaries that leave images and checkpoints safe.
 - Apply eligible low-risk catalogue repairs with confirmation, checkpointing and retained audits.
@@ -82,6 +83,16 @@ The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
 Double-clicking a recognised image member opens the pair read-only. The same
 handler accepts a local URI such as `acornfs:///path/to/scsi0.dat`.
+
+To create an image, right-click the background of a writable local folder and
+choose **Acorn FS Support → Create BeebSCSI image…**. Enter a basename, ADFS
+title and capacity; blank fields use `scsi0`, `BLANK` and `20MB`. Creation shows
+live progress and publishes the DAT/DSC pair only after complete validation. The
+equivalent terminal command is:
+
+```shell
+acornfs create-beebscsi /path/to/folder --name scsi0 --title BLANK --capacity 20MB
+```
 
 To remove the extension, MIME types and desktop handler:
 

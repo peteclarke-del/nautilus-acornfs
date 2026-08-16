@@ -14,6 +14,7 @@ from pathlib import Path
 from acornfs.core import (
     FindingSeverity,
     apply_repairs,
+    create_beebscsi_image,
     inspect_pair,
     plan_repairs,
     validate_image_report,
@@ -26,6 +27,15 @@ from acornfs.recovery import pending_recovery, recover_image
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="acornfs", description="Inspect and mount Acorn images")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    create_parser = subparsers.add_parser(
+        "create-beebscsi", help="create a validated empty BeebSCSI DAT/DSC pair"
+    )
+    create_parser.add_argument("directory", help="destination directory")
+    create_parser.add_argument("--name", default="scsi0", help="pair basename (default: scsi0)")
+    create_parser.add_argument(
+        "--title", default="BLANK", help="ADFS title (up to 12 ASCII characters)"
+    )
+    create_parser.add_argument("--capacity", default="20MB", help="image capacity (default: 20MB)")
     inspect_parser = subparsers.add_parser("inspect", help="validate basic image metadata")
     inspect_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     inspect_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
@@ -94,6 +104,8 @@ def _parser() -> argparse.ArgumentParser:
     desktop_validate_parser.add_argument("image")
     desktop_open_parser = subparsers.add_parser("desktop-open")
     desktop_open_parser.add_argument("images", nargs="+")
+    desktop_create_parser = subparsers.add_parser("desktop-create")
+    desktop_create_parser.add_argument("directory")
     recover_parser = subparsers.add_parser(
         "recover", help="inspect or resolve an interrupted writable session"
     )
@@ -122,6 +134,19 @@ def _inspect(args: argparse.Namespace) -> int:
         )
         for warning in result["warnings"]:
             print(f"Warning: {warning}")
+    return 0
+
+
+def _create(args: argparse.Namespace) -> int:
+    result = create_beebscsi_image(
+        args.directory,
+        name=args.name,
+        title=args.title,
+        capacity=args.capacity,
+    )
+    print(f"Created and verified BeebSCSI image: {result.pair.dat_path}")
+    print(f"Descriptor: {result.pair.dsc_path}")
+    print(f"ADFS title: {result.title}; capacity: {result.capacity_bytes} bytes")
     return 0
 
 
@@ -307,6 +332,12 @@ def _desktop_open(args: argparse.Namespace) -> int:
     return desktop_open(args.images)
 
 
+def _desktop_create(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_create
+
+    return desktop_create(args.directory)
+
+
 def _recover(args: argparse.Namespace) -> int:
     print(recover_image(args.image, restore=args.restore, discard=args.discard))
     return 0
@@ -315,6 +346,7 @@ def _recover(args: argparse.Namespace) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     handlers = {
+        "create-beebscsi": _create,
         "inspect": _inspect,
         "validate": _validate,
         "repair-plan": _repair_plan,
@@ -331,6 +363,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-repair": _desktop_repair,
         "desktop-validate": _desktop_validate,
         "desktop-open": _desktop_open,
+        "desktop-create": _desktop_create,
         "recover": _recover,
     }
     try:

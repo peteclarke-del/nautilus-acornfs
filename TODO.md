@@ -98,7 +98,7 @@ Build a safe userspace filesystem for Acorn disk images, starting with paired Be
 - [x] Add `Unmount` for mounted images.
 - [x] Add `Validate image`.
 - [ ] Add `Open in Acorn File Forge`.
-- [ ] Add `Create BeebSCSI image` where appropriate.
+- [x] Add `Create BeebSCSI image` where appropriate.
 - [x] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile, mount state and validation state.
 - [x] Add file properties for load address, execute address, RISC OS filetype and lock state.
 - [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
