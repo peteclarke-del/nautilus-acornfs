@@ -7,29 +7,12 @@ from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.core.validation import FindingSeverity, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.recovery import pending_recovery
-from tests.image_fixture import create_beebscsi_image, rewrite_old_map
-
-
-def _set_root_entry_start(dat_path: Path, name: str, start_sector: int) -> None:
-    with ReadOnlyImage.open(dat_path) as image:
-        adfs = image._mount._adfs  # type: ignore[attr-defined]
-        root = adfs._read_root_directory()
-        index = next(index for index, entry in enumerate(root.entries) if entry.name == name)
-    offset = 2 * 256 + 5 + index * 26 + 0x16
-    with dat_path.open("r+b") as handle:
-        handle.seek(offset)
-        handle.write(start_sector.to_bytes(3, "little"))
-
-
-def _set_root_entry_length(dat_path: Path, name: str, length: int) -> None:
-    with ReadOnlyImage.open(dat_path) as image:
-        adfs = image._mount._adfs  # type: ignore[attr-defined]
-        root = adfs._read_root_directory()
-        index = next(index for index, entry in enumerate(root.entries) if entry.name == name)
-    offset = 2 * 256 + 5 + index * 26 + 0x12
-    with dat_path.open("r+b") as handle:
-        handle.seek(offset)
-        handle.write(length.to_bytes(4, "little"))
+from tests.image_fixture import (
+    create_beebscsi_image,
+    rewrite_old_map,
+    set_root_entry_length,
+    set_root_entry_start,
+)
 
 
 def _codes(dat_path: Path) -> set[str]:
@@ -66,11 +49,11 @@ def test_free_space_overlapping_allocated_data_is_fatal(tmp_path: Path) -> None:
 
 def test_file_extent_overlap_and_out_of_range_are_fatal(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
-    _set_root_entry_start(dat_path, "README", 8)
+    set_root_entry_start(dat_path, "README", 8)
     assert "extent.used_overlap" in _codes(dat_path)
 
     dat_path, _dsc_path = create_beebscsi_image(tmp_path, stem="outside")
-    _set_root_entry_start(dat_path, "README", 5280)
+    set_root_entry_start(dat_path, "README", 5280)
     assert "extent.used_out_of_range" in _codes(dat_path)
 
 
@@ -95,7 +78,7 @@ def test_invalid_descriptor_is_a_classified_fatal_finding(tmp_path: Path) -> Non
 
 def test_warning_and_reserved_tail_advice_do_not_block_writes(tmp_path: Path) -> None:
     warning_dat, _dsc_path = create_beebscsi_image(tmp_path, stem="warning")
-    _set_root_entry_length(warning_dat, "DOCS", 0)
+    set_root_entry_length(warning_dat, "DOCS", 0)
     warning_report = validate_image_report(warning_dat)
     assert warning_report.safe_for_write
     assert warning_report.warning_findings[0].code == "directory.length_unusual"
@@ -120,7 +103,7 @@ def test_warning_and_reserved_tail_advice_do_not_block_writes(tmp_path: Path) ->
 
 def test_writable_gate_refuses_overlap_without_creating_checkpoint(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
-    _set_root_entry_start(dat_path, "README", 8)
+    set_root_entry_start(dat_path, "README", 8)
     with pytest.raises(AcornFSError, match="Writable mount refused"):
         ReadOnlyImage.open(dat_path, writable=True)
     assert pending_recovery(dat_path) is None

@@ -1,13 +1,24 @@
-"""Read-only repair planning; this module never mutates an image."""
+"""Repair planning and tightly controlled low-risk repair application."""
 
 from __future__ import annotations
 
+import json
+import os
+import pwd
+import uuid
+from contextlib import suppress
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from acornfs.core.beebscsi import discover_pair
+from acornfs.core.image import ReadOnlyImage
 from acornfs.core.validation import IntegrityFinding, IntegrityReport, validate_image_report
+from acornfs.errors import AcornFSError
+
+SUPPORTED_REPAIR_ACTIONS = frozenset({"normalise_directory_lengths", "clear_empty_file_extents"})
 
 
 class RepairRisk(StrEnum):
@@ -42,7 +53,17 @@ class RepairPlan:
 
     @property
     def application_supported(self) -> bool:
-        return False
+        return (
+            bool(self.actions)
+            and not self.report.fatal_findings
+            and all(
+                action.action in SUPPORTED_REPAIR_ACTIONS
+                and action.risk is RepairRisk.LOW
+                and action.automatic_candidate
+                and not action.requires_manual_decision
+                for action in self.actions
+            )
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -71,8 +92,29 @@ class RepairPlan:
             lines.append(f"   Findings: {', '.join(action.finding_codes)}")
             if action.paths:
                 lines.append(f"   Paths: {', '.join(action.paths)}")
-        lines.append("Applying repairs is intentionally unsupported in this release.")
+        if self.application_supported:
+            lines.append(
+                "This complete plan can be applied with 'acornfs repair IMAGE "
+                "--confirm DAT_FILENAME'."
+            )
+        else:
+            lines.append("This plan cannot be applied automatically; no changes are permitted.")
         return "\n".join(lines)
+
+
+@dataclass(frozen=True, slots=True)
+class RepairResult:
+    audit_path: str
+    actions: tuple[RepairAction, ...]
+    report: IntegrityReport
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "status": "completed",
+            "audit": self.audit_path,
+            "actions": [action.as_dict() for action in self.actions],
+            "validation": self.report.as_dict(),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,4 +236,131 @@ def plan_repairs(selected: str | Path) -> RepairPlan:
     return RepairPlan(report=report, actions=actions)
 
 
-__all__ = ["RepairAction", "RepairPlan", "RepairRisk", "plan_repairs"]
+def audit_root() -> Path:
+    configured = os.environ.get("XDG_STATE_HOME")
+    if configured:
+        return Path(configured).expanduser() / "acornfs" / "repair-audits"
+    home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+    return home / ".local" / "state" / "acornfs" / "repair-audits"
+
+
+def _write_audit(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    with temporary.open("w", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def apply_repairs(selected: str | Path, *, confirmation: str) -> RepairResult:
+    """Apply a complete low-risk plan with confirmation, checkpointing and audit."""
+
+    pair = discover_pair(selected)
+    if confirmation != pair.dat_path.name:
+        raise AcornFSError(
+            f"Repair confirmation must exactly match the DAT filename: {pair.dat_path.name}"
+        )
+    plan = plan_repairs(pair.dat_path)
+    if plan.clean:
+        raise AcornFSError("Validation found no problems, so there is nothing to repair.")
+    if not plan.application_supported:
+        raise AcornFSError(
+            "The complete repair plan is not eligible for automatic application; "
+            "no checkpoint or image change was made."
+        )
+
+    audit_path = (
+        audit_root() / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4()}.json"
+    )
+    payload: dict[str, Any] = {
+        "audit_version": 1,
+        "audit_id": audit_path.stem,
+        "created_at": datetime.now(UTC).isoformat(),
+        "status": "planned",
+        "dat": str(pair.dat_path),
+        "dsc": str(pair.dsc_path),
+        "confirmation": confirmation,
+        "checkpoint_created": False,
+        "checkpoint_retained": False,
+        "plan": plan.as_dict(),
+        "applied_actions": [],
+        "post_validation": None,
+    }
+    try:
+        _write_audit(audit_path, payload)
+    except OSError as exc:
+        raise AcornFSError(f"Could not create the mandatory repair audit: {exc}") from exc
+
+    image: ReadOnlyImage | None = None
+    checkpoint_completed = False
+    try:
+        image = ReadOnlyImage.open(pair.dat_path, writable=True)
+        payload["status"] = "applying"
+        payload["checkpoint_created"] = True
+        _write_audit(audit_path, payload)
+        for action in plan.actions:
+            image.apply_catalogue_repair(action.action, action.paths)
+            payload["applied_actions"].append(action.as_dict())
+            _write_audit(audit_path, payload)
+
+        report = image.integrity_report()
+        remaining = {
+            finding.code
+            for finding in report.findings
+            if finding.code in {code for action in plan.actions for code in action.finding_codes}
+        }
+        if report.fatal_findings or remaining:
+            detail = (
+                "fatal findings remain" if report.fatal_findings else ", ".join(sorted(remaining))
+            )
+            raise AcornFSError(f"Post-repair validation failed: {detail}.")
+        payload["status"] = "verified"
+        payload["post_validation"] = report.as_dict()
+        _write_audit(audit_path, payload)
+        image.close()
+        checkpoint_completed = True
+        image = None
+        payload["status"] = "completed"
+        payload["completed_at"] = datetime.now(UTC).isoformat()
+        _write_audit(audit_path, payload)
+        return RepairResult(str(audit_path), plan.actions, report)
+    except Exception as exc:
+        if image is not None:
+            with suppress(Exception):
+                image.close(clean=False)
+        payload["status"] = "failed"
+        payload["failed_at"] = datetime.now(UTC).isoformat()
+        payload["error"] = str(exc)
+        payload["checkpoint_retained"] = bool(
+            payload["checkpoint_created"] and not checkpoint_completed
+        )
+        with suppress(OSError):
+            _write_audit(audit_path, payload)
+        if isinstance(exc, AcornFSError):
+            raise AcornFSError(f"{exc} Audit: {audit_path}") from exc
+        if checkpoint_completed:
+            raise AcornFSError(
+                f"Repair completed and verified, but its audit could not be marked complete. "
+                f"The verified audit was retained at {audit_path}: {exc}"
+            ) from exc
+        raise AcornFSError(
+            f"Repair failed; the checkpoint was retained. Audit: {audit_path}: {exc}"
+        ) from exc
+
+
+__all__ = [
+    "RepairAction",
+    "RepairPlan",
+    "RepairResult",
+    "RepairRisk",
+    "apply_repairs",
+    "audit_root",
+    "plan_repairs",
+]

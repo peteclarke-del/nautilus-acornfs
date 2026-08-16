@@ -11,7 +11,13 @@ from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from acornfs.core import FindingSeverity, inspect_pair, plan_repairs, validate_image_report
+from acornfs.core import (
+    FindingSeverity,
+    apply_repairs,
+    inspect_pair,
+    plan_repairs,
+    validate_image_report,
+)
 from acornfs.errors import AcornFSError
 from acornfs.mounts import active_mounts, mount_at, wait_for_mount_shutdown
 from acornfs.recovery import pending_recovery, recover_image
@@ -33,6 +39,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     repair_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
     repair_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    apply_parser = subparsers.add_parser(
+        "repair", help="apply a complete eligible low-risk repair plan"
+    )
+    apply_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    apply_parser.add_argument(
+        "--confirm",
+        required=True,
+        metavar="DAT_FILENAME",
+        help="explicitly confirm by entering the exact DAT filename",
+    )
+    apply_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     mount_parser = subparsers.add_parser(
         "mount", help="mount an image with FUSE 3 (read-only by default)"
     )
@@ -139,6 +156,17 @@ def _repair_plan(args: argparse.Namespace) -> int:
     else:
         print(plan.format_text())
     return 1 if plan.report.fatal_findings else 0
+
+
+def _repair(args: argparse.Namespace) -> int:
+    result = apply_repairs(args.image, confirmation=args.confirm)
+    if args.json:
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+    else:
+        print(f"Applied {len(result.actions)} repair action(s).")
+        print(result.report.format_text())
+        print(f"Audit report: {result.audit_path}")
+    return 0
 
 
 def _unmount(args: argparse.Namespace) -> int:
@@ -274,6 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "inspect": _inspect,
         "validate": _validate,
         "repair-plan": _repair_plan,
+        "repair": _repair,
         "mount": _mount,
         "unmount": _unmount,
         "status": _status,

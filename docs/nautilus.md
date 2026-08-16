@@ -21,15 +21,16 @@ recreating that environment.
 Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 
 1. Right-click either file.
-2. Select **Mount Acorn image read-write**, or choose **Mount Acorn image
-   read-only** when no changes should be possible.
+2. Open **Acorn FS Support** and select **Open read-only**, or choose **Open
+   read-write** when changes should be possible.
 3. Wait for the completion notification; the mounted root opens automatically.
 4. Browse directories and open files normally. The image appears in the Files
    sidebar while it remains mounted.
-5. Right-click the DAT/DSC and select **Unmount Acorn image**, or use that action
-   from the background menu at the mounted root.
+5. Right-click the DAT/DSC and select **Acorn FS Support → Unmount**, or use the
+   same submenu from the background menu at the mounted root.
 
-Select **Validate Acorn image** to run a read-only ADFS structural check without
+All applicable AcornFS actions are kept in that single submenu. Select
+**Validate image** to run a read-only ADFS structural check without
 mounting or modifying the pair. A clean result is reported as a desktop
 notification. When problems are found, a finite details dialog lists every
 finding and closes without running validation again. `acornfs validate IMAGE`
@@ -60,8 +61,8 @@ image can take longer to mount.
 A clean unmount flushes pending data, validates the ADFS structure, and removes
 the checkpoint. If the mount process crashes or validation fails, AcornFS keeps
 the checkpoint and refuses another writable mount. First unmount any stale
-sidebar entry, then right-click the DAT/DSC and select **Resolve interrupted
-Acorn write…**. Choose either:
+sidebar entry, then right-click the DAT/DSC and select **Acorn FS Support →
+Resolve interrupted Acorn write…**. Choose either:
 
 - **Restore image to the pre-mount checkpoint** to undo the interrupted session.
 - **Keep the current image and discard the checkpoint** after independently
