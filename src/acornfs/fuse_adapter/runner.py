@@ -57,7 +57,7 @@ def mount_image(
                     "noexec",
                     "auto_unmount",
                     "subtype=acornfs",
-                    f"fsname={image.pair.dat_path.name}",
+                    f"fsname={image.source.primary_path.name}",
                 }
             )
             if not read_write:
@@ -68,7 +68,7 @@ def mount_image(
             # Publish identity before init: the kernel mount may become visible
             # while libfuse is still completing initialisation. active_mounts()
             # remains kernel-gated, so this cannot advertise a mount early.
-            register_mount(image.pair.dat_path, target, read_write=read_write)
+            register_mount(image.source.primary_path, target, read_write=read_write)
             registered = True
             pyfuse3.init(operations, str(target), options)
             try:

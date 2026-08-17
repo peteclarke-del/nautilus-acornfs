@@ -19,3 +19,7 @@ class DescriptorError(AcornFSError):
 
 class FilenameTooLongError(ValueError):
     """An image entry name exceeds the filesystem's encoded byte limit."""
+
+
+class UnsupportedImageError(AcornFSError):
+    """An image cannot be mapped to a safely supported mount profile."""

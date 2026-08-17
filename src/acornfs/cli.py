@@ -85,12 +85,12 @@ def _parser() -> argparse.ArgumentParser:
     mount_parser = subparsers.add_parser(
         "mount", help="mount an image with FUSE 3 (read-only by default)"
     )
-    mount_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    mount_parser.add_argument("image", help="a supported Acorn disk image")
     mount_parser.add_argument("mountpoint", help="an existing empty directory")
     mount_parser.add_argument(
         "--read-write",
         action="store_true",
-        help="enable checkpointed file and directory writes",
+        help="enable checkpointed writes where the detected format supports them",
     )
     mount_parser.add_argument("--debug", action="store_true", help="enable FUSE debug logging")
     unmount_parser = subparsers.add_parser("unmount", help="unmount an AcornFS mount")

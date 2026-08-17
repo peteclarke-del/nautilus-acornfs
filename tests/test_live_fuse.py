@@ -16,7 +16,7 @@ from acornfs.desktop import _systemd_user_available, background_mount, desktop_u
 from acornfs.fuse_adapter.availability import live_fuse_available
 from acornfs.mounts import active_mounts, is_mounted, mount_for_image, runtime_root
 from acornfs.recovery import pending_recovery, recover_image
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
 
 FUSE_REQUESTED = os.environ.get("ACORNFS_RUN_LIVE_FUSE") == "1"
 FUSE_AVAILABLE = FUSE_REQUESTED and live_fuse_available()
@@ -26,6 +26,59 @@ FUSE_SKIP_REASON = (
     if FUSE_REQUESTED
     else "set ACORNFS_RUN_LIVE_FUSE=1 on a host permitted to mount FUSE filesystems"
 )
+
+
+@pytest.mark.skipif(not FUSE_AVAILABLE, reason=FUSE_SKIP_REASON)
+def test_live_read_only_adfs_floppy_mount(tmp_path: Path) -> None:
+    """Traverse a standalone ADFS floppy through the real kernel FUSE path."""
+
+    image_path = create_adfs_floppy(tmp_path)
+    original = image_path.read_bytes()
+    mountpoint = tmp_path / "floppy-mount"
+    mountpoint.mkdir()
+    process = subprocess.Popen(
+        [sys.executable, "-m", "acornfs.cli", "mount", str(image_path), str(mountpoint)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 15
+        while mount_for_image(image_path) is None:
+            if process.poll() is not None:
+                stderr = process.stderr.read() if process.stderr is not None else ""
+                pytest.fail(f"FUSE floppy mount exited early: {stderr}")
+            if time.monotonic() >= deadline:
+                pytest.fail("FUSE floppy mount did not become ready within 15 seconds")
+            time.sleep(0.05)
+
+        assert (mountpoint / "HELLO").read_bytes() == b"Hello from floppy\r"
+        assert (mountpoint / "DOCS" / "GUIDE").read_bytes() == b"Floppy guide\r"
+        with pytest.raises(OSError) as denied:
+            (mountpoint / "NEWFILE").write_bytes(b"must not be written")
+        assert denied.value.errno in {errno.EACCES, errno.EROFS}
+
+        unmount = subprocess.run(
+            ["fusermount3", "-u", str(mountpoint)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert unmount.returncode == 0, unmount.stderr
+        assert process.wait(timeout=15) == 0
+    finally:
+        if process.poll() is None:
+            subprocess.run(
+                ["fusermount3", "-uz", str(mountpoint)],
+                check=False,
+                capture_output=True,
+                timeout=15,
+            )
+            process.terminate()
+            process.wait(timeout=15)
+
+    assert image_path.read_bytes() == original
 
 
 @pytest.mark.skipif(
