@@ -215,9 +215,13 @@ def _mount(args: argparse.Namespace) -> int:
             "FUSE support is unavailable; install the 'fuse' package extra and FUSE 3 runtime."
         ) from exc
     mode = "read-write" if args.read_write else "read-only"
-    print(f"Mounting {args.image} at {args.mountpoint} {mode}; press Ctrl-C to stop.")
+    desktop_mount = os.environ.get("ACORNFS_DESKTOP_MOUNT") == "1"
+    if desktop_mount:
+        print(f"Starting AcornFS desktop mount {mode}.")
+    else:
+        print(f"Mounting {args.image} at {args.mountpoint} {mode}; press Ctrl-C to stop.")
     mount_image(args.image, args.mountpoint, read_write=args.read_write, debug=args.debug)
-    if os.environ.get("ACORNFS_DESKTOP_MOUNT") == "1":
+    if desktop_mount:
         target = Path(args.mountpoint).expanduser().resolve()
         with suppress(OSError):
             target.rmdir()
@@ -464,9 +468,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     except AcornFSError as exc:
         if args.command == "mount" and os.environ.get("ACORNFS_DESKTOP_MOUNT") == "1":
             from acornfs.desktop import notify_mount_failure
+            from acornfs.privacy import safe_user_message
 
-            notify_mount_failure(str(exc))
-        print(f"acornfs: {exc}", file=sys.stderr)
+            message = safe_user_message(exc)
+            notify_mount_failure(message)
+            print(f"acornfs: {message}", file=sys.stderr)
+        else:
+            print(f"acornfs: {exc}", file=sys.stderr)
         return 2
 
 

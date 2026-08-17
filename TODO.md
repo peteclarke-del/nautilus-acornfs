@@ -216,11 +216,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Keep lifecycle records and persistent preferences in private per-user directories.
 - [x] Write and review a threat model covering malicious images, paths, FUSE callers and desktop IPC.
 - [x] Add coverage-guided fuzzing for DSC parsing, ADFS map/catalogue validation and URI handling.
-- [ ] Test symlink, hard-link, rename and time-of-check/time-of-use attacks around images, checkpoints and mount roots.
+- [x] Test symlink, hard-link, rename and time-of-check/time-of-use attacks around images, checkpoints and mount roots.
 - [x] Add dependency vulnerability and licence scanning to CI.
 - [x] Review subprocess environments, command construction and desktop file generation against injection.
-- [ ] Define resource limits and timeouts for validation, properties and repair on adversarial images.
-- [ ] Ensure logs, notifications and errors never disclose unrelated paths or image contents.
+- [x] Define resource limits and timeouts for validation, properties and repair on adversarial images.
+- [x] Ensure logs, notifications and errors never disclose unrelated paths or image contents.
 
 ## Test matrix
 

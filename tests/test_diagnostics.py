@@ -42,3 +42,20 @@ def test_diagnostics_report_invalid_preferences_without_exposing_details() -> No
         "source": "preferences-error",
     }
     assert "/home/alice" not in repr(report)
+
+
+def test_diagnostics_sanitise_untrusted_mount_fields() -> None:
+    record = MountRecord(
+        mountpoint="/mounts/private\nname",
+        source="/unrelated/secret/source.dat",
+        options="rw,nosuid,credential=/unrelated/token",
+        image_path="/images/private.dat",
+    )
+    with patch("acornfs.diagnostics.active_mounts", return_value=[record]):
+        report = diagnostic_report()
+
+    rendered = repr(report)
+    assert "/unrelated" not in rendered
+    assert "credential" not in rendered
+    assert report["mounts"][0]["source_name"] == "source.dat"
+    assert report["mounts"][0]["options"] == "rw,nosuid"

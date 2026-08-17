@@ -21,6 +21,7 @@ from acornfs.core.mmb import MMB_HEADER_BYTES, MMB_SLOT_BYTES
 from acornfs.core.validation import validate_open_mount
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
+from acornfs.operations import OperationBudget
 
 _DIRECTORY_FORMATS = {
     "OldDirectoryFormat": "Old directory (Hugo)",
@@ -90,13 +91,18 @@ class ImageProperties:
         return asdict(self)
 
 
-def read_image_properties(selected: str | Path) -> ImageProperties:
+def read_image_properties(
+    selected: str | Path, *, budget: OperationBudget | None = None
+) -> ImageProperties:
     """Read metadata and a complete validation result under one shared lock."""
 
+    operation = budget or OperationBudget.create()
+    operation.checkpoint()
     source = resolve_image(selected)
+    operation.checkpoint()
     pair = source.pair
     if pair is None:
-        return _read_standalone_properties(source)
+        return _read_standalone_properties(source, budget=operation)
     reader: ImageReader | None = None
     mount: Mount | None = None
     closeables: tuple[Any, ...] = ()
@@ -108,7 +114,7 @@ def read_image_properties(selected: str | Path) -> ImageProperties:
         mount = cast(Any, mount)
         adfs = mount._adfs
         free_space_map = adfs._fsm
-        report = validate_open_mount(pair, mount, descriptor_geometry)
+        report = validate_open_mount(pair, mount, descriptor_geometry, budget=operation)
         adfs_sectors = int(report.adfs_sectors or 0)
         used_sectors = int(report.used_sectors or 0)
         free_sectors = int(report.free_sectors or 0)
@@ -157,19 +163,22 @@ def read_image_properties(selected: str | Path) -> ImageProperties:
                 closeable.close()
 
 
-def _read_standalone_properties(source: ResolvedImage) -> ImageProperties:
+def _read_standalone_properties(
+    source: ResolvedImage, *, budget: OperationBudget
+) -> ImageProperties:
     """Read the capability-backed summary for a detected standalone image."""
 
     if source.kind == "dfs-floppy":
-        return _read_dfs_properties(source)
+        return _read_dfs_properties(source, budget=budget)
     if source.kind == "mmb-container":
-        return _read_mmb_properties(source)
+        return _read_mmb_properties(source, budget=budget)
 
     reader: ImageReader | None = None
     mount: Mount | None = None
     try:
         reader = reader_for(source.primary_path)
         mount = create_filesystem(source.filesystem).open(reader, source.geometry)
+        budget.checkpoint(items=1)
         api = cast(Any, mount)
         adfs = api._adfs
         free_space_map = adfs._fsm
@@ -211,6 +220,8 @@ def _read_standalone_properties(source: ResolvedImage) -> ImageProperties:
             geometry_kind="floppy",
             write_supported=False,
         )
+    except AcornFSError:
+        raise
     except Exception as exc:
         raise AcornFSError(
             _("The ADFS floppy properties could not be read safely: {error}").format(error=exc)
@@ -222,7 +233,7 @@ def _read_standalone_properties(source: ResolvedImage) -> ImageProperties:
                 reader.close()
 
 
-def _read_dfs_properties(source: ResolvedImage) -> ImageProperties:
+def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
     """Read a summary across every independently catalogued DFS side."""
 
     reader: ImageReader | None = None
@@ -232,6 +243,7 @@ def _read_dfs_properties(source: ResolvedImage) -> ImageProperties:
         filesystem = create_filesystem(source.filesystem)
         side_count = len(source.geometry.surface_specs)
         for side in range(side_count):
+            budget.checkpoint(items=1)
             mounts.append(filesystem.open(reader, source.geometry, surface=side))
         free_bytes = sum(int(mount.free_bytes()) for mount in mounts)
         filesystem_bytes = sum(int(mount.size_bytes()) for mount in mounts)
@@ -278,6 +290,8 @@ def _read_dfs_properties(source: ResolvedImage) -> ImageProperties:
             filesystem_size_label="DFS size",
             show_disc_id=False,
         )
+    except AcornFSError:
+        raise
     except Exception as exc:
         raise AcornFSError(
             _("The DFS floppy properties could not be read safely: {error}").format(error=exc)
@@ -290,10 +304,11 @@ def _read_dfs_properties(source: ResolvedImage) -> ImageProperties:
                 reader.close()
 
 
-def _read_mmb_properties(source: ResolvedImage) -> ImageProperties:
+def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
     """Report standard MMB catalogue and payload capacity without opening every slot."""
 
     layout = source.mmb_layout
+    budget.checkpoint(items=1)
     if layout is None:
         raise AcornFSError(_("The MMB container catalogue is unavailable."))
     payload_bytes = layout.total_slots * MMB_SLOT_BYTES

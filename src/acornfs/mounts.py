@@ -15,6 +15,7 @@ from typing import Any
 from acornfs.core import ResolvedImage, resolve_image
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
+from acornfs.safe_paths import ensure_private_directory
 
 REGISTRY_VERSION = 1
 
@@ -59,8 +60,7 @@ def runtime_root() -> Path:
 def _registry_root(*, create: bool = False) -> Path:
     root = runtime_root() / "mounts"
     if create:
-        root.mkdir(mode=0o700, parents=True, exist_ok=True)
-        root.chmod(0o700)
+        ensure_private_directory(root, anchor=runtime_root().parent)
     return root
 
 

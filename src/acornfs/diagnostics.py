@@ -14,6 +14,9 @@ from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.availability import fuse_device_accessible
 from acornfs.mounts import MountRecord, active_mounts
 from acornfs.preferences import mount_location
+from acornfs.privacy import safe_name
+
+_SAFE_MOUNT_OPTIONS = frozenset({"ro", "rw", "nodev", "nosuid", "noexec", "relatime"})
 
 
 def _image_identity(record: MountRecord) -> str | None:
@@ -53,13 +56,15 @@ def diagnostic_report() -> dict[str, Any]:
         "mount_location": location_details,
         "mounts": [
             {
-                "mount_name": Path(record.mountpoint).name,
-                "source_name": record.source,
-                "image_name": Path(record.image_path).name if record.image_path else None,
+                "mount_name": safe_name(record.mountpoint),
+                "source_name": safe_name(record.source),
+                "image_name": safe_name(record.image_path) if record.image_path else None,
                 "image_identity": _image_identity(record),
                 "read_write": record.read_write,
                 "registry_complete": record.image_path is not None,
-                "options": record.options,
+                "options": ",".join(
+                    option for option in record.options.split(",") if option in _SAFE_MOUNT_OPTIONS
+                ),
                 "pid": record.pid,
             }
             for record in mounts
