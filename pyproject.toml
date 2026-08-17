@@ -9,7 +9,18 @@ description = "A safe userspace filesystem for Acorn disk images"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "oaknut-adfs==12.13.1",
+    "oaknut-afs==12.13.1",
+    "oaknut-basic==12.13.1",
+    "oaknut-cli==12.13.1",
+    "oaknut-codecs==12.13.1",
     "oaknut-disc==12.13.1",
+    "oaknut-discimage==12.13.1",
+    "oaknut-dfs==12.13.1",
+    "oaknut-exception==12.13.1",
+    "oaknut-extension==12.13.1",
+    "oaknut-file==12.13.1",
+    "oaknut-filesystem==12.13.1",
 ]
 
 [project.optional-dependencies]

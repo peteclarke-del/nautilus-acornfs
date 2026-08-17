@@ -63,6 +63,20 @@ jobs:
           load: false
           push: false
 
+  package-lifecycle-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y libfuse3-dev pkg-config
+      - run: python -m pip install '.[dev]'
+      - name: Exercise clean install, forced upgrade and uninstall
+        run: python tools/package_smoke.py --build
+
   benchmark-amd64:
     runs-on: ubuntu-24.04
     steps:
