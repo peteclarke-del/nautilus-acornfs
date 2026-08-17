@@ -8,9 +8,11 @@ claim into a completed item.
 - Ubuntu 24.04 LTS on amd64 only.
 - GNOME/Nautilus 46 or later using the Nautilus 4 extension API.
 - FUSE 3 with unprivileged mounts owned by the current user.
-- Read-write only for validated paired BeebSCSI DAT/DSC old-map ADFS images.
-- Read-only for ADFS S/M/L/D/E/E+/F/F+/G/G+, DFS SSD/DSD, standard/extended
-  MMB, Acorn ROMFS and standalone FileCore/unpaired raw ADFS hard-disc images.
+- Read-write for validated BeebSCSI DAT/DSC, standalone ADFS
+  S/M/L/D/E/E+/F/F+/G/G+, FileCore/unpaired raw ADFS hard-disc, DFS SSD/DSD and
+  standard/extended MMB images.
+- ROMFS remains read-only. MMB writes are confined to existing slots marked
+  read-write; whole-slot catalogue operations remain outside the release scope.
 - Local regular image files. Unit coverage proves read-only backing storage
   remains browsable, writable opening fails closed, and checkpoint copying
   falls back when reflinks are unavailable. Real network and removable
@@ -25,7 +27,9 @@ claim into a completed item.
   tagged source.
 - [x] Privileged Ubuntu amd64 CI mounts either DAT/DSC member read-only with
   terminal tools and preserves retained data plus Acorn metadata across the
-  complete writable mutation, validation and remount lifecycle.
+  full writable mutation, validation and remount lifecycle.
+- [x] In-process FUSE and core tests cover writable ADFS Old/New/Big directory,
+  FileCore, DFS SSD/DSD and MMB file lifecycles with rollback and recovery.
 - [x] Wheel and source archive builds are reproducible and have an SBOM.
 - [ ] The Ubuntu 24.04 amd64 package lifecycle smoke test passes.
 - [ ] A clean GNOME session passes keyboard, screen-reader, light/dark, narrow

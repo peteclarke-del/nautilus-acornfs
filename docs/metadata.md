@@ -4,7 +4,7 @@ AcornFS keeps the on-disc ADFS metadata authoritative. The POSIX view is an
 interoperability layer and does not invent sidecar files.
 
 | Acorn value | Linux presentation | Round trip |
-|---|---|---|
+| --- | --- | --- |
 | Load address | `user.acorn.load`, eight uppercase hexadecimal digits | Lossless |
 | Execute address | `user.acorn.execute`, eight uppercase hexadecimal digits | Lossless |
 | RISC OS filetype | `user.acorn.filetype`, three uppercase hexadecimal digits when encoded in a timestamped load address | Lossless when present |
@@ -22,9 +22,10 @@ should use the extended attributes.
 
 Filename display maps ADFS `/` to `∕`, control characters to Unicode control
 pictures, and the special names `.` and `..` to full-width forms. New names must
-be representable as 7-bit ASCII, contain at most 10 bytes, and exclude `.`, `:`,
-NUL and carriage return. AcornFS never silently sanitises a new name. NUL is
-rejected because old ADFS readers treat it as a name terminator, which would
+be representable as 7-bit ASCII and exclude `.`, `:`, NUL and carriage return.
+DFS permits 7 bytes, ADFS Old and New directories permit 10 bytes, and ADFS Big
+directories permit 255 bytes. AcornFS never silently sanitises a new name. NUL
+is rejected because Acorn readers treat it as a name terminator, which would
 otherwise make a newly created name reopen in truncated form.
 
 ADFS lookup is case-insensitive while the stored spelling remains visible.
@@ -42,7 +43,8 @@ Optional `.inf` sidecars remain hidden from mounted images; mounting never
 creates them implicitly. The explicit `export-file` command creates a host file
 and matching traditional `.inf` record containing the full Acorn path, load and
 execution words, byte length and lock state. Publication is create-only with
-complete rollback, so neither destination is overwritten or left half-published
+transactional rollback, so neither destination is overwritten or left
+half-published
 when the command returns.
 
 `import-file` accepts the same Acorn File Forge/Oaknut-compatible record,

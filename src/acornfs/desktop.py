@@ -862,13 +862,19 @@ def desktop_validate(image_path: str | Path) -> int:
     except AcornFSError as exc:
         _notify(_("AcornFS validation failed"), str(exc), error=True)
         raise
-    pair = discover_pair(image_path)
-    name = pair.dat_path.name
+    source = resolve_image(image_path)
+    name = source.primary_path.name
     if report.fatal_findings or report.warning_findings:
-        plan = plan_repairs_from_report(report)
-        choice = _show_validation_report(name, report, offer_repair=plan.application_supported)
+        plan = plan_repairs_from_report(report) if source.capabilities.repair else None
+        choice = _show_validation_report(
+            name,
+            report,
+            offer_repair=bool(plan and plan.application_supported),
+        )
         if choice is True:
-            return _confirm_and_apply_repair(pair, plan)
+            if source.pair is None or plan is None:
+                raise AcornFSError(_("This image format has no supported repair operation."))
+            return _confirm_and_apply_repair(source.pair, plan)
         if choice is None:
             first = (*report.fatal_findings, *report.warning_findings)[0]
             remaining = len(report.findings) - 1
@@ -887,7 +893,7 @@ def desktop_validate(image_path: str | Path) -> int:
         return 1
     _notify(
         _("AcornFS validation passed"),
-        _("{image} has no reported ADFS problems.").format(image=name),
+        _("{image} has no reported filesystem problems.").format(image=name),
     )
     return 0
 

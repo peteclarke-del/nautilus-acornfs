@@ -33,8 +33,9 @@ def test_detects_adfs_floppies_from_content_and_geometry(tmp_path: Path, format_
     assert resolved.filesystem == "adfs"
     assert resolved.geometry.label.startswith(f"ADFS {format_name.upper()}")
     assert resolved.capabilities.mount_read_only
-    assert not resolved.capabilities.mount_read_write
-    assert not resolved.capabilities.validate
+    assert resolved.capabilities.mount_read_write
+    assert resolved.capabilities.validate
+    assert resolved.capabilities.recover
     assert not resolved.capabilities.repair
 
 
@@ -63,11 +64,11 @@ def test_detects_standalone_filecore_hard_disc_from_content(tmp_path: Path) -> N
     assert resolved.geometry.label == "ADFS hard disc (CHS unavailable)"
     assert resolved.capabilities.mount_read_only
     assert resolved.capabilities.properties
-    assert not resolved.capabilities.mount_read_write
-    assert not resolved.capabilities.validate
+    assert resolved.capabilities.mount_read_write
+    assert resolved.capabilities.validate
 
 
-def test_valid_unpaired_old_map_dat_remains_browsable_read_only(tmp_path: Path) -> None:
+def test_valid_unpaired_old_map_dat_is_writable_without_invented_chs(tmp_path: Path) -> None:
     dat_path, dsc_path = create_beebscsi_image(tmp_path)
     dsc_path.unlink()
 
@@ -75,10 +76,10 @@ def test_valid_unpaired_old_map_dat_remains_browsable_read_only(tmp_path: Path) 
 
     assert resolved.kind == "adfs-hard-disc"
     assert resolved.capabilities.mount_read_only
-    assert not resolved.capabilities.mount_read_write
+    assert resolved.capabilities.mount_read_write
 
 
-def test_new_map_dat_dsc_pair_never_receives_old_map_write_capabilities(
+def test_new_map_dat_dsc_pair_receives_protected_standalone_write_capabilities(
     tmp_path: Path,
 ) -> None:
     dat_path, dsc_path = create_adfs_new_map_pair(tmp_path)
@@ -91,8 +92,8 @@ def test_new_map_dat_dsc_pair_never_receives_old_map_write_capabilities(
     assert resolved.pair is None
     assert resolved.capabilities.mount_read_only
     assert resolved.capabilities.properties
-    assert not resolved.capabilities.mount_read_write
-    assert not resolved.capabilities.validate
+    assert resolved.capabilities.mount_read_write
+    assert resolved.capabilities.validate
     assert not resolved.capabilities.repair
 
 
@@ -107,9 +108,7 @@ def test_corrupt_new_map_pair_cannot_fall_back_to_old_map_write_capabilities(
 
 
 @pytest.mark.parametrize("double_sided", [False, True])
-def test_detects_dfs_floppies_with_read_only_capabilities(
-    tmp_path: Path, double_sided: bool
-) -> None:
+def test_detects_dfs_floppies_with_write_capabilities(tmp_path: Path, double_sided: bool) -> None:
     image_path = create_dfs_floppy(tmp_path, double_sided=double_sided)
 
     resolved = resolve_image(image_path)
@@ -118,8 +117,8 @@ def test_detects_dfs_floppies_with_read_only_capabilities(
     assert resolved.filesystem == "acorn-dfs"
     assert len(resolved.geometry.surface_specs) == (2 if double_sided else 1)
     assert resolved.capabilities.mount_read_only
-    assert not resolved.capabilities.mount_read_write
-    assert not resolved.capabilities.validate
+    assert resolved.capabilities.mount_read_write
+    assert resolved.capabilities.validate
     assert resolved.capabilities.properties
 
 
@@ -157,7 +156,7 @@ def test_romfs_with_a_broken_block_crc_is_not_accepted(tmp_path: Path) -> None:
         resolve_image(image_path)
 
 
-def test_detects_watford_dfs_as_a_read_only_dfs_profile(tmp_path: Path) -> None:
+def test_detects_watford_dfs_as_a_writable_dfs_profile(tmp_path: Path) -> None:
     image_path = create_dfs_floppy(tmp_path, filesystem_name="watford-dfs")
 
     resolved = resolve_image(image_path)
@@ -165,10 +164,10 @@ def test_detects_watford_dfs_as_a_read_only_dfs_profile(tmp_path: Path) -> None:
     assert resolved.kind == "dfs-floppy"
     assert resolved.filesystem == "watford-dfs"
     assert resolved.capabilities.mount_read_only
-    assert not resolved.capabilities.mount_read_write
+    assert resolved.capabilities.mount_read_write
 
 
-def test_detects_standard_mmb_with_read_only_capabilities(tmp_path: Path) -> None:
+def test_detects_standard_mmb_with_write_capabilities(tmp_path: Path) -> None:
     image_path = create_mmb_image(tmp_path)
 
     resolved = resolve_image(image_path)
@@ -178,8 +177,8 @@ def test_detects_standard_mmb_with_read_only_capabilities(tmp_path: Path) -> Non
     assert [slot.index for slot in resolved.mmb_layout.slots] == [0, 42]
     assert resolved.capabilities.mount_read_only
     assert resolved.capabilities.properties
-    assert not resolved.capabilities.mount_read_write
-    assert not resolved.capabilities.validate
+    assert resolved.capabilities.mount_read_write
+    assert resolved.capabilities.validate
 
 
 def test_mmb_detection_is_structural_not_extension_driven(tmp_path: Path) -> None:
@@ -229,7 +228,7 @@ def test_detects_every_declared_extended_mmb_extent_from_content(tmp_path: Path)
         "1021 - SLOT 1021",
     ]
     assert resolved.capabilities.mount_read_only
-    assert not resolved.capabilities.mount_read_write
+    assert resolved.capabilities.mount_read_write
 
 
 @pytest.mark.parametrize("extent_count", [2, 16])

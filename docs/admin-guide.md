@@ -19,12 +19,12 @@ that do not yet exist. Do not copy those roots into `/usr` or distribute them.
 
 ## Data and ownership
 
-AcornFS writes only to an explicitly opened image and these per-user locations:
+AcornFS writes only to the image opened by the user and these per-user locations:
 
 | Data | Default location | Removal policy |
 | --- | --- | --- |
 | Preferences | `${XDG_CONFIG_HOME:-~/.config}/acornfs` | Preserve across upgrade/uninstall |
-| Recovery checkpoints | `${XDG_STATE_HOME:-~/.local/state}/acornfs/recovery` | Preserve until explicitly resolved |
+| Recovery checkpoints | `${XDG_STATE_HOME:-~/.local/state}/acornfs/recovery` | Preserve until resolved |
 | Repair audits | `${XDG_STATE_HOME:-~/.local/state}/acornfs/repair-audits` | Preserve; completed disposable audits age out after 90 days |
 | Runtime records/logs | `${XDG_RUNTIME_DIR}/acornfs` | Session-scoped; inactive logs age out after 7 days |
 | Default mounts | `~/AcornFS Mounts` | Unmount before removal; do not recursively delete active roots |
@@ -36,9 +36,9 @@ backup: it exists to resolve one interrupted writable session.
 
 Private JSON state is updated through a synced temporary file and atomic
 replacement. If memory or disk space runs out before replacement, AcornFS keeps
-the previous complete preference, mount record, manifest or audit and removes
+the previous valid preference, mount record, manifest or audit and removes
 the temporary file. A failed checkpoint payload copy is removed and the image
-pair is not modified. Treat any reported state-write failure as actionable:
+is not modified. Treat any reported state-write failure as actionable:
 free space without deleting recovery data, then retry the original operation.
 
 ## Service lifecycle

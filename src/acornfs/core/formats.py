@@ -66,9 +66,9 @@ class ResolvedImage:
 
 
 _BEEBSCSI_CAPABILITIES = ImageCapabilities(True, True, True, True, True, True, True)
-_STANDALONE_ADFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
-_DFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
-_MMB_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
+_STANDALONE_ADFS_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
+_DFS_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
+_MMB_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
 _ROMFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 _ADFS_LOGICAL_SECTOR_BYTES = 256
 _ADFS_BOOT_BLOCK_BYTES = 0xE00

@@ -59,7 +59,7 @@ def test_image_properties_report_format_geometry_and_validation(tmp_path: Path) 
         ("g+", 80, 2, 20, 1024, "ADFS new map", "Big directory"),
     ],
 )
-def test_adfs_floppy_properties_are_explicitly_read_only(
+def test_adfs_floppy_properties_are_writable(
     tmp_path: Path,
     format_name: str,
     tracks: int,
@@ -82,9 +82,10 @@ def test_adfs_floppy_properties_are_explicitly_read_only(
     assert properties.sector_size == sector_size
     assert properties.capacity_bytes == tracks * sides * sectors_per_track * sector_size
     assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
-    assert not properties.write_supported
+    assert properties.write_supported
+    assert properties.safe_for_write
     rows = dict(image_property_rows(properties))
-    assert rows["Validation"] == "Supported read-only"
+    assert rows["Validation"] == "Safe for read-write mounting"
     assert rows["Geometry"] == (
         f"{tracks} tracks × {sides} {'side' if sides == 1 else 'sides'} × "
         f"{sectors_per_track} sectors/track"
@@ -104,11 +105,12 @@ def test_dfs_properties_cover_all_sides(tmp_path: Path, double_sided: bool) -> N
     assert properties.heads == (2 if double_sided else 1)
     assert properties.capacity_bytes == image_path.stat().st_size
     assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
-    assert not properties.write_supported
+    assert properties.write_supported
+    assert properties.safe_for_write
     rows = dict(image_property_rows(properties))
     assert rows["DFS size"] == rows["Capacity"]
     assert "Disc cycle ID" not in rows
-    assert rows["Validation"] == "Supported read-only"
+    assert rows["Validation"] == "Safe for read-write mounting"
 
 
 def test_filecore_hard_disc_properties_report_missing_physical_chs(tmp_path: Path) -> None:
@@ -123,13 +125,14 @@ def test_filecore_hard_disc_properties_report_missing_physical_chs(tmp_path: Pat
     assert properties.capacity_bytes == image_path.stat().st_size
     assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
     assert properties.sector_size == 512
-    assert not properties.write_supported
+    assert properties.write_supported
+    assert properties.safe_for_write
     rows = dict(image_property_rows(properties))
     assert rows["Geometry"] == "FileCore New Map, 4 zones, 512-byte sectors"
-    assert rows["Validation"] == "Supported read-only"
+    assert rows["Validation"] == "Safe for read-write mounting"
 
 
-def test_new_map_pair_properties_use_read_only_filecore_profile(tmp_path: Path) -> None:
+def test_new_map_pair_properties_use_writable_filecore_profile(tmp_path: Path) -> None:
     dat_path, dsc_path = create_adfs_new_map_pair(tmp_path)
 
     properties = read_image_properties(dsc_path)
@@ -139,7 +142,8 @@ def test_new_map_pair_properties_use_read_only_filecore_profile(tmp_path: Path) 
     assert properties.image_type == "ADFS DAT/DSC pair (New Map)"
     assert properties.filesystem_format == "ADFS new map"
     assert properties.capacity_bytes == dat_path.stat().st_size
-    assert not properties.write_supported
+    assert properties.write_supported
+    assert properties.safe_for_write
     rows = dict(image_property_rows(properties))
     assert rows["Geometry"].startswith("160 cylinders × 3 heads × 33 sectors/track")
 
@@ -167,7 +171,7 @@ def test_watford_dfs_properties_report_the_detected_variant(tmp_path: Path) -> N
     assert properties.filesystem_format == "Watford DFS"
 
 
-def test_mmb_properties_report_slots_without_opening_every_payload(tmp_path: Path) -> None:
+def test_mmb_properties_report_slots_and_validate_formatted_payloads(tmp_path: Path) -> None:
     image_path = create_mmb_image(tmp_path)
 
     properties = read_image_properties(image_path)
@@ -187,7 +191,7 @@ def test_mmb_properties_report_slots_without_opening_every_payload(tmp_path: Pat
     assert rows["Container catalogue"] == "8.0 KiB"
     assert "Disc name" not in rows
     assert "Disc cycle ID" not in rows
-    assert rows["Validation"] == "Supported read-only"
+    assert rows["Validation"] == "Safe for read-write mounting"
 
 
 def test_extended_mmb_properties_report_all_extents_and_global_capacity(tmp_path: Path) -> None:
@@ -213,7 +217,7 @@ def test_extended_mmb_properties_report_all_extents_and_global_capacity(tmp_path
     assert rows["Extents"] == "2"
     assert rows["Formatted slots"] == "3 / 1022"
     assert rows["Container catalogues"] == "16.0 KiB"
-    assert rows["Validation"] == "Supported read-only"
+    assert rows["Validation"] == "Safe for read-write mounting"
 
 
 def test_romfs_properties_report_title_capacity_and_file_payload(tmp_path: Path) -> None:

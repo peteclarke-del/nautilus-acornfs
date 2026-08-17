@@ -29,7 +29,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Choose an implementation language and maintained FUSE 3 binding.
 - [ ] Add the project licence.
 - [x] Add the contribution guide and code style configuration.
-- [x] Create packages for the filesystem core, FUSE adapter, command-line tools and Nautilus extension.
+- [x] Create packages for the filesystem core, FUSE adapter, command-line tools
+  and Nautilus extension.
 - [x] Add a reproducible development and test container for amd64.
 - [ ] Add arm64 and arm/v7 development and test containers after the initial amd64 release.
 - [x] Add CI for formatting, static analysis, unit tests, packaging and the amd64 container.
@@ -55,7 +56,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Report meaningful file sizes, ownership, permissions and timestamps.
 - [x] Cache directory metadata and filesystem structures for the life of the mount.
 - [x] Bound cache memory and invalidate entries predictably.
-- [x] Provide clean handling for truncated images, broken directories, invalid maps and out-of-range sectors.
+- [x] Provide clean handling for truncated images, broken directories, invalid
+  maps and out-of-range sectors.
 - [x] Add an `acornfs mount IMAGE MOUNTPOINT` command.
 - [x] Add `acornfs unmount MOUNTPOINT` and mount-status commands.
 - [x] Mount with `nosuid`, `nodev` and `noexec` by default.
@@ -70,7 +72,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Define extended attributes for source filesystem and original pathname information.
 - [x] Implement getxattr and listxattr in read-only mode.
 - [x] Map Acorn locked files to a sensible read-only POSIX presentation.
-- [x] Keep optional `.inf` sidecars hidden and use extended attributes as the authoritative mounted representation.
+- [x] Keep optional `.inf` sidecars hidden and use extended attributes as the
+  authoritative mounted representation.
 - [x] Document lossy and lossless metadata mappings.
 - [x] Add explicit metadata-aware import/export commands before offering generated `.inf` sidecars.
 
@@ -78,6 +81,8 @@ acceptance items stay open until they have been exercised in that environment.
 
 - [x] Add an explicit `--read-write` mount option while retaining read-only as the default.
 - [x] Obtain exclusive locks on both DAT and DSC files for writable mounts.
+- [x] Apply shared read locks, exclusive write locks, identity checks and
+  hard-link refusal to every standalone writable format.
 - [x] Detect an already mounted or externally modified image.
 - [x] Implement create, write, truncate, flush, fsync and release.
 - [x] Implement mkdir and rmdir.
@@ -94,18 +99,24 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Prevent partial updates when an operation fails.
 - [x] Add a write-ahead journal or equivalent recovery mechanism.
 - [x] Store recovery state outside the mounted image and identify it by image identity.
-- [x] Detect incomplete transactions on the next mount and offer recovery without modifying the original automatically.
+- [x] Detect incomplete transactions on the next mount and offer recovery
+  without modifying the original automatically.
 - [x] Provide a mandatory pre-write checkpoint.
+- [x] Add single-image checkpoints and recovery for ADFS, DFS and MMB images.
+- [x] Add private per-operation whole-image rollback for New Map ADFS, DFS and
+  MMB, using reflinks where available and bounded copies otherwise.
 - [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
 - [x] Add safe cancellation boundaries for long validation and recovery operations.
 - [x] Add failure-injection coverage for every catalogue, data and metadata mutation class.
-- [x] Define and test coherent per-inode buffering for multiple writable handles to one file.
+- [x] Define and test shared per-inode buffering for multiple writable handles
+  to one file.
 - [x] Flush dirty open handles before graceful `SIGINT` shutdown finalises the image.
 - [ ] Exercise an actual desktop logout and host shutdown while dirty writable handles remain open.
 
 ## Phase 5: Nautilus integration
 
-- [x] Register MIME types for BeebSCSI DAT and DSC files without claiming unrelated generic DAT files.
+- [x] Register MIME types for BeebSCSI DAT and DSC files without claiming
+  unrelated generic DAT files.
 - [x] Add a desktop application and URI handler for opening Acorn images.
 - [x] Implement a Nautilus 4 extension using current model-based APIs.
 - [x] Add `Mount Acorn image` to suitable DAT and DSC files.
@@ -116,10 +127,13 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Add `Create BeebSCSI image` where appropriate.
 - [x] Keep all AcornFS commands beneath one `Acorn FS Support` submenu.
 - [x] Add desktop configuration for future mount locations.
-- [x] Add a Nautilus properties model showing image type, geometry, ADFS format, title, capacity, free space, hardware profile, mount state and validation state.
+- [x] Add a Nautilus properties model showing image type, geometry, ADFS format,
+  title, capacity, free space, hardware profile, mount state and validation
+  state.
 - [x] Add file properties for load address, execute address, RISC OS filetype and lock state.
 - [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
-- [x] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
+- [x] Provide desktop notifications for completed mounts, failed validation and
+  recovery requirements.
 - [x] Keep actions in native model-based Nautilus menus and give every action
   and dialog an explicit accessible name, description and safe button contract.
 - [ ] Exercise every action keyboard-only and meet WCAG expectations on supported GNOME.
@@ -127,9 +141,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Exercise copy-in/out, move, delete and atomic-save syscall patterns through live FUSE.
 - [ ] Test drag-and-drop, clipboard copy/move, trash/delete and atomic-save workflows in Nautilus.
 - [x] Make all user-facing desktop strings translatable.
-- [x] Add the gettext foundation, catalogue template and localisation guidance for desktop UI chrome.
+- [x] Add the gettext foundation, catalogue template and localisation guidance
+  for desktop UI chrome.
 - [x] Localise core validation, repair and image-property values displayed by the desktop UI.
-- [x] Localise remaining lifecycle, creation, recovery and preference errors surfaced by the desktop UI.
+- [x] Localise remaining lifecycle, creation, recovery and preference errors
+  surfaced by the desktop UI.
 - [ ] Verify dialogs and notifications with a screen reader.
 
 ## Phase 6: lifecycle and desktop service
@@ -142,7 +158,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Record systemd-managed mount output in the user journal.
 - [x] Add diagnostics that can be exported without including image contents.
 - [x] Provide configurable per-user mount locations under `/run/user/$UID/acornfs`.
-- [x] Persist mount-location preferences atomically with environment overrides and privacy-safe diagnostics.
+- [x] Persist mount-location preferences atomically with environment overrides
+  and privacy-safe diagnostics.
 - [x] Avoid requiring global `/etc/fuse.conf` changes for ordinary operation.
 - [x] Handle a changed mount-location preference while older images remain mounted.
 - [x] Define cleanup and retention for stale runtime logs, repair audits and abandoned checkpoints.
@@ -165,7 +182,8 @@ acceptance items stay open until they have been exercised in that environment.
 
 ## Phase 8: performance and concurrency
 
-- [x] Benchmark initial mounting, root listing, deep traversal, large reads and small-file workloads.
+- [x] Benchmark initial mounting, root listing, deep traversal, large reads and
+  small-file workloads.
 - [ ] Benchmark large DAT images on Raspberry Pi 4 and Pi 5 hardware.
 - [x] Keep one Oaknut mount and one eagerly built directory index for the life of each FUSE mount.
 - [x] Add a bounded whole-file LRU cache and ranged reads for files larger than the cache limit.
@@ -173,7 +191,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Batch compatible metadata updates.
 - [x] Define and test the concurrency model for simultaneous readers and a single writer.
 - [x] Update or invalidate the userspace inode, directory and file caches after mutations.
-- [x] Notify the kernel to invalidate cached entries/data after mutations where zero timeouts are insufficient.
+- [x] Notify the kernel to invalidate cached entries and data after mutations
+  where zero timeouts are insufficient.
 - [x] Ensure external image changes are detected rather than overwritten.
 - [x] Record throughput and latency regressions in CI artefacts.
 - [x] Establish amd64 performance budgets before the first release candidate.
@@ -183,16 +202,19 @@ acceptance items stay open until they have been exercised in that environment.
 
 - [x] Generalise the mount engine around filesystem capabilities rather than filename extensions.
 - [x] Add ADFS floppy images.
-- [x] Add content-refined read-only ADFS D/E/E+/F/F+/G/G+ floppies with New and
+- [x] Add content-refined ADFS D/E/E+/F/F+/G/G+ floppies with New and
   Big directories, New Map properties and corrupt-zone rejection.
 - [x] Add content-detected standalone FileCore HDF/HD4 and unpaired raw ADFS
-  hard discs read-only, without inventing unavailable physical CHS geometry.
+  hard discs without inventing unavailable physical CHS geometry.
 - [x] Add DFS SSD and DSD images, presenting DFS catalogue prefixes coherently.
-- [x] Decide how DFS pseudo-directories should map to POSIX directories without changing on-disk semantics.
-- [x] Add standard MMB read-only mounting with formatted slots represented as directories.
+- [x] Decide how DFS pseudo-directories should map to POSIX directories without
+  changing on-disk semantics.
+- [x] Add standard MMB mounting with formatted slots represented as directories.
 - [x] Design safe MMB slot replacement, insertion, ejection and access-mode semantics.
-- [x] Add extended MMB read-only mounting with independently validated repeated extents,
+- [x] Add extended MMB mounting with independently validated repeated extents,
   global slot numbering, bounded traversal and malformed-layout coverage.
+- [x] Add protected file and metadata mutations inside existing MMB slots marked
+  read-write, while enforcing locked slots and refusing cross-slot moves.
 - [ ] Implement the documented transactional MMB slot mutations after hardware evidence.
 - [x] Add content-detected ROMFS images read-only with case-sensitive names,
   Acorn metadata, run-only state, properties and hostile-CRC coverage.
@@ -200,8 +222,10 @@ acceptance items stay open until they have been exercised in that environment.
   disk-filesystem release because they require separate sequential-media and
   bounded nested-container models.
 - [x] Keep unsupported operations disabled and return accurate errors for each format.
-- [x] Define format detection precedence when one extension or container can hold multiple filesystems.
-- [x] Add capability-driven menu actions so unsupported formats never offer write or repair commands.
+- [x] Define format detection precedence when one extension or container can
+  hold multiple filesystems.
+- [x] Add capability-driven menu actions so unsupported formats never offer
+  write or repair commands.
 
 ## Phase 9a: physical floppy integration
 
@@ -245,12 +269,16 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Bound indexed node count, directory depth and file-cache memory for untrusted images.
 - [x] Refuse ambiguous pairs, remote desktop URIs and unsafe writable geometry.
 - [x] Keep lifecycle records and persistent preferences in private per-user directories.
-- [x] Write and review a threat model covering malicious images, paths, FUSE callers and desktop IPC.
+- [x] Write and review a threat model covering malicious images, paths, FUSE
+  callers and desktop IPC.
 - [x] Add coverage-guided fuzzing for DSC parsing, ADFS map/catalogue validation and URI handling.
-- [x] Test symlink, hard-link, rename and time-of-check/time-of-use attacks around images, checkpoints and mount roots.
+- [x] Test symlink, hard-link, rename and time-of-check/time-of-use attacks
+  around images, checkpoints and mount roots.
 - [x] Add dependency vulnerability and licence scanning to CI.
-- [x] Review subprocess environments, command construction and desktop file generation against injection.
-- [x] Define resource limits and timeouts for validation, properties and repair on adversarial images.
+- [x] Review subprocess environments, command construction and desktop file
+  generation against injection.
+- [x] Define resource limits and timeouts for validation, properties and repair
+  on adversarial images.
 - [x] Ensure logs, notifications and errors never disclose unrelated paths or image contents.
 
 ## Test matrix
@@ -268,6 +296,10 @@ acceptance items stay open until they have been exercised in that environment.
   run-only metadata and corrupt block CRCs.
 - [x] Newer ADFS D/E/E+/F/F+/G/G+ floppies supported by the underlying library.
 - [x] Standalone FileCore New Map and unpaired raw ADFS hard-disc traversal.
+- [x] Protected create, replace, rename, metadata and delete lifecycles across
+  ADFS Old/New/Big directory, FileCore, DFS SSD/DSD and MMB formats.
+- [x] Standalone hard-link refusal, cross-process lock conflicts, external-change
+  detection, mutation rollback and interrupted-session recovery.
 - [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.
 - [x] Interrupted writes, daemon crashes and forced termination.
@@ -312,7 +344,8 @@ acceptance items stay open until they have been exercised in that environment.
 
 - [x] Add `Open in Acorn File Forge` end to end through the native application.
 - [x] Detect the installed native launcher and hide the action when it is unavailable.
-- [x] Use File Forge's native local-path hand-off, which copies source images into a private session.
+- [x] Use File Forge's native local-path hand-off, which copies source images
+  into a private session.
 - [ ] Reuse Acorn File Forge compatibility checks for BBC, Master, Electron and BeebSCSI targets.
 
 ## Decisions to record before implementation

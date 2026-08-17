@@ -24,68 +24,68 @@ def test_only_complete_pair_is_supported(tmp_path: Path) -> None:
     assert is_supported_image(dsc_path)
 
 
-def test_adfs_floppy_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+def test_adfs_floppy_support_exposes_protected_write_actions(tmp_path: Path) -> None:
     image_path = create_adfs_floppy(tmp_path, format_name="e+")
     capabilities = image_capabilities(image_path)
     assert capabilities is not None
     assert capabilities.mount_read_only
     assert capabilities.properties
-    assert not capabilities.mount_read_write
-    assert not capabilities.validate
+    assert capabilities.mount_read_write
+    assert capabilities.validate
     assert not capabilities.repair
-    assert not capabilities.recover
+    assert capabilities.recover
     assert not capabilities.file_forge
 
 
-def test_dfs_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+def test_dfs_support_exposes_protected_write_actions(tmp_path: Path) -> None:
     image_path = create_dfs_floppy(tmp_path, double_sided=True)
     capabilities = image_capabilities(image_path)
     assert capabilities is not None
     assert capabilities.mount_read_only
     assert capabilities.properties
-    assert not capabilities.mount_read_write
-    assert not capabilities.validate
+    assert capabilities.mount_read_write
+    assert capabilities.validate
     assert not capabilities.repair
-    assert not capabilities.recover
+    assert capabilities.recover
     assert not capabilities.file_forge
 
 
-def test_filecore_hard_disc_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+def test_filecore_hard_disc_support_exposes_protected_write_actions(tmp_path: Path) -> None:
     image_path = create_adfs_hard_disc(tmp_path)
     capabilities = image_capabilities(image_path)
     assert capabilities is not None
     assert capabilities.mount_read_only
     assert capabilities.properties
-    assert not capabilities.mount_read_write
-    assert not capabilities.validate
+    assert capabilities.mount_read_write
+    assert capabilities.validate
     assert not capabilities.repair
-    assert not capabilities.recover
+    assert capabilities.recover
     assert not capabilities.file_forge
 
 
-def test_mmb_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+def test_mmb_support_exposes_protected_write_actions(tmp_path: Path) -> None:
     image_path = create_mmb_image(tmp_path)
     capabilities = image_capabilities(image_path)
     assert capabilities is not None
     assert capabilities.mount_read_only
     assert capabilities.properties
-    assert not capabilities.mount_read_write
-    assert not capabilities.validate
+    assert capabilities.mount_read_write
+    assert capabilities.validate
     assert not capabilities.repair
-    assert not capabilities.recover
+    assert capabilities.recover
     assert not capabilities.file_forge
 
 
-def test_extended_mmb_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+def test_extended_mmb_support_exposes_protected_write_actions(tmp_path: Path) -> None:
     image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=(0, 511))
     capabilities = image_capabilities(image_path)
     assert capabilities is not None
     assert capabilities.mount_read_only
     assert capabilities.properties
-    assert not capabilities.mount_read_write
-    assert not capabilities.validate
+    assert capabilities.mount_read_write
+    assert capabilities.validate
     assert not capabilities.repair
-    assert not capabilities.recover
+    assert capabilities.recover
     assert not capabilities.file_forge
 
 

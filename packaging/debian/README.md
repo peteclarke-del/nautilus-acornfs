@@ -1,13 +1,13 @@
 # Debian packaging contract
 
 The first release target is Ubuntu 24.04 LTS on amd64. AcornFS is not yet
-published as a Debian package. The package boundary and runtime dependencies
-are executable contracts rather than untested prose: `make debian-staging`
-builds one project wheel, partitions it into the three roots below, generates
+published as a Debian package. `make debian-staging` verifies the package
+boundary and runtime dependencies. It builds one project wheel, partitions it
+into the three roots below, generates
 system desktop integration from the same source as the per-user installer, and
 writes `build/debian-staging/manifest.json`.
 
-The staging output is deliberately not a `.deb` and is not distributable. Its
+The staging output is not a `.deb` and is not distributable. Its
 manifest records `publishable: false` and the unresolved blockers. CI retains
 the manifest so file ownership and dependencies cannot drift unnoticed while
 the legal and dependency decisions remain open.
@@ -16,7 +16,7 @@ the legal and dependency decisions remain open.
 
 | Package | Contents | Dependencies |
 | --- | --- | --- |
-| `nautilus-acornfs-core` | Python filesystem core, `acornfs` command, distribution metadata and documentation | Python 3.11 or later and the exactly bounded Oaknut 12.15.1 family from `pyproject.toml` |
+| `nautilus-acornfs-core` | Python filesystem core, `acornfs` command, distribution metadata and documentation | Python 3.11 or later and the Oaknut 12.15.1 dependency family defined in `pyproject.toml` |
 | `nautilus-acornfs-fuse` | `acornfs.fuse_adapter` | same-version core package, `fuse3`, `python3-pyfuse3` and `python3-trio` |
 | `nautilus-acornfs-nautilus` | `acornfs_nautilus`, system Nautilus loader, MIME and desktop integration | same-version core and FUSE packages, `python3-nautilus`, `gir1.2-nautilus-4.0`, `shared-mime-info`, `desktop-file-utils`, `libnotify-bin` and `zenity` |
 

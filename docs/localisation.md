@@ -7,12 +7,11 @@ catalogue or individual translation is missing.
 The catalogue covers interface chrome, validation summaries and findings,
 repair plans and progress, known image-property values, and the lifecycle,
 creation, recovery and preference messages surfaced by desktop workflows.
-Pair discovery, image indexing/mutation and FUSE lifecycle errors reachable
-through those workflows use the same catalogue, completing desktop string
-coverage.
+Pair discovery, image indexing and mutation, and FUSE lifecycle errors reached
+through those workflows use the same catalogue.
 Stable finding codes, repair action identifiers, audit and checkpoint state
-values, Acorn paths, disc titles and other image-owned data are deliberately
-unchanged. Low-level details originating in Oaknut or the operating system
+values, Acorn paths, disc titles and other image-owned data are not translated.
+Low-level details originating in Oaknut or the operating system
 remain verbatim after a translated context phrase, so diagnostics retain the
 original technical evidence.
 
@@ -20,7 +19,7 @@ original technical evidence.
 
 Install GNU gettext, then run:
 
-```bash
+```shell
 make messages
 ```
 
@@ -35,7 +34,7 @@ verbatim.
 Create or update a normal gettext PO file, for example `po/fr.po`, and compile
 it into the package tree:
 
-```bash
+```shell
 mkdir -p src/acornfs/locale/fr/LC_MESSAGES
 msgfmt po/fr.po -o src/acornfs/locale/fr/LC_MESSAGES/acornfs.mo
 ```

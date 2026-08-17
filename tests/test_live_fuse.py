@@ -320,6 +320,92 @@ def test_live_read_only_mmb_mount_exposes_formatted_slots(
     assert (after.st_size, after.st_mtime_ns) == (before.st_size, before.st_mtime_ns)
 
 
+@pytest.mark.skipif(not FUSE_AVAILABLE, reason=FUSE_SKIP_REASON)
+@pytest.mark.parametrize("format_name", ["adfs-s", "adfs-g+", "filecore", "ssd", "dsd", "mmb"])
+def test_live_writable_standalone_format_lifecycle(tmp_path: Path, format_name: str) -> None:
+    """Create and persist a file through kernel FUSE for every mutable family."""
+
+    if format_name == "adfs-s":
+        image_path = create_adfs_floppy(tmp_path, format_name="s")
+    elif format_name == "adfs-g+":
+        image_path = create_adfs_floppy(tmp_path, format_name="g+")
+    elif format_name == "filecore":
+        image_path = create_adfs_hard_disc(tmp_path)
+    elif format_name == "ssd":
+        image_path = create_dfs_floppy(tmp_path)
+    elif format_name == "dsd":
+        image_path = create_dfs_floppy(tmp_path, double_sided=True)
+    else:
+        image_path = create_mmb_image(tmp_path)
+
+    mountpoint = tmp_path / f"{format_name}-write-mount"
+    mountpoint.mkdir()
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "acornfs.cli",
+            "mount",
+            "--read-write",
+            str(image_path),
+            str(mountpoint),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    relative_parent = {
+        "ssd": Path("$"),
+        "dsd": Path("0") / "$",
+        "mmb": Path("000 - WELCOME") / "$",
+    }.get(format_name, Path())
+    try:
+        deadline = time.monotonic() + 20
+        while mount_for_image(image_path) is None:
+            if process.poll() is not None:
+                stderr = process.stderr.read() if process.stderr is not None else ""
+                pytest.fail(f"FUSE {format_name} writable mount exited early: {stderr}")
+            if time.monotonic() >= deadline:
+                pytest.fail(f"FUSE {format_name} writable mount did not become ready")
+            time.sleep(0.05)
+
+        created = mountpoint / relative_parent / "WRTEST"
+        created.write_bytes(b"persisted through writable FUSE")
+        assert created.read_bytes() == b"persisted through writable FUSE"
+
+        unmount = subprocess.run(
+            ["fusermount3", "-u", str(mountpoint)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert unmount.returncode == 0, unmount.stderr
+        assert process.wait(timeout=30) == 0
+    finally:
+        if process.poll() is None:
+            subprocess.run(
+                ["fusermount3", "-uz", str(mountpoint)],
+                check=False,
+                capture_output=True,
+                timeout=15,
+            )
+            process.terminate()
+            process.wait(timeout=15)
+
+    assert validate_image_report(image_path).safe_for_write
+    assert pending_recovery(image_path) is None
+    with ReadOnlyImage.open(image_path) as image:
+        parent = ROOT_INODE
+        for component in relative_parent.parts:
+            node = image.lookup(parent, component.encode())
+            assert node is not None
+            parent = node.inode
+        created = image.lookup(parent, b"WRTEST")
+        assert created is not None
+        assert image.read(created.inode, 0, created.size) == b"persisted through writable FUSE"
+
+
 @pytest.mark.skipif(
     not FUSE_AVAILABLE,
     reason=FUSE_SKIP_REASON,
