@@ -39,11 +39,13 @@ def _property_value(value: str) -> str:
         "Standalone ADFS floppy image": _("Standalone ADFS floppy image"),
         "DFS floppy image": _("DFS floppy image"),
         "Standard MMB container": _("Standard MMB container"),
+        "Extended MMB container": _("Extended MMB container"),
         "Acorn ROMFS image": _("Acorn ROMFS image"),
         "ADFS old map": _("ADFS old map"),
         "Acorn DFS": _("Acorn DFS"),
         "Watford DFS": _("Watford DFS"),
         "MMB with Acorn DFS slots": _("MMB with Acorn DFS slots"),
+        "Extended MMB with Acorn DFS slots": _("Extended MMB with Acorn DFS slots"),
         "Acorn ROMFS": _("Acorn ROMFS"),
         "Old directory (Hugo)": _("Old directory (Hugo)"),
         "New directory (Nick)": _("New directory (Nick)"),
@@ -66,6 +68,7 @@ def _property_value(value: str) -> str:
         "Boot slots": _("Boot slots"),
         "Reserved tail": _("Reserved tail"),
         "Container catalogue": _("Container catalogue"),
+        "Container catalogues": _("Container catalogues"),
         "511 × 200 KiB SSD slots": _("511 × 200 KiB SSD slots"),
     }
     return values.get(value, value)
@@ -103,7 +106,11 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
             warnings=warning_text,
             advice=advice_text,
         )
-    if properties.geometry_kind == "container":
+    if properties.geometry_kind == "mmb" and properties.extent_count > 1:
+        geometry = _("{extents} extents × 511 slots × 200 KiB").format(
+            extents=properties.extent_count
+        )
+    elif properties.geometry_kind in {"container", "mmb"}:
         geometry = _property_value(properties.geometry_description)
     elif properties.geometry_kind == "floppy":
         sides = ngettext("{count} side", "{count} sides", properties.heads).format(
@@ -148,6 +155,8 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
     if properties.reserved_bytes:
         rows.append((_property_value(properties.reserved_label), _size(properties.reserved_bytes)))
     if properties.slot_count:
+        if properties.extent_count > 1:
+            rows.append((_("Extents"), str(properties.extent_count)))
         rows.append(
             (
                 _("Formatted slots"),

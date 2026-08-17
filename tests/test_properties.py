@@ -122,6 +122,32 @@ def test_mmb_properties_report_slots_without_opening_every_payload(tmp_path: Pat
     assert rows["Validation"] == "Supported read-only"
 
 
+def test_extended_mmb_properties_report_all_extents_and_global_capacity(tmp_path: Path) -> None:
+    image_path = create_mmb_image(
+        tmp_path,
+        extent_count=2,
+        slot_indexes=(0, 511, 1021),
+        boot_slots=(0, 510, 511, 1021),
+    )
+
+    properties = read_image_properties(image_path)
+
+    assert properties.image_type == "Extended MMB container"
+    assert properties.filesystem_format == "Extended MMB with Acorn DFS slots"
+    assert properties.extent_count == 2
+    assert properties.slot_count == 1022
+    assert properties.formatted_slots == 3
+    assert properties.capacity_bytes == image_path.stat().st_size
+    assert properties.reserved_bytes == 2 * 8192
+    rows = dict(image_property_rows(properties))
+    assert rows["Boot slots"] == "0, 510, 511, 1021"
+    assert rows["Geometry"] == "2 extents × 511 slots × 200 KiB"
+    assert rows["Extents"] == "2"
+    assert rows["Formatted slots"] == "3 / 1022"
+    assert rows["Container catalogues"] == "16.0 KiB"
+    assert rows["Validation"] == "Supported read-only"
+
+
 def test_romfs_properties_report_title_capacity_and_file_payload(tmp_path: Path) -> None:
     image_path = create_romfs_image(tmp_path)
 

@@ -88,6 +88,7 @@ class ImageProperties:
     reserved_label: str = "Reserved tail"
     show_boot_option: bool = True
     show_space_breakdown: bool = True
+    extent_count: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -369,7 +370,7 @@ def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) ->
 
 
 def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
-    """Report standard MMB catalogue and payload capacity without opening every slot."""
+    """Report all MMB catalogue and payload capacity without opening every slot."""
 
     layout = source.mmb_layout
     budget.checkpoint(items=1)
@@ -377,12 +378,16 @@ def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         raise AcornFSError(_("The MMB container catalogue is unavailable."))
     payload_bytes = layout.total_slots * MMB_SLOT_BYTES
     formatted_bytes = layout.formatted_slots * MMB_SLOT_BYTES
+    catalogue_bytes = layout.extent_count * MMB_HEADER_BYTES
     boot_slots = ", ".join(str(slot) for slot in layout.boot_slots)
+    extended = layout.extent_count > 1
     return ImageProperties(
         dat_path=str(source.primary_path),
         dsc_path="",
-        image_type="Standard MMB container",
-        filesystem_format="MMB with Acorn DFS slots",
+        image_type="Extended MMB container" if extended else "Standard MMB container",
+        filesystem_format=(
+            "Extended MMB with Acorn DFS slots" if extended else "MMB with Acorn DFS slots"
+        ),
         directory_format="Slots with flat DFS catalogue prefixes",
         hardware_profile="BBC Micro MMC/SD MMB container",
         title="",
@@ -399,12 +404,12 @@ def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         adfs_bytes=payload_bytes,
         used_bytes=formatted_bytes,
         free_bytes=payload_bytes - formatted_bytes,
-        reserved_bytes=MMB_HEADER_BYTES,
+        reserved_bytes=catalogue_bytes,
         safe_for_write=False,
         fatal_findings=0,
         warning_findings=0,
         advice_findings=0,
-        geometry_kind="container",
+        geometry_kind="mmb",
         write_supported=False,
         filesystem_size_label="Slot payload",
         show_disc_id=False,
@@ -413,7 +418,8 @@ def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         slot_count=layout.total_slots,
         formatted_slots=layout.formatted_slots,
         geometry_description="511 × 200 KiB SSD slots",
-        reserved_label="Container catalogue",
+        reserved_label="Container catalogues" if extended else "Container catalogue",
+        extent_count=layout.extent_count,
     )
 
 
