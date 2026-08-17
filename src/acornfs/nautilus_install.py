@@ -83,7 +83,9 @@ def _desktop_quote(value: str) -> str:
     return f'"{escaped}"'
 
 
-def _mime_package() -> str:
+def mime_package_content() -> str:
+    """Return the shared MIME package used by user and system installations."""
+
     return f"""{XML_MARKER}
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="application/x-acorn-adfs">
@@ -121,14 +123,17 @@ def _mime_package() -> str:
 """
 
 
-def _desktop_file() -> str:
-    executable = _desktop_quote(sys.executable)
+def desktop_file_content(command: list[str] | None = None) -> str:
+    """Return the desktop handler for an explicit, shell-free command."""
+
+    selected = command or [sys.executable, "-m", "acornfs.cli"]
+    executable = " ".join(_desktop_quote(part) for part in selected)
     return f"""{MARKER}
 [Desktop Entry]
 Type=Application
 Name=AcornFS Image Mounter
 Comment=Open a supported Acorn disk image read-only
-Exec={executable} -m acornfs.cli desktop-open %U
+Exec={executable} desktop-open %U
 Icon=drive-harddisk
 Terminal=false
 NoDisplay=true
@@ -136,6 +141,24 @@ StartupNotify=true
 MimeType=application/x-acorn-adfs;application/x-acorn-dfs;application/x-acorn-mmb;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
 Categories=System;FileTools;
 """
+
+
+def extension_loader_content(command: list[str], *, python_paths: tuple[Path, ...] = ()) -> str:
+    """Return the Nautilus loader shared by user and Debian package layouts."""
+
+    path_setup = "".join(f"sys.path.insert(0, {str(path)!r})\n" for path in python_paths)
+    import_setup = "import sys\n" if python_paths else ""
+    return (
+        f"{MARKER}\n"
+        f"{import_setup}"
+        f"{path_setup}"
+        "from acornfs_nautilus import extension as _extension\n"
+        f"_extension.configure_command({command!r})\n"
+        "class AcornFSMenuProvider(_extension.AcornFSMenuProvider):\n"
+        "    pass\n"
+        "class AcornFSPropertiesModelProvider(_extension.AcornFSPropertiesModelProvider):\n"
+        "    pass\n"
+    )
 
 
 def _refresh_database(command: str, directory: Path) -> None:
@@ -162,21 +185,13 @@ def install_extension(*, restart: bool = False) -> Path:
     _remove_if_generated(target.parent / LEGACY_EXTENSION_NAME)
     source_root = Path(__file__).resolve().parents[1]
     dependency_root = Path(sysconfig.get_path("purelib"))
-    content = (
-        f"{MARKER}\n"
-        "import sys\n"
-        f"sys.path.insert(0, {str(dependency_root)!r})\n"
-        f"sys.path.insert(0, {str(source_root)!r})\n"
-        "from acornfs_nautilus import extension as _extension\n"
-        f"_extension.configure_command([{sys.executable!r}, '-m', 'acornfs.cli'])\n"
-        "class AcornFSMenuProvider(_extension.AcornFSMenuProvider):\n"
-        "    pass\n"
-        "class AcornFSPropertiesModelProvider(_extension.AcornFSPropertiesModelProvider):\n"
-        "    pass\n"
+    content = extension_loader_content(
+        [sys.executable, "-m", "acornfs.cli"],
+        python_paths=(dependency_root, source_root),
     )
     _write_generated(target, content)
-    _write_generated(mime_package_path(), _mime_package(), marker=XML_MARKER)
-    _write_generated(desktop_file_path(), _desktop_file())
+    _write_generated(mime_package_path(), mime_package_content(), marker=XML_MARKER)
+    _write_generated(desktop_file_path(), desktop_file_content())
     _refresh_database("update-mime-database", data_home() / "mime")
     _refresh_database("update-desktop-database", data_home() / "applications")
     if restart:

@@ -30,6 +30,8 @@ dev = [
     "mypy>=1.15,<2",
     "pytest>=8.3,<9",
     "ruff>=0.11,<1",
+    "setuptools>=69",
+    "wheel",
 ]
 fuse = [
     "pyfuse3>=3.5,<4",
