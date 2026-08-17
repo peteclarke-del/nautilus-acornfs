@@ -23,6 +23,7 @@ from acornfs.desktop import (
     desktop_repair,
     desktop_unmount,
     desktop_validate,
+    desktop_write_floppy,
     local_image_reference,
     mountpoint_for_image,
 )
@@ -133,6 +134,50 @@ def test_desktop_file_forge_handoff_reports_launcher_failure() -> None:
     ):
         desktop_open_file_forge("/image.dat")
     show.assert_called_once_with("Could not open Acorn File Forge", "not installed", error=True)
+
+
+def test_desktop_floppy_write_selects_confirms_writes_and_reports_success() -> None:
+    with (
+        patch("acornfs.desktop.detected_command", return_value="/usr/bin/gw"),
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch(
+            "acornfs.desktop.subprocess.run",
+            side_effect=[
+                SimpleNamespace(returncode=0, stdout="B\n"),
+                SimpleNamespace(returncode=0),
+            ],
+        ),
+        patch(
+            "acornfs.desktop.write_floppy",
+            return_value=SimpleNamespace(drive="B", verified=True),
+        ) as write,
+        patch("acornfs.desktop._show_desktop_message") as show,
+    ):
+        assert desktop_write_floppy("/images/private-name.ssd") == 0
+
+    write.assert_called_once_with(Path("/images/private-name.ssd"), "B", progress=ANY)
+    show.assert_called_once_with(
+        "Physical floppy complete",
+        "Greaseweazle wrote and verified private-name.ssd in drive B.",
+    )
+
+
+def test_desktop_floppy_write_confirmation_can_be_cancelled() -> None:
+    with (
+        patch("acornfs.desktop.detected_command", return_value="/usr/bin/gw"),
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch(
+            "acornfs.desktop.subprocess.run",
+            side_effect=[
+                SimpleNamespace(returncode=0, stdout="A\n"),
+                SimpleNamespace(returncode=1),
+            ],
+        ),
+        patch("acornfs.desktop.write_floppy") as write,
+    ):
+        assert desktop_write_floppy("disc.ssd") == 0
+
+    write.assert_not_called()
 
 
 def test_desktop_create_collects_settings_and_reports_success(tmp_path: Path) -> None:

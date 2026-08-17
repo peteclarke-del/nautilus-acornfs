@@ -64,6 +64,8 @@ with deployment and retained-state guidance in
 - Export privacy-safe support information through `acornfs diagnostics --json`.
 - Import and export individual files with Acorn load, execution and lock metadata sidecars.
 - Translate all desktop UI and desktop-reachable filesystem messages through gettext.
+- Detect an installed, responsive Greaseweazle and offer confirmed, progress-reported,
+  verified physical-floppy writes for its supported image suffixes.
 
 ## Development
 
@@ -128,8 +130,10 @@ acornfs install-nautilus --restart
 Right-click either member of a valid pair, a supported ADFS/DFS floppy, or a
 standard MMB and open **Acorn FS Support**. BeebSCSI pairs offer
 **Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
-**Open in Acorn File Forge…**. Floppies offer only **Open read-only**, because
-writes, pair validation, recovery and repair do not yet have a safe profile.
+**Open in Acorn File Forge…**. Floppy-image filesystem editing remains read-only.
+When the `gw` command and a connected Greaseweazle both respond, compatible
+`.ssd`, `.dsd`, `.adf`, `.ads`, `.adm` and `.adl` files additionally offer
+**Write to physical floppy…**. The action is completely absent otherwise.
 The mounted image opens in Nautilus and appears in its sidebar. The same submenu
 offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
@@ -137,6 +141,32 @@ The DAT/DSC **Properties** dialog includes an **Acorn disk image** section.
 Properties for files inside an active mount include an **Acorn metadata** section.
 Double-clicking a recognised image member opens the pair read-only. The same
 handler accepts a local URI such as `acornfs:///path/to/scsi0.dat`.
+
+### Greaseweazle physical-floppy writing
+
+Install current Greaseweazle software using its
+[official Linux instructions](https://github.com/keirf/greaseweazle/wiki/Software-Installation),
+ensure `gw` is available in the graphical session's `PATH`, connect the device,
+and confirm it responds before restarting Files:
+
+```shell
+gw info
+nautilus --quit
+```
+
+Right-click a compatible floppy image and choose **Acorn FS Support → Write to
+physical floppy…**. Select PC drive `A` or `B`, or Shugart unit `0` through `3`.
+AcornFS then shows an explicit overwrite confirmation, makes a private stable
+snapshot of the source, and invokes `gw write` without a shell. The progress
+dialog follows written tracks and verification retries. Success is reported
+only after Greaseweazle says all tracks verified; cancellation is available
+before the physical write starts, but not while a disk could be half-written.
+Disconnects, command failures and verification failures produce an explicit
+warning that the destination disk must not be trusted.
+
+The software workflow is covered automatically, but real-device acceptance is
+still open in [TODO.md](TODO.md). Use expendable media for initial testing and
+compare it on the target Acorn hardware before relying on the result.
 
 ### Acorn File Forge hand-off
 
