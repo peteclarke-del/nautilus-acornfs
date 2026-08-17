@@ -5,8 +5,7 @@
 AcornFS exposes supported Acorn images as ordinary Linux folders. It currently
 mounts paired BeebSCSI DAT/DSC old-map ADFS hard discs read-only or read-write,
 and mounts ADFS S/M/L floppies, Acorn and Watford DFS SSD/DSD images, and
-standard MMB containers read-only. Extended MMB, ROMFS and File Forge hand-off
-remain future work.
+standard MMB containers read-only. Extended MMB and ROMFS remain future work.
 
 Read-only is always the default. Only a BeebSCSI DAT/DSC pair that passes the
 complete write-safety validation can be opened read-write.
@@ -41,6 +40,24 @@ the sidebar.
 Right-click an ADFS floppy, DFS image or MMB in the same way. Capability-driven
 menus show only safe actions. MMB slots appear as numbered directories; DFS
 catalogue prefixes are presentation directories and do not change the image.
+
+### Write an image with Greaseweazle
+
+Physical-floppy writing is an optional integration. Install Greaseweazle from
+its [official Linux instructions](https://github.com/keirf/greaseweazle/wiki/Software-Installation),
+connect it, and check `gw info` succeeds in the same graphical login session.
+AcornFS shows **Write to physical floppy…** only for `.ssd`, `.dsd`, `.adf`,
+`.ads`, `.adm` and `.adl` files while that command and device are responsive.
+Installing the Python package without connecting usable hardware does not add a
+dead menu item.
+
+Select drive A/B for a PC cable or unit 0-3 for a Shugart bus, then review the
+final overwrite warning. The source is copied to a private stable snapshot
+before `gw write` starts. Greaseweazle's normal verification remains enabled,
+track progress and retries are shown, and success is displayed only after all
+tracks are verified. Closing Files does not offer an unsafe mid-write cancel.
+If a disconnect, write error or verification error occurs, treat the physical
+floppy as incomplete and retry with known-good expendable media.
 
 Use **Acorn FS Support → Unmount** from the source image or mounted folder.
 Unmount waits for writable data and metadata to flush and for final validation.
