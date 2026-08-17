@@ -5,9 +5,9 @@
 AcornFS exposes supported Acorn images as ordinary Linux folders. It currently
 mounts paired BeebSCSI DAT/DSC old-map ADFS hard discs read-only or read-write,
 and mounts ADFS S/M/L floppies, Acorn and Watford DFS SSD/DSD images, standard
-MMB containers, and Acorn ROMFS paged-ROM images read-only. Extended MMB remains
-future work. An installed native Acorn File Forge app can open supported source
-pairs through the same submenu.
+and extended MMB containers, and Acorn ROMFS paged-ROM images read-only. An
+installed native Acorn File Forge app can open supported source pairs through
+the same submenu.
 
 Read-only is always the default. Only a BeebSCSI DAT/DSC pair that passes the
 complete write-safety validation can be opened read-write.
@@ -42,7 +42,8 @@ the sidebar.
 Right-click an ADFS floppy, DFS image, MMB or ROMFS image in the same way.
 Capability-driven menus show only safe actions. MMB slots appear as numbered
 directories; DFS catalogue prefixes are presentation directories and do not
-change the image. A ROMFS flat catalogue appears at the mount root. Its names
+change the image. Extended MMB slots retain one global number across all
+declared extents. A ROMFS flat catalogue appears at the mount root. Its names
 remain case-sensitive, an embedded `/` is displayed as `∕`, and the Acorn
 run-only flag appears in mounted-file Properties.
 

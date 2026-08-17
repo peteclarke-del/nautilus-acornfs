@@ -3,7 +3,12 @@ from pathlib import Path
 import pytest
 
 from acornfs.core import resolve_image
-from acornfs.core.mmb import MMB_STANDARD_BYTES
+from acornfs.core.mmb import (
+    MMB_SLOT_BYTES,
+    MMB_SLOT_COUNT,
+    MMB_STANDARD_BYTES,
+    read_mmb_layout,
+)
 from acornfs.errors import UnsupportedImageError
 from acornfs_nautilus.logic import image_capabilities
 from tests.image_fixture import (
@@ -125,7 +130,7 @@ def test_mmb_extension_does_not_override_valid_dfs_content(tmp_path: Path) -> No
     assert resolved.filesystem == "acorn-dfs"
 
 
-def test_malformed_and_extended_mmb_files_are_rejected_clearly(tmp_path: Path) -> None:
+def test_malformed_mmb_files_are_rejected_clearly(tmp_path: Path) -> None:
     malformed = create_mmb_image(tmp_path, filename="malformed.mmb")
     with malformed.open("r+b") as handle:
         handle.seek(16 + 15)
@@ -133,13 +138,95 @@ def test_malformed_and_extended_mmb_files_are_rejected_clearly(tmp_path: Path) -
     with pytest.raises(UnsupportedImageError, match="unknown catalogue status"):
         resolve_image(malformed)
 
-    extended = create_mmb_image(tmp_path, filename="extended.mmb")
-    with extended.open("r+b") as handle:
-        handle.seek(8)
-        handle.write(b"\xa1")
-        handle.truncate(2 * MMB_STANDARD_BYTES)
-    with pytest.raises(UnsupportedImageError, match="Extended MMB"):
-        resolve_image(extended)
+
+def test_detects_every_declared_extended_mmb_extent_from_content(tmp_path: Path) -> None:
+    image_path = create_mmb_image(
+        tmp_path,
+        filename="extended.bin",
+        extent_count=2,
+        slot_indexes=(0, 510, 511, 1021),
+        boot_slots=(0, 510, 511, 1021),
+    )
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "mmb-container"
+    assert resolved.mmb_layout is not None
+    assert resolved.mmb_layout.extent_count == 2
+    assert resolved.mmb_layout.total_slots == 2 * MMB_SLOT_COUNT
+    assert resolved.mmb_layout.boot_slots == (0, 510, 511, 1021)
+    assert [slot.index for slot in resolved.mmb_layout.slots] == [0, 510, 511, 1021]
+    assert [slot.display_name for slot in resolved.mmb_layout.slots] == [
+        "0000 - SLOT 0",
+        "0510 - SLOT 510",
+        "0511 - SLOT 511",
+        "1021 - SLOT 1021",
+    ]
+    assert resolved.capabilities.mount_read_only
+    assert not resolved.capabilities.mount_read_write
+
+
+@pytest.mark.parametrize("extent_count", [2, 16])
+def test_extended_mmb_accepts_its_exact_declared_sparse_length(
+    tmp_path: Path, extent_count: int
+) -> None:
+    image_path = create_mmb_image(
+        tmp_path,
+        filename=f"extended-{extent_count}.mmb",
+        extent_count=extent_count,
+        slot_indexes=(),
+    )
+
+    layout = read_mmb_layout(image_path)
+
+    assert layout.extent_count == extent_count
+    assert layout.total_slots == extent_count * MMB_SLOT_COUNT
+
+
+@pytest.mark.parametrize("delta", [-1, 1])
+def test_extended_mmb_rejects_length_that_disagrees_with_first_header(
+    tmp_path: Path, delta: int
+) -> None:
+    image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=())
+    with image_path.open("r+b") as handle:
+        handle.truncate(2 * MMB_STANDARD_BYTES + delta)
+
+    with pytest.raises(UnsupportedImageError, match="declares 2 extent"):
+        resolve_image(image_path)
+
+
+def test_extended_mmb_validates_secondary_catalogue_statuses(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=())
+    with image_path.open("r+b") as handle:
+        handle.seek(MMB_STANDARD_BYTES + (42 + 1) * 16 + 15)
+        handle.write(b"\x55")
+
+    with pytest.raises(UnsupportedImageError, match="slot 553.*unknown catalogue status"):
+        resolve_image(image_path)
+
+
+def test_extended_mmb_rejects_global_boot_slot_outside_declared_extents(
+    tmp_path: Path,
+) -> None:
+    image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=())
+    with image_path.open("r+b") as handle:
+        handle.seek(0)
+        handle.write((2 * MMB_SLOT_COUNT).to_bytes(2, "little")[:1])
+        handle.seek(4)
+        handle.write((2 * MMB_SLOT_COUNT).to_bytes(2, "little")[1:])
+
+    with pytest.raises(UnsupportedImageError, match="boot configuration.*1022 slots"):
+        resolve_image(image_path)
+
+
+def test_extended_mmb_requires_dfs_evidence_in_each_populated_extent(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=(0, 511))
+    with image_path.open("r+b") as handle:
+        handle.seek(MMB_STANDARD_BYTES + 8192)
+        handle.write(b"\xaa" * MMB_SLOT_BYTES)
+
+    with pytest.raises(UnsupportedImageError, match="slot 511.*recognisable DFS"):
+        resolve_image(image_path)
 
 
 def test_mmb_slot_statuses_select_only_formatted_entries(tmp_path: Path) -> None:

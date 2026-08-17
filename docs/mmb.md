@@ -1,19 +1,22 @@
 # MMB containers
 
-AcornFS mounts standard BBC Micro MMB containers read-only. The supported
-layout is one 8 KiB catalogue followed by 511 fixed 200 KiB SSD payloads. Only
-slots whose catalogue status is locked or read-write are presented; unformatted
-and invalid slots remain hidden. The format definition follows the documented
+AcornFS mounts standard and extended BBC Micro MMB containers read-only. A
+standard extent is one 8 KiB catalogue followed by 511 fixed 200 KiB SSD
+payloads. An extended container concatenates 2–16 complete extents, with byte 8
+of the first header declaring the number of additional extents. Only slots whose
+catalogue status is locked or read-write are presented; unformatted and invalid
+slots remain hidden. The format definition follows the documented
 [MMB/SSD utility layout](https://sweh.spuddy.org/Beeb/mmb_utils.html#disk-format).
 
 ## Mounted namespace
 
-Each formatted slot is a root directory named with a zero-padded slot number
-and its MMB catalogue label, for example:
+Each formatted slot is a root directory named with a zero-padded global slot
+number and its MMB catalogue label, for example:
 
 ```text
 000 - WELCOME/
 042 - UTILITIES/
+0511 - EXTENDED/
 ```
 
 The numeric prefix is authoritative and prevents duplicate or stale labels from
@@ -22,15 +25,19 @@ The existing DFS mapping then presents `$` and populated `A`-`Z` catalogue
 prefixes as directories. MMB labels are presentation metadata and need not
 match the DFS title stored inside the corresponding SSD.
 
-AcornFS reads the 8 KiB catalogue eagerly but opens slot payloads lazily. A
-least-recently-used cache retains at most eight Oaknut DFS mounts (about 1.6 MiB
-of payload buffers) regardless of the number of formatted slots. The filesystem
-index remains bounded by the global AcornFS node limit.
+Standard containers use three digits; extended containers use four so lexical
+and numeric order remain identical across extent boundaries. AcornFS validates
+the exact declared length and every repeated 8 KiB catalogue. It also requires
+recognisable DFS evidence in every populated extent, preventing a valid first
+extent from disguising arbitrary trailing data. Global boot slots may refer to
+any slot within the declared extent count.
 
-Extended MMB containers are rejected with an explicit message. Their repeated
-catalogue/payload extent layout must be covered independently before support is
-enabled; silently treating the first extent as a complete container would hide
-slots and misreport capacity.
+Slot DFS mounts are created one at a time during bounded namespace indexing
+and later access. A least-recently-used cache retains at most eight Oaknut DFS
+mounts (about 1.6 MiB of payload buffers) regardless of the number of formatted
+slots. The filesystem index remains bounded by the global AcornFS node limit.
+Containers that are truncated, oversized, declare an out-of-range boot slot or
+contain an unknown status in any extent fail closed.
 
 ## Future mutation contract
 

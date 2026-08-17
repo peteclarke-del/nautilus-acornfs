@@ -9,7 +9,6 @@ from oaknut.filesystem import Geometry, floppy_geometry, geometry_from_dsc, iden
 
 from acornfs.core.beebscsi import BeebSCSIPair, discover_pair, parse_descriptor
 from acornfs.core.mmb import (
-    ExtendedMMBError,
     MMBFormatError,
     MMBLayout,
     detect_mmb,
@@ -106,10 +105,6 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
             require_mmb_content_evidence(selected_path, mmb_layout)
         else:
             mmb_layout = detect_mmb(selected_path)
-    except ExtendedMMBError as exc:
-        raise UnsupportedImageError(
-            _("The MMB container could not be opened safely: {error}").format(error=exc)
-        ) from exc
     except (MMBFormatError, OSError) as exc:
         mmb_error = exc
         mmb_layout = None
