@@ -36,6 +36,90 @@ FUSE_SKIP_REASON = (
 
 
 @pytest.mark.skipif(not FUSE_AVAILABLE, reason=FUSE_SKIP_REASON)
+@pytest.mark.parametrize("selected_member", ["dat", "dsc"])
+def test_live_read_only_beebscsi_mount_from_either_member(
+    tmp_path: Path, selected_member: str
+) -> None:
+    """Mount either pair member and traverse the same hierarchy with terminal tools."""
+
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    selected = dat_path if selected_member == "dat" else dsc_path
+    originals = {path: path.read_bytes() for path in (dat_path, dsc_path)}
+    mountpoint = tmp_path / f"pair-{selected_member}-mount"
+    mountpoint.mkdir()
+    process = subprocess.Popen(
+        [sys.executable, "-m", "acornfs.cli", "mount", str(selected), str(mountpoint)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 15
+        while mount_for_image(selected) is None:
+            if process.poll() is not None:
+                stderr = process.stderr.read() if process.stderr is not None else ""
+                pytest.fail(f"FUSE pair mount exited early: {stderr}")
+            if time.monotonic() >= deadline:
+                pytest.fail("FUSE pair mount did not become ready within 15 seconds")
+            time.sleep(0.05)
+
+        listing = subprocess.run(
+            ["find", ".", "-print"],
+            cwd=mountpoint,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert sorted(listing.stdout.splitlines()) == [
+            ".",
+            "./DOCS",
+            "./DOCS/GUIDE",
+            "./EMPTY",
+            "./README",
+        ]
+        contents = subprocess.run(
+            ["cat", "README", "DOCS/GUIDE"],
+            cwd=mountpoint,
+            check=True,
+            capture_output=True,
+            timeout=15,
+        )
+        assert contents.stdout == b"Hello from AcornFS\rNested file\r"
+        modes = subprocess.run(
+            ["stat", "--format=%a", "README", "DOCS"],
+            cwd=mountpoint,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert modes.stdout.splitlines() == ["444", "555"]
+
+        unmount = subprocess.run(
+            ["fusermount3", "-u", str(mountpoint)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert unmount.returncode == 0, unmount.stderr
+        assert process.wait(timeout=15) == 0
+    finally:
+        if process.poll() is None:
+            subprocess.run(
+                ["fusermount3", "-uz", str(mountpoint)],
+                check=False,
+                capture_output=True,
+                timeout=15,
+            )
+            process.terminate()
+            process.wait(timeout=15)
+
+    assert {path: path.read_bytes() for path in (dat_path, dsc_path)} == originals
+
+
+@pytest.mark.skipif(not FUSE_AVAILABLE, reason=FUSE_SKIP_REASON)
 @pytest.mark.parametrize("format_name", ["l", "e+", "hdf"])
 def test_live_read_only_standalone_adfs_mount(tmp_path: Path, format_name: str) -> None:
     """Traverse old/new-map standalone ADFS through real kernel FUSE."""
@@ -290,17 +374,23 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
         shutil.copyfile(mountpoint / "README", copied_out)
         assert copied_out.read_bytes() == b"Hello from AcornFS\r"
 
-        (mountpoint / "NEWDIR").mkdir()
+        (mountpoint / "KEEPDIR").mkdir()
         new_file = mountpoint / "NEWFILE"
         new_file.write_bytes(b"written through the kernel FUSE mount")
-        moved = mountpoint / "NEWDIR" / "MOVED"
+        moved = mountpoint / "KEEPDIR" / "MOVED"
         new_file.rename(moved)
         with moved.open("r+b") as handle:
             handle.truncate(1024)
             handle.flush()
             os.fsync(handle.fileno())
-        os.setxattr(moved, b"user.acorn.filetype", b"FFD")
-        assert os.getxattr(moved, b"user.acorn.filetype") == b"FFD"
+        os.setxattr(moved, b"user.acorn.filetype", b"123")
+        os.setxattr(moved, b"user.acorn.load", b"FFF12345")
+        os.setxattr(moved, b"user.acorn.execute", b"10203040")
+        os.setxattr(moved, b"user.acorn.locked", b"1")
+        assert os.getxattr(moved, b"user.acorn.filetype") == b"123"
+        assert os.getxattr(moved, b"user.acorn.load") == b"FFF12345"
+        assert os.getxattr(moved, b"user.acorn.execute") == b"10203040"
+        assert os.getxattr(moved, b"user.acorn.locked") == b"1"
 
         top = mountpoint / "TOP"
         top.mkdir()
@@ -318,12 +408,10 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
         assert (mountpoint / "README").read_bytes() == b"atomic editor replacement"
 
         copied_in.unlink()
-        moved.unlink()
         (renamed / "CHILD").rmdir()
         renamed.rmdir()
-        (mountpoint / "NEWDIR").rmdir()
         assert not copied_in.exists()
-        assert not moved.exists()
+        assert moved.exists()
 
         unmount = subprocess.run(
             ["fusermount3", "-u", str(mountpoint)],
@@ -351,6 +439,19 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
         readme = image.lookup(ROOT_INODE, b"README")
         assert readme is not None
         assert image.read(readme.inode, 0, 1024) == b"atomic editor replacement"
+        guide = image.node_at_path("$.DOCS.GUIDE")
+        assert image.read(guide.inode, 0, 1024) == b"Nested file\r"
+        assert image.node_at_path("$.EMPTY").is_dir
+        moved = image.node_at_path("$.KEEPDIR.MOVED")
+        assert image.read(moved.inode, 0, 1024).startswith(b"written through the kernel FUSE mount")
+        assert moved.size == 1024
+        metadata = image.acorn_metadata(moved.inode)
+        assert metadata.load_address == 0xFFF12345
+        assert metadata.exec_address == 0x10203040
+        assert moved.locked
+        assert image.filetype(moved.inode) == 0x123
+        with pytest.raises(FileNotFoundError):
+            image.node_at_path("$.COPYIN")
 
 
 @pytest.mark.skipif(

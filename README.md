@@ -89,8 +89,10 @@ python -m pip install -e '.[dev,fuse]'
 pytest
 ```
 
-The suite includes real writable FUSE lifecycle tests for direct mounts,
-Nautilus-style transient systemd user services and forced-daemon recovery.
+The suite mounts either member of a BeebSCSI pair, traverses it with terminal
+tools, and exercises writable data and Acorn metadata across validation and
+remount. It also covers Nautilus-style transient systemd user services and
+forced-daemon recovery.
 Because some CI hosts expose `/dev/fuse` without granting mount permission,
 ordinary test runs skip them unless explicitly enabled. A dedicated amd64 CI
 job provisions and checks a usable kernel FUSE device before running the live
