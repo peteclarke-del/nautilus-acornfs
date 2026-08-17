@@ -10,8 +10,10 @@ claim into a completed item.
 - FUSE 3 with unprivileged mounts owned by the current user.
 - Read-write only for validated paired BeebSCSI DAT/DSC old-map ADFS images.
 - Read-only for ADFS S/M/L, DFS SSD/DSD, standard MMB and Acorn ROMFS images.
-- Local regular image files. Network filesystems, removable/read-only media and
-  unusual reflink behaviour remain outside the verified matrix.
+- Local regular image files. Unit coverage proves read-only backing storage
+  remains browsable, writable opening fails closed, and checkpoint copying
+  falls back when reflinks are unavailable. Real network and removable
+  filesystems remain outside the verified matrix.
 - No claim yet for physical BeebSCSI hardware, ARM, extended MMB, UEF or
   Acorn File Forge hand-off.
 

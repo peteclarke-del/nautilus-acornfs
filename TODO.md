@@ -267,7 +267,9 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] New-image creation, validation, collision refusal and partial-publication rollback.
 - [x] Sidebar, runtime and custom mount-location preference resolution.
 - [x] Filenames containing every supported display mapping and case-collision combination.
-- [ ] Images stored on NFS, removable media, read-only media and filesystems without reflink support.
+- [ ] Images stored on real NFS and removable filesystems.
+- [x] Read-only storage permits safe browsing and refuses writable opening with actionable guidance.
+- [x] Checkpoint creation falls back to a durable bounded copy when reflinks are unavailable.
 - [x] Low-memory, low-disk-space and interrupted preference/audit/checkpoint writes.
 
 ## Initial release acceptance criteria

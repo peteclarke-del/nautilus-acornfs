@@ -1,3 +1,4 @@
+import errno
 import os
 from pathlib import Path
 from unittest.mock import patch
@@ -221,6 +222,29 @@ def test_open_is_read_only(tmp_path: Path) -> None:
         readme = image.lookup(ROOT_INODE, b"README")
         assert readme is not None
         assert image.read(readme.inode, 0, 1024) == b"Hello from AcornFS\r"
+    assert dat_path.read_bytes() == before
+
+
+def test_read_only_storage_browses_safely_and_refuses_writable_open(
+    tmp_path: Path,
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    before = dat_path.read_bytes()
+    real_open = Path.open
+
+    def read_only_storage(path: Path, mode: str = "r", *args: object, **kwargs: object) -> object:
+        if mode == "r+b":
+            raise OSError(errno.EROFS, "read-only filesystem")
+        return real_open(path, mode, *args, **kwargs)
+
+    with patch("pathlib.Path.open", autospec=True, side_effect=read_only_storage):
+        with ReadOnlyImage.open(dat_path) as image:
+            readme = image.lookup(ROOT_INODE, b"README")
+            assert readme is not None
+            assert image.read(readme.inode, 0, readme.size) == b"Hello from AcornFS\r"
+        with pytest.raises(AcornFSError, match="read-only storage"):
+            ReadOnlyImage.open(dat_path, writable=True)
+
     assert dat_path.read_bytes() == before
 
 
