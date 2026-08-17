@@ -183,6 +183,10 @@ acceptance items stay open until they have been exercised in that environment.
 
 - [x] Generalise the mount engine around filesystem capabilities rather than filename extensions.
 - [x] Add ADFS floppy images.
+- [x] Add content-refined read-only ADFS D/E/E+/F/F+/G/G+ floppies with New and
+  Big directories, New Map properties and corrupt-zone rejection.
+- [x] Add content-detected standalone FileCore HDF/HD4 and unpaired raw ADFS
+  hard discs read-only, without inventing unavailable physical CHS geometry.
 - [x] Add DFS SSD and DSD images, presenting DFS catalogue prefixes coherently.
 - [x] Decide how DFS pseudo-directories should map to POSIX directories without changing on-disk semantics.
 - [x] Add standard MMB read-only mounting with formatted slots represented as directories.
@@ -258,7 +262,8 @@ acceptance items stay open until they have been exercised in that environment.
   slots, corrupt secondary catalogues and inconsistent declared lengths.
 - [x] Generated 8 KiB ROMFS images with case-colliding and non-POSIX names,
   run-only metadata and corrupt block CRCs.
-- [ ] Newer ADFS formats where supported by the underlying library.
+- [x] Newer ADFS D/E/E+/F/F+/G/G+ floppies supported by the underlying library.
+- [x] Standalone FileCore New Map and unpaired raw ADFS hard-disc traversal.
 - [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.
 - [x] Interrupted writes, daemon crashes and forced termination.

@@ -4,8 +4,9 @@
 
 The current implementation supports Linux on amd64 with Python 3.11 or later,
 FUSE 3, and either a valid paired BeebSCSI DAT/DSC image, a standalone ADFS
-S/M/L floppy, an Acorn/Watford DFS SSD/DSD image, a standard or extended MMB container, or
-an Acorn ROMFS paged-ROM image. Floppies, MMB and ROMFS images are read-only.
+S/M/L/D/E/E+/F/F+/G/G+ floppy, an Acorn/Watford DFS SSD/DSD image, a standard
+or extended MMB container, a standalone FileCore/unpaired raw ADFS hard disc, or
+an Acorn ROMFS paged-ROM image. Standalone images, MMB and ROMFS are read-only.
 On Ubuntu 24.04 or later, install the host packages with:
 
 ```shell
@@ -61,14 +62,29 @@ nautilus "$HOME/AcornFS/scsi0"
 Files and directories are presented as mode `0444` and `0555`. The default
 kernel mount carries `ro,nodev,nosuid,noexec` and rejects mutations.
 
-Standalone ADFS floppies use the same command and may use `.ads`, `.adm`, `.adl`
-or an arbitrary filename when their content and exact geometry identify them:
+Standalone ADFS floppies use the same command. S/M/L commonly use `.ads`,
+`.adm` and `.adl`; D through G+ commonly use the ambiguous `.adf`. Arbitrary
+filenames also work when content identifies the map, directory format and exact
+geometry:
 
 ```shell
 acornfs mount /path/to/disc.adl "$HOME/AcornFS/floppy"
 ```
 
 Requesting `--read-write` for a floppy is rejected before FUSE initialisation.
+This includes New Map and Big-directory images; long RISC OS filenames are
+preserved for browsing but are not mutated.
+
+Content-valid FileCore `.hdf`/`.hd4` images and raw ADFS hard discs without a
+DSC use the same read-only command. AcornFS reports their logical map geometry
+but does not fabricate the physical CHS that only a descriptor can establish:
+
+```shell
+acornfs mount /path/to/riscos.hdf "$HOME/AcornFS/filecore"
+```
+
+Only a complete, validated old-map BeebSCSI DAT/DSC pair can be opened
+read-write.
 
 DFS images use the same command:
 

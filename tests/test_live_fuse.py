@@ -19,6 +19,7 @@ from acornfs.mounts import active_mounts, is_mounted, mount_for_image, runtime_r
 from acornfs.recovery import pending_recovery, recover_image
 from tests.image_fixture import (
     create_adfs_floppy,
+    create_adfs_hard_disc,
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
@@ -35,10 +36,15 @@ FUSE_SKIP_REASON = (
 
 
 @pytest.mark.skipif(not FUSE_AVAILABLE, reason=FUSE_SKIP_REASON)
-def test_live_read_only_adfs_floppy_mount(tmp_path: Path) -> None:
-    """Traverse a standalone ADFS floppy through the real kernel FUSE path."""
+@pytest.mark.parametrize("format_name", ["l", "e+", "hdf"])
+def test_live_read_only_standalone_adfs_mount(tmp_path: Path, format_name: str) -> None:
+    """Traverse old/new-map standalone ADFS through real kernel FUSE."""
 
-    image_path = create_adfs_floppy(tmp_path)
+    image_path = (
+        create_adfs_hard_disc(tmp_path)
+        if format_name == "hdf"
+        else create_adfs_floppy(tmp_path, format_name=format_name)
+    )
     original = image_path.read_bytes()
     mountpoint = tmp_path / "floppy-mount"
     mountpoint.mkdir()
@@ -58,8 +64,18 @@ def test_live_read_only_adfs_floppy_mount(tmp_path: Path) -> None:
                 pytest.fail("FUSE floppy mount did not become ready within 15 seconds")
             time.sleep(0.05)
 
-        assert (mountpoint / "HELLO").read_bytes() == b"Hello from floppy\r"
-        assert (mountpoint / "DOCS" / "GUIDE").read_bytes() == b"Floppy guide\r"
+        if format_name == "hdf":
+            assert (mountpoint / "HELLO").read_bytes() == b"Hello from FileCore\r"
+            assert (mountpoint / "DOCUMENTATION" / "A LONG RISC OS GUIDE").read_bytes() == (
+                b"Hard-disc guide\r"
+            )
+        else:
+            assert (mountpoint / "HELLO").read_bytes() == b"Hello from floppy\r"
+            assert (mountpoint / "DOCS" / "GUIDE").read_bytes() == b"Floppy guide\r"
+        if format_name == "e+":
+            assert (mountpoint / "LONG RISC OS FILENAME").read_bytes() == (
+                b"Big directory filename\r"
+            )
         with pytest.raises(OSError) as denied:
             (mountpoint / "NEWFILE").write_bytes(b"must not be written")
         assert denied.value.errno in {errno.EACCES, errno.EROFS}

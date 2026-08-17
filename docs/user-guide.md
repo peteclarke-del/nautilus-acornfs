@@ -4,8 +4,9 @@
 
 AcornFS exposes supported Acorn images as ordinary Linux folders. It currently
 mounts paired BeebSCSI DAT/DSC old-map ADFS hard discs read-only or read-write,
-and mounts ADFS S/M/L floppies, Acorn and Watford DFS SSD/DSD images, standard
-and extended MMB containers, and Acorn ROMFS paged-ROM images read-only. An
+and mounts ADFS S/M/L/D/E/E+/F/F+/G/G+ floppies, standalone FileCore/unpaired
+raw ADFS hard discs, Acorn and Watford DFS SSD/DSD images, standard and extended
+MMB containers, and Acorn ROMFS paged-ROM images read-only. An
 installed native Acorn File Forge app can open supported source pairs through
 the same submenu.
 
@@ -43,9 +44,15 @@ Right-click an ADFS floppy, DFS image, MMB or ROMFS image in the same way.
 Capability-driven menus show only safe actions. MMB slots appear as numbered
 directories; DFS catalogue prefixes are presentation directories and do not
 change the image. Extended MMB slots retain one global number across all
-declared extents. A ROMFS flat catalogue appears at the mount root. Its names
-remain case-sensitive, an embedded `/` is displayed as `∕`, and the Acorn
-run-only flag appears in mounted-file Properties.
+declared extents. Newer ADFS `+` images retain Big-directory long filenames,
+but every standalone floppy remains read-only. A ROMFS flat catalogue appears
+at the mount root. Its names remain case-sensitive, an embedded `/` is displayed
+as `∕`, and the Acorn run-only flag appears in mounted-file Properties.
+
+Standalone `.hdf`/`.hd4` FileCore images and content-valid raw ADFS hard discs
+without a DSC are also browsable read-only. Their Properties show logical map
+details and explicitly state that physical CHS is unavailable. They never offer
+read-write, validation, repair or recovery actions.
 
 ### Write an image with Greaseweazle
 

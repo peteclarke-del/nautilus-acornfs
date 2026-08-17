@@ -36,6 +36,8 @@ def test_installs_and_removes_complete_desktop_integration(
     assert 'pattern="*.ads"' in mime_content
     assert 'pattern="*.adm"' in mime_content
     assert 'pattern="*.adl"' in mime_content
+    assert 'pattern="*.hdf"' in mime_content
+    assert 'pattern="*.hd4"' in mime_content
     assert 'type="application/x-acorn-dfs"' in mime_content
     assert 'pattern="*.ssd"' in mime_content
     assert 'pattern="*.dsd"' in mime_content
