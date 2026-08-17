@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-17 12:33+0100\n"
+"POT-Creation-Date: 2026-08-17 13:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -64,23 +64,27 @@ msgstr ""
 msgid "A BeebSCSI image member must use the DAT or DSC extension."
 msgstr ""
 
-#: src/acornfs/safe_paths.py:20
+#: src/acornfs/safe_paths.py:23
 msgid "A private AcornFS directory escaped its trusted root."
 msgstr ""
 
-#: src/acornfs/safe_paths.py:22
+#: src/acornfs/safe_paths.py:25
 msgid "A private AcornFS directory must be below its trusted root."
 msgstr ""
 
-#: src/acornfs/safe_paths.py:33
+#: src/acornfs/safe_paths.py:35
 msgid "A private AcornFS directory name is unsafe."
+msgstr ""
+
+#: src/acornfs/safe_paths.py:97
+msgid "A private AcornFS state filename is unsafe."
 msgstr ""
 
 #: src/acornfs/core/image.py:789
 msgid "A repair resolved one parent directory inconsistently."
 msgstr ""
 
-#: src/acornfs/preferences.py:62
+#: src/acornfs/preferences.py:61
 msgid "A symbolic link cannot be used as the AcornFS mount location."
 msgstr ""
 
@@ -271,12 +275,12 @@ msgstr ""
 msgid "An image member changed while AcornFS was opening it: {path}"
 msgstr ""
 
-#: src/acornfs/recovery.py:167
+#: src/acornfs/recovery.py:170
 #, python-brace-format
 msgid "An interrupted writable session needs recovery. Run 'acornfs recover {path}' before mounting read-write."
 msgstr ""
 
-#: src/acornfs/core/repair.py:411
+#: src/acornfs/core/repair.py:384
 #, python-brace-format
 msgid "Applying: {action}"
 msgstr ""
@@ -327,7 +331,7 @@ msgstr ""
 msgid "Cannot inspect mountpoint {path}: {error}"
 msgstr ""
 
-#: src/acornfs/mounts.py:163
+#: src/acornfs/mounts.py:160
 #, python-brace-format
 msgid "Cannot read mount status: {error}"
 msgstr ""
@@ -359,7 +363,7 @@ msgstr ""
 msgid "Checking image settings…"
 msgstr ""
 
-#: src/acornfs/recovery.py:283
+#: src/acornfs/recovery.py:287
 msgid "Choose either --restore or --discard, not both."
 msgstr ""
 
@@ -384,7 +388,7 @@ msgstr ""
 msgid "Could not clean up stale mount {mountpoint}: {detail}"
 msgstr ""
 
-#: src/acornfs/core/repair.py:373
+#: src/acornfs/core/repair.py:346
 #, python-brace-format
 msgid "Could not create the mandatory repair audit: {error}"
 msgstr ""
@@ -394,7 +398,7 @@ msgstr ""
 msgid "Could not create the temporary ADFS filesystem: {error}"
 msgstr ""
 
-#: src/acornfs/recovery.py:226
+#: src/acornfs/recovery.py:230
 #, python-brace-format
 msgid "Could not create the writable recovery checkpoint: {error}"
 msgstr ""
@@ -428,7 +432,7 @@ msgstr ""
 msgid "Could not open Acorn File Forge"
 msgstr ""
 
-#: src/acornfs/recovery.py:106
+#: src/acornfs/recovery.py:102
 msgid "Could not open the checkpoint source."
 msgstr ""
 
@@ -442,7 +446,7 @@ msgstr ""
 msgid "Could not publish the image pair without overwriting: {error}"
 msgstr ""
 
-#: src/acornfs/preferences.py:83
+#: src/acornfs/preferences.py:82
 #, python-brace-format
 msgid "Could not read AcornFS preferences: {error}"
 msgstr ""
@@ -452,12 +456,12 @@ msgstr ""
 msgid "Could not read image descriptor {path}: {error}"
 msgstr ""
 
-#: src/acornfs/mounts.py:119
+#: src/acornfs/mounts.py:116
 #, python-brace-format
 msgid "Could not record the active AcornFS mount: {error}"
 msgstr ""
 
-#: src/acornfs/preferences.py:164
+#: src/acornfs/preferences.py:155
 #, python-brace-format
 msgid "Could not reset AcornFS preferences: {error}"
 msgstr ""
@@ -467,7 +471,7 @@ msgstr ""
 msgid "Could not safely finalise the writable image: {error}"
 msgstr ""
 
-#: src/acornfs/preferences.py:145
+#: src/acornfs/preferences.py:136
 #, python-brace-format
 msgid "Could not save AcornFS preferences: {error}"
 msgstr ""
@@ -517,7 +521,7 @@ msgstr ""
 msgid "Creating empty old-format ADFS filesystem…"
 msgstr ""
 
-#: src/acornfs/core/repair.py:389
+#: src/acornfs/core/repair.py:362
 #, python-brace-format
 msgid "Creating recovery checkpoint… {copied:.1f} of {total:.1f} MiB"
 msgstr ""
@@ -765,7 +769,7 @@ msgstr ""
 msgid "New directory (Nick)"
 msgstr ""
 
-#: src/acornfs/recovery.py:280
+#: src/acornfs/recovery.py:284
 msgid "No recovery checkpoint is pending."
 msgstr ""
 
@@ -818,11 +822,11 @@ msgstr ""
 msgid "Original pathname"
 msgstr ""
 
-#: src/acornfs/core/repair.py:331
+#: src/acornfs/core/repair.py:304
 msgid "Planning repair…"
 msgstr ""
 
-#: src/acornfs/core/repair.py:433
+#: src/acornfs/core/repair.py:406
 #, python-brace-format
 msgid "Post-repair validation failed: {detail}."
 msgstr ""
@@ -856,20 +860,20 @@ msgstr ""
 msgid "Recalculate free ranges from the traversable catalogue and regenerate old-map checksums."
 msgstr ""
 
-#: src/acornfs/recovery.py:326
+#: src/acornfs/recovery.py:330
 msgid "Recovery checkpoint discarded."
 msgstr ""
 
-#: src/acornfs/recovery.py:290
+#: src/acornfs/recovery.py:294
 #, python-brace-format
 msgid "Recovery checkpoint from {created_at} is {state}. Use --restore to restore it or --discard to accept the current image."
 msgstr ""
 
-#: src/acornfs/core/repair.py:401
+#: src/acornfs/core/repair.py:374
 msgid "Recovery checkpoint ready"
 msgstr ""
 
-#: src/acornfs/recovery.py:324
+#: src/acornfs/recovery.py:328
 msgid "Recovery checkpoint restored."
 msgstr ""
 
@@ -881,40 +885,40 @@ msgstr ""
 msgid "Recovery stopped before the commit boundary. The image was not replaced and the checkpoint is still available."
 msgstr ""
 
-#: src/acornfs/safe_paths.py:40 src/acornfs/safe_paths.py:46
+#: src/acornfs/safe_paths.py:42 src/acornfs/safe_paths.py:48
 #, python-brace-format
 msgid "Refusing an unsafe private AcornFS directory: {name}"
 msgstr ""
 
-#: src/acornfs/preferences.py:156
+#: src/acornfs/preferences.py:147
 #, python-brace-format
 msgid "Refusing to remove a symbolic-link preferences file: {path}"
 msgstr ""
 
-#: src/acornfs/preferences.py:129
+#: src/acornfs/preferences.py:128
 #, python-brace-format
 msgid "Refusing to replace a symbolic-link preferences file: {path}"
 msgstr ""
 
-#: src/acornfs/core/repair.py:370
+#: src/acornfs/core/repair.py:343
 msgid "Repair audit created"
 msgstr ""
 
-#: src/acornfs/core/repair.py:444
+#: src/acornfs/core/repair.py:417
 msgid "Repair completed and verified"
 msgstr ""
 
-#: src/acornfs/core/repair.py:465
+#: src/acornfs/core/repair.py:438
 #, python-brace-format
 msgid "Repair completed and verified, but its audit could not be marked complete. The verified audit was retained at {audit}: {error}"
 msgstr ""
 
-#: src/acornfs/core/repair.py:335
+#: src/acornfs/core/repair.py:308
 #, python-brace-format
 msgid "Repair confirmation must exactly match the DAT filename: {name}"
 msgstr ""
 
-#: src/acornfs/core/repair.py:470
+#: src/acornfs/core/repair.py:443
 #, python-brace-format
 msgid "Repair failed; the checkpoint was retained. Audit: {audit}: {error}"
 msgstr ""
@@ -923,7 +927,7 @@ msgstr ""
 msgid "Repair image…"
 msgstr ""
 
-#: src/acornfs/core/repair.py:340
+#: src/acornfs/core/repair.py:313
 msgid "Repair plan validated"
 msgstr ""
 
@@ -942,7 +946,7 @@ msgstr ""
 msgid "Repair target was not found in its parent: {missing}"
 msgstr ""
 
-#: src/acornfs/core/repair.py:437
+#: src/acornfs/core/repair.py:410
 msgid "Repair verified; finalising checkpoint…"
 msgstr ""
 
@@ -1002,7 +1006,7 @@ msgstr ""
 msgid "Restoring AcornFS image"
 msgstr ""
 
-#: src/acornfs/core/repair.py:379
+#: src/acornfs/core/repair.py:352
 msgid "Revalidating image before checkpoint creation…"
 msgstr ""
 
@@ -1135,11 +1139,11 @@ msgstr ""
 msgid "The Acorn image could not be opened safely: {error}"
 msgstr ""
 
-#: src/acornfs/preferences.py:86
+#: src/acornfs/preferences.py:85
 msgid "The AcornFS preferences file has an unsupported format."
 msgstr ""
 
-#: src/acornfs/preferences.py:76
+#: src/acornfs/preferences.py:75
 #, python-brace-format
 msgid "The AcornFS preferences file is unsafe: {path}"
 msgstr ""
@@ -1193,11 +1197,11 @@ msgstr ""
 msgid "The MMB container could not be opened safely: {error}"
 msgstr ""
 
-#: src/acornfs/core/repair.py:346
+#: src/acornfs/core/repair.py:319
 msgid "The complete repair plan is not eligible for automatic application; no checkpoint or image change was made."
 msgstr ""
 
-#: src/acornfs/preferences.py:98
+#: src/acornfs/preferences.py:97
 msgid "The configured AcornFS mount location is invalid."
 msgstr ""
 
@@ -1215,7 +1219,7 @@ msgstr ""
 msgid "The filesystem engine did not create a matching DSC descriptor."
 msgstr ""
 
-#: src/acornfs/preferences.py:65
+#: src/acornfs/preferences.py:64
 msgid "The filesystem root cannot be used as the AcornFS mount location."
 msgstr ""
 
@@ -1253,7 +1257,7 @@ msgstr ""
 msgid "The image is already open with an incompatible AcornFS lock."
 msgstr ""
 
-#: src/acornfs/recovery.py:140
+#: src/acornfs/recovery.py:143
 msgid "The image is mounted or open in another AcornFS process."
 msgstr ""
 
@@ -1285,7 +1289,7 @@ msgstr ""
 msgid "The image's mount location is occupied by a different file identity. Unmount that location before mounting the replacement image."
 msgstr ""
 
-#: src/acornfs/recovery.py:300
+#: src/acornfs/recovery.py:304
 msgid "The interrupted checkpoint was not completed and cannot be restored."
 msgstr ""
 
@@ -1293,7 +1297,7 @@ msgstr ""
 msgid "The locked image member changed while it was mapped."
 msgstr ""
 
-#: src/acornfs/preferences.py:59
+#: src/acornfs/preferences.py:58
 msgid "The mount location must be 'sidebar', 'runtime', or an absolute path."
 msgstr ""
 
@@ -1313,7 +1317,7 @@ msgstr ""
 msgid "The operation was cancelled safely."
 msgstr ""
 
-#: src/acornfs/recovery.py:91
+#: src/acornfs/recovery.py:87
 #, python-brace-format
 msgid "The recovery manifest is unreadable: {path}: {error}"
 msgstr ""
@@ -1339,7 +1343,7 @@ msgstr ""
 msgid "The setting applies to future mounts; existing mounts are unchanged."
 msgstr ""
 
-#: src/acornfs/safe_paths.py:28
+#: src/acornfs/safe_paths.py:31
 msgid "The trusted AcornFS directory root is unsafe."
 msgstr ""
 
@@ -1437,7 +1441,7 @@ msgstr ""
 msgid "Validation findings: {findings}; planned actions: {actions}."
 msgstr ""
 
-#: src/acornfs/core/repair.py:342
+#: src/acornfs/core/repair.py:315
 msgid "Validation found no problems, so there is nothing to repair."
 msgstr ""
 
@@ -1446,7 +1450,7 @@ msgstr ""
 msgid "Validation found {fatal} fatal, {warning} warning, and {advice} advice {finding_label}:"
 msgstr ""
 
-#: src/acornfs/core/repair.py:420
+#: src/acornfs/core/repair.py:393
 msgid "Verifying the complete repaired image…"
 msgstr ""
 
@@ -1486,7 +1490,7 @@ msgstr ""
 msgid "access metadata must fit in 8 bits"
 msgstr ""
 
-#: src/acornfs/recovery.py:286
+#: src/acornfs/recovery.py:290
 msgid "being created"
 msgstr ""
 
@@ -1504,7 +1508,7 @@ msgid_plural "fatal ADFS problems"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/acornfs/core/repair.py:429
+#: src/acornfs/core/repair.py:402
 msgid "fatal findings remain"
 msgstr ""
 
@@ -1561,7 +1565,7 @@ msgstr ""
 msgid "read-write"
 msgstr ""
 
-#: src/acornfs/recovery.py:287
+#: src/acornfs/recovery.py:291
 msgid "ready"
 msgstr ""
 
@@ -1615,7 +1619,7 @@ msgstr[1] ""
 msgid "{cylinders} cylinders × {heads} heads × {sectors} sectors/track"
 msgstr ""
 
-#: src/acornfs/core/repair.py:460
+#: src/acornfs/core/repair.py:433
 #, python-brace-format
 msgid "{error} Audit: {audit}"
 msgstr ""

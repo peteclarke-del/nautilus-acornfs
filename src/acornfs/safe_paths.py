@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import os
 import stat
-from contextlib import suppress
+import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 
 
-def ensure_private_directory(path: Path, *, anchor: Path) -> Path:
-    """Create descendants below a trusted anchor without following symlinks."""
+@contextmanager
+def _private_directory_descriptor(path: Path, *, anchor: Path) -> Iterator[int]:
+    """Yield a locked traversal result without reopening descendant paths."""
 
     try:
         parts = path.relative_to(anchor).parts
@@ -26,7 +29,6 @@ def ensure_private_directory(path: Path, *, anchor: Path) -> Path:
         descriptor = os.open(anchor, flags)
     except OSError as exc:
         raise AcornFSError(_("The trusted AcornFS directory root is unsafe.")) from exc
-    current = anchor
     try:
         for part in parts:
             if part in {"", ".", ".."} or "/" in part:
@@ -48,10 +50,86 @@ def ensure_private_directory(path: Path, *, anchor: Path) -> Path:
             os.close(descriptor)
             descriptor = child
             os.fchmod(descriptor, 0o700)
-            current /= part
+        yield descriptor
     finally:
         os.close(descriptor)
-    return current
 
 
-__all__ = ["ensure_private_directory"]
+def ensure_private_directory(path: Path, *, anchor: Path) -> Path:
+    """Create descendants below a trusted anchor without following symlinks."""
+
+    with _private_directory_descriptor(path, anchor=anchor):
+        pass
+    return path
+
+
+def _write_all(descriptor: int, content: bytes) -> None:
+    view = memoryview(content)
+    while view:
+        try:
+            written = os.write(descriptor, view)
+        except InterruptedError:
+            continue
+        if written <= 0:
+            raise OSError("private state write made no progress")
+        view = view[written:]
+
+
+def _fsync(descriptor: int) -> None:
+    while True:
+        try:
+            os.fsync(descriptor)
+            return
+        except InterruptedError:
+            continue
+
+
+def atomic_write_private_text(
+    path: Path,
+    content: str,
+    *,
+    anchor: Path,
+    mode: int = 0o600,
+) -> None:
+    """Durably replace one private text file without following path components."""
+
+    if path.name in {"", ".", ".."} or path.parent == path:
+        raise AcornFSError(_("A private AcornFS state filename is unsafe."))
+    encoded = content.encode("utf-8")
+    temporary_name = f".{path.name}.{uuid.uuid4().hex}.tmp"
+    with _private_directory_descriptor(path.parent, anchor=anchor) as directory:
+        temporary_descriptor: int | None = None
+        temporary_created = False
+        try:
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+            temporary_descriptor = os.open(
+                temporary_name,
+                flags,
+                mode,
+                dir_fd=directory,
+            )
+            temporary_created = True
+            _write_all(temporary_descriptor, encoded)
+            os.fchmod(temporary_descriptor, mode)
+            _fsync(temporary_descriptor)
+            os.close(temporary_descriptor)
+            temporary_descriptor = None
+            os.replace(
+                temporary_name,
+                path.name,
+                src_dir_fd=directory,
+                dst_dir_fd=directory,
+            )
+            temporary_created = False
+            _fsync(directory)
+        except BaseException:
+            if temporary_descriptor is not None:
+                with suppress(OSError):
+                    os.close(temporary_descriptor)
+            if temporary_created:
+                with suppress(OSError):
+                    os.unlink(temporary_name, dir_fd=directory)
+            raise
+
+
+__all__ = ["atomic_write_private_text", "ensure_private_directory"]

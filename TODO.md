@@ -248,7 +248,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Sidebar, runtime and custom mount-location preference resolution.
 - [x] Filenames containing every supported display mapping and case-collision combination.
 - [ ] Images stored on NFS, removable media, read-only media and filesystems without reflink support.
-- [ ] Low-memory, low-disk-space and interrupted preference/audit/checkpoint writes.
+- [x] Low-memory, low-disk-space and interrupted preference/audit/checkpoint writes.
 
 ## Initial release acceptance criteria
 
@@ -281,8 +281,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] POSIX timestamp policy for filesystems without equivalent timestamps.
 - [x] Filename display, creation and case-insensitivity policy.
 - [x] Extended-attribute and hidden-by-default `.inf` sidecar policy.
-- [ ] MMB directory and write-semantics design.
+- [x] MMB directory and write-semantics design.
 - [x] Supported Ubuntu, GNOME and Nautilus versions.
 - [x] Initial operating-system architecture (amd64; Raspberry Pi remains future work).
 - [x] Default sidebar mount location and optional runtime/custom location policy.
-- [ ] Support and compatibility policy for Oaknut private APIs across dependency updates.
+- [x] Support and compatibility policy for Oaknut private APIs across dependency updates.
