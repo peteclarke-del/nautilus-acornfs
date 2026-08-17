@@ -113,6 +113,13 @@ still verifies content and geometry. DSC selection is extension-based but must
 pass pair and descriptor validation. MIME, double-click and `acornfs:` URI opens
 all converge on the same read-only desktop-mount path.
 
+UEF is sequential tape media rather than a mounted random-access filesystem,
+while general archive traversal introduces nested decompression and resource
+accounting that do not share the disk-image mount contract. Both were considered
+for read-only support and are deliberately deferred until after the initial
+disk-filesystem release; either needs its own bounded media model and hostile
+input design before format detection is extended.
+
 The Nautilus extension communicates with the CLI, which runs desktop mounts as
 collected transient systemd user services when available. It must not hold
 writable images open or implement filesystem parsing itself.

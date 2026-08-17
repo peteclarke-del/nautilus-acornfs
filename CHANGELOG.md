@@ -48,6 +48,9 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Changed
 
+- Harden desktop accessibility metadata and destructive dialog button
+  contracts, document the GNOME acceptance matrix, and cover copy, move,
+  delete and atomic-save workflows through live FUSE.
 - The File Forge menu action is offered only when the native or explicitly
   configured launcher executable is detected as installed.
 - The complete Oaknut family is aligned with Acorn File Forge at 12.15.1,

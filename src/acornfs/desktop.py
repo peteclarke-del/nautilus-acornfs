@@ -219,6 +219,7 @@ def _show_desktop_message(title: str, message: str, *, error: bool = False) -> N
         [
             dialog,
             "--error" if error else "--info",
+            "--no-markup",
             f"--title={title}",
             f"--text={message}",
             f"--ok-label={_('Close')}",
@@ -598,6 +599,7 @@ def desktop_write_floppy(image_path: str | Path) -> int:
         [
             dialog,
             "--question",
+            "--no-markup",
             f"--title={_('Confirm physical floppy write')}",
             f"--text={confirmation_text}",
             f"--ok-label={_('Overwrite and verify')}",
@@ -909,6 +911,8 @@ def _confirm_and_apply_repair(pair: BeebSCSIPair, plan: RepairPlan) -> int:
             f"--text={_('Eligible low-risk repair(s):')}\n{actions}\n\n"
             f"{_('A recovery checkpoint and audit will be created.')}\n"
             f"{_('Type {name} to confirm:').format(name=pair.dat_path.name)}",
+            f"--ok-label={_('Apply repair')}",
+            f"--cancel-label={_('Cancel')}",
             "--width=620",
         ],
         check=False,
@@ -985,6 +989,8 @@ def desktop_recover(image_path: str | Path) -> int:
             restore_choice,
             "FALSE",
             discard_choice,
+            f"--ok-label={_('Continue')}",
+            f"--cancel-label={_('Cancel')}",
             "--width=620",
             "--height=280",
         ],
