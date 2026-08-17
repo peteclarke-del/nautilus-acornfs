@@ -1,9 +1,10 @@
 # Nautilus AcornFS
 
 Nautilus AcornFS is an in-progress, user-space filesystem for Acorn disk
-images. Paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S/M/L floppies,
-DFS `SSD`/`DSD` images, standard/extended MMB containers, and Acorn ROMFS paged-ROM
-images are mounted through FUSE 3 and exposed to Nautilus through a small
+images. Paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S through G+
+floppies and FileCore hard-disc images, DFS `SSD`/`DSD` images,
+standard/extended MMB containers, and Acorn ROMFS paged-ROM images are mounted
+through FUSE 3 and exposed to Nautilus through a small
 extension, while the filesystem engine remains usable from any Linux
 application.
 
@@ -31,7 +32,10 @@ retained-state guidance in
 ## Current functionality
 
 - Discover a matching BeebSCSI `DAT`/`DSC` pair from either member.
-- Detect standalone ADFS S, M and L floppy images from content and mount them read-only.
+- Detect the complete ADFS S/M/L/D/E/E+/F/F+/G/G+ floppy family from content
+  and mount it read-only, including Big-directory long filenames.
+- Mount content-valid standalone FileCore HDF/HD4 and unpaired raw ADFS hard
+  discs read-only when physical CHS geometry is unavailable.
 - Mount content-detected Acorn and Watford DFS SSD/DSD images read-only, exposing
   catalogue prefixes and both DSD sides coherently.
 - Mount standard and extended MMB containers read-only with formatted slots
@@ -352,12 +356,15 @@ The exact Oaknut pin and private-adapter upgrade gate are documented in
 The writable format is a BeebSCSI DAT/DSC hard-disc pair containing
 old-map ADFS with old (Hugo) directories. The image metadata is compatible with
 BBC Master BeebSCSI and RISC OS old-map ADFS access; the pair alone cannot prove
-which physical host will be used. Standalone ADFS S/M/L floppies and DFS
-SSD/DSD images are read-only. On an SSD, DFS catalogue prefixes (`$`, `A`-`Z`)
+which physical host will be used. Standalone ADFS S through G+ floppies,
+FileCore/unpaired raw hard discs and DFS SSD/DSD images are read-only. On an
+SSD, DFS catalogue prefixes (`$`, `A`-`Z`)
 appear as directories. On a DSD, drive directories `0` and `2` contain each
 side's catalogue-prefix directories. These are presentation-only namespaces;
-AcornFS does not create directory records that DFS cannot represent. Other maps
-and image types remain unsupported rather than being guessed.
+AcornFS does not create directory records that DFS cannot represent. Standalone
+ADFS floppies and hard discs without a valid BeebSCSI descriptor remain
+read-only regardless of whether they use the Old or New map; other image types
+remain unsupported rather than being guessed.
 
 Standard and extended MMB containers expose only formatted slots, named by a
 stable global slot number and catalogue label. Extended images may contain up

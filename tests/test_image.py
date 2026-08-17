@@ -12,6 +12,7 @@ from acornfs.errors import AcornFSError
 from acornfs.recovery import recover_image
 from tests.image_fixture import (
     create_adfs_floppy,
+    create_adfs_hard_disc,
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
@@ -32,7 +33,7 @@ def test_indexes_nested_image_and_reads_files(tmp_path: Path) -> None:
         assert image.read(guide.inode, 7, 4) == b"file"
 
 
-@pytest.mark.parametrize("format_name", ["s", "m", "l"])
+@pytest.mark.parametrize("format_name", ["s", "m", "l", "d", "e", "e+", "f", "f+", "g", "g+"])
 def test_indexes_and_reads_standalone_adfs_floppies(tmp_path: Path, format_name: str) -> None:
     image_path = create_adfs_floppy(tmp_path, format_name=format_name)
 
@@ -46,6 +47,29 @@ def test_indexes_and_reads_standalone_adfs_floppies(tmp_path: Path, format_name:
         assert image.read(hello.inode, 0, 1024) == b"Hello from floppy\r"
         assert image.read(guide.inode, 0, 1024) == b"Floppy guide\r"
         assert image.source.kind == "adfs-floppy"
+        assert not image.writable
+        if format_name.endswith("+"):
+            long_name = image.lookup(ROOT_INODE, b"LONG RISC OS FILENAME")
+            assert long_name is not None
+            assert image.read(long_name.inode, 0, 1024) == b"Big directory filename\r"
+
+    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
+        ReadOnlyImage.open(image_path, writable=True)
+
+
+def test_indexes_and_reads_standalone_filecore_hard_disc(tmp_path: Path) -> None:
+    image_path = create_adfs_hard_disc(tmp_path)
+
+    with ReadOnlyImage.open(image_path) as image:
+        hello = image.lookup(ROOT_INODE, b"HELLO")
+        docs = image.lookup(ROOT_INODE, b"DOCUMENTATION")
+        assert hello is not None
+        assert docs is not None
+        guide = image.lookup(docs.inode, b"A LONG RISC OS GUIDE")
+        assert guide is not None
+        assert image.read(hello.inode, 0, 1024) == b"Hello from FileCore\r"
+        assert image.read(guide.inode, 0, 1024) == b"Hard-disc guide\r"
+        assert image.source.kind == "adfs-hard-disc"
         assert not image.writable
 
     with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):

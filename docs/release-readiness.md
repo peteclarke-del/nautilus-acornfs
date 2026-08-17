@@ -9,7 +9,8 @@ claim into a completed item.
 - GNOME/Nautilus 46 or later using the Nautilus 4 extension API.
 - FUSE 3 with unprivileged mounts owned by the current user.
 - Read-write only for validated paired BeebSCSI DAT/DSC old-map ADFS images.
-- Read-only for ADFS S/M/L, DFS SSD/DSD, standard/extended MMB and Acorn ROMFS images.
+- Read-only for ADFS S/M/L/D/E/E+/F/F+/G/G+, DFS SSD/DSD, standard/extended
+  MMB, Acorn ROMFS and standalone FileCore/unpaired raw ADFS hard-disc images.
 - Local regular image files. Unit coverage proves read-only backing storage
   remains browsable, writable opening fails closed, and checkpoint copying
   falls back when reflinks are unavailable. Real network and removable

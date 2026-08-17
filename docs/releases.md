@@ -45,9 +45,10 @@ No release procedure may claim those guarantees early.
 
 The first release line supports amd64 on the Ubuntu, GNOME and Nautilus versions
 documented in the README. BeebSCSI DAT/DSC old-map ADFS is the only writable
-image format; ADFS S/M/L floppies are supported read-only. Other architectures,
-image formats and physical-hardware claims remain unsupported until their
-specific TODO and test-matrix entries close.
+image format; ADFS S/M/L/D/E/E+/F/F+/G/G+ floppies are supported read-only.
+Standalone FileCore and unpaired raw ADFS hard discs are also read-only. Other
+architectures, image formats and physical-hardware claims remain unsupported
+until their specific TODO and test-matrix entries close.
 
 The on-disc safety boundary has priority over host API compatibility. A release
 must refuse uncertain writes rather than weaken validation to preserve an old

@@ -11,13 +11,20 @@ Image selection resolves to a canonical source, Oaknut filesystem and geometry,
 plus an explicit operation-capability profile. A complete DAT/DSC pair takes
 precedence because its descriptor supplies hard-disc geometry that content
 cannot recover. Otherwise Oaknut ranks content evidence; suffixes only break
-equal-confidence ties. AcornFS accepts detected ADFS S/M/L and DFS SSD/DSD
-floppy images and CRC-validated 8/16 KiB Acorn ROMFS images as read-only
-profiles. DFS catalogue prefixes use Oaknut's virtual
-directory model; DSD mounts add a presentation-only drive level (`0` and `2`)
+equal-confidence ties. AcornFS accepts the detected ADFS S/M/L/D/E/E+/F/F+/G/G+
+and DFS SSD/DSD floppy families and CRC-validated 8/16 KiB Acorn ROMFS images
+as read-only profiles. Same-sized D/E/E+ and plus variants are refined from the
+on-disc map and directory records rather than their suffix. DFS catalogue
+prefixes use Oaknut's virtual directory model; DSD mounts add a presentation-only drive level (`0` and `2`)
 over the two independently catalogued surfaces. Other recognised-but-unsupported
 filesystems are rejected explicitly. ROMFS retains its case-sensitive flat
 namespace and distinct run-only access bit through the POSIX presentation.
+
+Content-valid standalone FileCore HDF/HD4 and unpaired raw ADFS hard-disc
+images are also read-only profiles. Their filesystem geometry comes from the
+map, but AcornFS reports physical CHS as unavailable instead of inventing a
+descriptor. Only a complete, validated old-map DAT/DSC pair receives the
+writable BeebSCSI capability set.
 
 MMB support is a container adapter, not another filesystem parser. It validates
 all 1–16 repeated catalogue/payload extents, exposes formatted slots through one
@@ -26,8 +33,10 @@ DFS mount. An eight-slot LRU bounds copied read-only payload buffers. MMB
 mutations still fail closed; the lock/checkpoint/commit design is recorded in
 [mmb.md](mmb.md).
 Read-only indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
-metadata, filetype, size and free-space capabilities. Private old-ADFS access is
-confined to the separately capability-gated BeebSCSI write and ranged-read paths.
+metadata, filetype, size and free-space capabilities. Private ADFS access is
+confined to `acornfs.core`: read-only format refinement and properties inspect
+the pinned map/directory objects, while the separately capability-gated
+BeebSCSI write and ranged-read paths remain old-map only.
 
 The initial host baseline is Ubuntu 24.04 LTS or later, FUSE 3, and Nautilus 46
 or later using the Nautilus 4 GObject-introspection API. CI also exercises

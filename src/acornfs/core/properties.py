@@ -186,50 +186,95 @@ def _read_standalone_properties(
         budget.checkpoint(items=1)
         api = cast(Any, mount)
         adfs = api._adfs
-        free_space_map = adfs._fsm
-        total_sectors = int(free_space_map.total_sectors)
+        total_bytes = int(api.size_bytes())
         free_bytes = int(api.free_bytes())
-        free_sectors = free_bytes // SECTOR_SIZE
         specs = source.geometry.surface_specs
-        tracks = max(spec.num_tracks for spec in specs)
-        sides = len(specs)
-        sectors_per_track = specs[0].sectors_per_track
         directory_format = _directory_format(adfs)
         boot = api.boot_option
+        if adfs.is_new_map:
+            map_metadata = adfs._map.disc_record
+            filesystem_format = "ADFS new map"
+        else:
+            map_metadata = adfs._fsm
+            filesystem_format = "ADFS old map"
+        hard_disc = source.kind == "adfs-hard-disc"
+        if hard_disc:
+            paired_geometry = source.companion_path is not None
+            internal_geometry = source.geometry if paired_geometry else adfs.geometry
+            tracks = int(internal_geometry.cylinders)
+            sides = int(internal_geometry.heads)
+            sectors_per_track = int(internal_geometry.sectors_per_track)
+            sector_size = int(map_metadata.sector_size) if adfs.is_new_map else SECTOR_SIZE
+            zones = int(map_metadata.nzones) if adfs.is_new_map else 0
+            geometry_description = (
+                _(
+                    "{cylinders} cylinders × {heads} heads × {sectors} sectors/track; "
+                    "FileCore New Map, {zones} zones, {sector_size}-byte sectors"
+                ).format(
+                    cylinders=tracks,
+                    heads=sides,
+                    sectors=sectors_per_track,
+                    zones=zones,
+                    sector_size=sector_size,
+                )
+                if paired_geometry and adfs.is_new_map
+                else _("FileCore New Map, {zones} zones, {sector_size}-byte sectors").format(
+                    zones=zones, sector_size=sector_size
+                )
+                if adfs.is_new_map
+                else _("ADFS old-map linear image; physical CHS unavailable")
+            )
+        else:
+            tracks = max(spec.num_tracks for spec in specs)
+            sides = len(specs)
+            sectors_per_track = specs[0].sectors_per_track
+            sector_size = specs[0].bytes_per_sector
+            geometry_description = ""
         return ImageProperties(
             dat_path=str(source.primary_path),
-            dsc_path="",
-            image_type="Standalone ADFS floppy image",
-            filesystem_format="ADFS old map",
+            dsc_path=str(source.companion_path) if source.companion_path is not None else "",
+            image_type=(
+                "ADFS DAT/DSC pair (New Map)"
+                if hard_disc and source.companion_path is not None
+                else "Standalone ADFS hard-disc image"
+                if hard_disc
+                else "Standalone ADFS floppy image"
+            ),
+            filesystem_format=filesystem_format,
             directory_format=directory_format,
-            hardware_profile="Acorn ADFS floppy",
+            hardware_profile=("RISC OS FileCore hard disc" if hard_disc else "Acorn ADFS floppy"),
             title=str(api.title),
-            disc_name=str(free_space_map.disc_name),
-            disc_id=int(free_space_map.disc_id),
+            disc_name=str(map_metadata.disc_name),
+            disc_id=int(map_metadata.disc_id),
             boot_option=f"{boot.name.title()} ({int(boot)})",
             cylinders=tracks,
             heads=sides,
             sectors_per_track=sectors_per_track,
-            sector_size=SECTOR_SIZE,
+            sector_size=sector_size,
             geometry_sectors=source.geometry.num_sectors,
-            adfs_sectors=total_sectors,
-            capacity_bytes=source.geometry.image_size,
-            adfs_bytes=total_sectors * SECTOR_SIZE,
-            used_bytes=(total_sectors - free_sectors) * SECTOR_SIZE,
+            adfs_sectors=total_bytes // sector_size,
+            capacity_bytes=(
+                source.primary_path.stat().st_size if hard_disc else source.geometry.image_size
+            ),
+            adfs_bytes=total_bytes,
+            used_bytes=total_bytes - free_bytes,
             free_bytes=free_bytes,
-            reserved_bytes=max(0, source.geometry.num_sectors - total_sectors) * SECTOR_SIZE,
+            reserved_bytes=max(0, source.geometry.image_size - total_bytes),
             safe_for_write=False,
             fatal_findings=0,
             warning_findings=0,
             advice_findings=0,
-            geometry_kind="floppy",
+            geometry_kind="container" if hard_disc else "floppy",
             write_supported=False,
+            geometry_description=geometry_description,
         )
     except AcornFSError:
         raise
     except Exception as exc:
         raise AcornFSError(
-            _("The ADFS floppy properties could not be read safely: {error}").format(error=exc)
+            _("The standalone ADFS image properties could not be read safely: {error}").format(
+                error=exc
+            )
         ) from exc
     finally:
         _close_mount(mount)
