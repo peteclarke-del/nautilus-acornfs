@@ -27,7 +27,7 @@ messages:
 		src/acornfs/core/validation.py src/acornfs/desktop.py src/acornfs/file_forge.py \
 		src/acornfs/fuse_adapter/operations.py src/acornfs/fuse_adapter/runner.py \
 		src/acornfs/mounts.py src/acornfs/operations.py src/acornfs/preferences.py \
-		src/acornfs/recovery.py src/acornfs_nautilus/extension.py \
+		src/acornfs/recovery.py src/acornfs/safe_paths.py src/acornfs_nautilus/extension.py \
 		src/acornfs_nautilus/logic.py
 
 package-smoke:

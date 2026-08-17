@@ -39,6 +39,7 @@ from acornfs.i18n import _, ngettext
 
 if TYPE_CHECKING:
     from acornfs.core.validation import IntegrityReport
+    from acornfs.operations import OperationBudget
     from acornfs.recovery import RecoveryCheckpoint
 
 ROOT_INODE = 1
@@ -152,6 +153,7 @@ class ReadOnlyImage:
         repair_mode: bool = False,
         fault_injector: Callable[[str], None] | None = None,
         checkpoint_progress: Callable[[int, int], None] | None = None,
+        operation_budget: OperationBudget | None = None,
     ) -> ReadOnlyImage:
         """Detect and open a supported image, read-only unless explicitly writable."""
 
@@ -184,7 +186,9 @@ class ReadOnlyImage:
 
                 if pair is None or descriptor_geometry is None:
                     raise AcornFSError(_("This image has no supported writable profile."))
-                report = validate_open_mount(pair, mount, descriptor_geometry)
+                report = validate_open_mount(
+                    pair, mount, descriptor_geometry, budget=operation_budget
+                )
                 require_safe_for_write(report)
                 if not repair_mode and any(
                     finding.code == "geometry.dat_missing_reserved_tail"
@@ -1035,14 +1039,14 @@ class ReadOnlyImage:
             else 0
         )
 
-    def integrity_report(self) -> IntegrityReport:
+    def integrity_report(self, *, budget: OperationBudget | None = None) -> IntegrityReport:
         """Return a full integrity report for the currently locked image."""
 
         from acornfs.core.validation import validate_open_mount
 
         if self.pair is None or self._descriptor_geometry is None:
             raise AcornFSError(_("Full validation is not available for this image format."))
-        return validate_open_mount(self.pair, self._mount, self._descriptor_geometry)
+        return validate_open_mount(self.pair, self._mount, self._descriptor_geometry, budget=budget)
 
     @staticmethod
     def _close_oaknut_mount(mount: Mount) -> None:

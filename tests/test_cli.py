@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from acornfs.cli import main
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
+from acornfs.errors import AcornFSError
 from acornfs.mounts import MountRecord
 from tests.image_fixture import create_beebscsi_image, set_root_entry_length
 
@@ -145,6 +146,44 @@ def test_desktop_mount_forwards_writable_choice() -> None:
     with patch("acornfs.desktop.desktop_mount", return_value=0) as desktop_mount:
         assert main(["desktop-mount", "--read-write", "/image.dat"]) == 0
     desktop_mount.assert_called_once_with("/image.dat", read_write=True)
+
+
+def test_detached_mount_output_does_not_log_image_paths(
+    tmp_path: Path, capsys: object, monkeypatch: object
+) -> None:
+    image = tmp_path / "Private Images" / "disc.dat"
+    mountpoint = tmp_path / "Private Mount" / "disc"
+    monkeypatch.setenv("ACORNFS_DESKTOP_MOUNT", "1")  # type: ignore[attr-defined]
+
+    with patch("acornfs.fuse_adapter.runner.mount_image"):
+        assert main(["mount", str(image), str(mountpoint)]) == 0
+
+    output = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert "Starting AcornFS desktop mount read-only." in output
+    assert str(image) not in output
+    assert str(mountpoint) not in output
+
+
+def test_detached_mount_error_redacts_unrelated_path(
+    tmp_path: Path, capsys: object, monkeypatch: object
+) -> None:
+    image = tmp_path / "disc.dat"
+    mountpoint = tmp_path / "mounted"
+    monkeypatch.setenv("ACORNFS_DESKTOP_MOUNT", "1")  # type: ignore[attr-defined]
+
+    with (
+        patch(
+            "acornfs.fuse_adapter.runner.mount_image",
+            side_effect=AcornFSError("failed at /home/alice/Private Images/image.dat: denied"),
+        ),
+        patch("acornfs.desktop.notify_mount_failure") as notify,
+    ):
+        assert main(["mount", str(image), str(mountpoint)]) == 2
+
+    error = capsys.readouterr().err  # type: ignore[attr-defined]
+    assert "/home/alice" not in error
+    assert "Private Images" not in error
+    assert "/home/alice" not in notify.call_args.args[0]
 
 
 def test_desktop_open_forwards_uri_list() -> None:

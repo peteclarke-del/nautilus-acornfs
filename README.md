@@ -210,6 +210,11 @@ recovery checkpoint is created. Warnings and compatibility advice do not block
 mounting, although warnings make the validation command exit non-zero for
 strict unattended checks. Validation does not repair or modify the image.
 
+Validation, image properties and repair share an adversarial-input budget of
+five minutes, 100,000 visited items and 256 directory levels. Exceeding any
+limit stops safely with an explicit error; repair cancellation or expiry never
+bypasses its checkpoint and audit rules.
+
 Generate a deterministic, read-only repair assessment with:
 
 ```shell
@@ -273,6 +278,11 @@ Images and desktop references are treated as untrusted input. See the
 supported boundary, mitigations and remaining release gates. Maintainers can
 run short amd64 coverage-guided parser checks with `make fuzz-smoke` after
 installing the `fuzz` optional dependency.
+
+AcornFS-owned runtime, configuration, recovery and audit directories are
+created privately without following symbolic links. Desktop-visible external
+errors are bounded and redact unrelated absolute paths; exported diagnostics
+contain only bounded basenames, allowlisted mount flags and hashed identities.
 
 Debian package boundaries and exact Ubuntu runtime package names are documented
 in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`

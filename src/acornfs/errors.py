@@ -9,6 +9,10 @@ class OperationCancelled(AcornFSError):
     """A cooperative operation stopped at a persistent-state-safe boundary."""
 
 
+class OperationLimitExceeded(AcornFSError):
+    """Untrusted input exhausted a configured operation budget."""
+
+
 class PairDiscoveryError(AcornFSError):
     """A BeebSCSI DAT/DSC pair cannot be identified safely."""
 
