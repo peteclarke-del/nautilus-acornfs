@@ -1,4 +1,4 @@
-.PHONY: benchmark check format fuzz-smoke lint messages package-smoke test test-live typecheck
+.PHONY: benchmark check format fuzz-smoke lint messages package-smoke release test test-live typecheck
 
 check: lint typecheck test
 
@@ -32,6 +32,9 @@ messages:
 
 package-smoke:
 	python tools/package_smoke.py --build
+
+release:
+	python tools/release_artifacts.py --output build/release
 
 typecheck:
 	python -m mypy src

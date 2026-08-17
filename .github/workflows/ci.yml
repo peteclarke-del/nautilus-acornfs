@@ -96,6 +96,25 @@ jobs:
       - name: Exercise clean install, forced upgrade and uninstall
         run: python tools/package_smoke.py --build
 
+  release-artifacts-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends -y libfuse3-dev pkg-config
+      - run: python -m pip install '.[release]'
+      - name: Build twice and verify release artefacts
+        run: python tools/release_artifacts.py --output build/release
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-artifacts-amd64
+          path: build/release/
+          if-no-files-found: error
+
   benchmark-amd64:
     runs-on: ubuntu-24.04
     steps:
