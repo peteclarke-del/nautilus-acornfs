@@ -8,7 +8,8 @@ on an Oaknut private attribute.
 
 All Oaknut distributions must stay on one exact release. The supported set and
 version are declared together in `pyproject.toml`; partial or floating upgrades
-are not accepted. The current supported family is Oaknut 12.13.1.
+are not accepted. The current supported family is Oaknut 12.15.1, matching
+Acorn File Forge's filesystem dependencies.
 
 ## Upgrade gate
 
