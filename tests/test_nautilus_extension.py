@@ -15,7 +15,10 @@ class _Menu:
 
 class _MenuItem:
     def __init__(self, **values: str) -> None:
+        self.name = values["name"]
         self.label = values["label"]
+        self.tip = values["tip"]
+        self.icon = values["icon"]
         self.submenu: _Menu | None = None
         self.callback: Any = None
         self.arguments: tuple[Any, ...] = ()
@@ -98,6 +101,25 @@ def test_image_actions_are_collapsed_under_one_support_menu(
         "Open in Acorn File Forge…",
         "Mount location…",
     ]
+
+
+def test_every_image_menu_action_has_accessible_model_metadata(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
+    monkeypatch.setattr(extension, "physical_write_available", lambda _path: True)
+
+    parent = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "scsi0.dat")])[0]
+    entries = [parent, *parent.submenu.items]
+
+    assert len({entry.name for entry in entries}) == len(entries)
+    assert all(entry.name.startswith("AcornFS::") for entry in entries)
+    assert all(entry.label.strip() for entry in entries)
+    assert all(entry.tip.strip() for entry in entries)
+    assert all(entry.icon.endswith("-symbolic") for entry in entries)
 
 
 def test_writable_folder_offers_create_in_support_menu(tmp_path: Path, monkeypatch: Any) -> None:

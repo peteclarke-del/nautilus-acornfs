@@ -25,7 +25,8 @@ claim into a completed item.
 - [x] Wheel and source archive builds are reproducible and have an SBOM.
 - [ ] The Ubuntu 24.04 amd64 package lifecycle smoke test passes.
 - [ ] A clean GNOME session passes keyboard, screen-reader, light/dark, narrow
-  window, 200 percent scaling and Nautilus file-operation workflows.
+  window, 200 percent scaling and Nautilus file-operation workflows using the
+  [desktop acceptance matrix](desktop-acceptance.md).
 - [ ] Logout and host shutdown safely finalise dirty writable handles.
 - [ ] A write-path candidate passes on real BeebSCSI hardware.
 - [ ] Threat-model, fuzzing and dependency/licence scan findings contain no

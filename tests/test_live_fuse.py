@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import errno
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -224,7 +225,7 @@ def test_live_read_only_mmb_mount_exposes_formatted_slots(
     reason=FUSE_SKIP_REASON,
 )
 def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
-    """Exercise normal file-manager operations through a real kernel mount."""
+    """Exercise copy, move, delete and atomic-save patterns through kernel FUSE."""
 
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     mountpoint = tmp_path / "mount"
@@ -262,6 +263,17 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
             time.sleep(0.05)
 
         assert (mountpoint / "README").read_bytes() == b"Hello from AcornFS\r"
+
+        host_source = tmp_path / "host-source"
+        host_source.write_bytes(b"copied into the mounted image")
+        copied_in = mountpoint / "COPYIN"
+        shutil.copyfile(host_source, copied_in)
+        assert copied_in.read_bytes() == host_source.read_bytes()
+
+        copied_out = tmp_path / "copied-out"
+        shutil.copyfile(mountpoint / "README", copied_out)
+        assert copied_out.read_bytes() == b"Hello from AcornFS\r"
+
         (mountpoint / "NEWDIR").mkdir()
         new_file = mountpoint / "NEWFILE"
         new_file.write_bytes(b"written through the kernel FUSE mount")
@@ -280,6 +292,22 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
         renamed = mountpoint / "DOCS" / "RENAMED"
         top.rename(renamed)
         assert (renamed / "CHILD").is_dir()
+
+        save_temporary = mountpoint / "SAVETEMP"
+        with save_temporary.open("wb") as handle:
+            handle.write(b"atomic editor replacement")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(save_temporary, mountpoint / "README")
+        assert (mountpoint / "README").read_bytes() == b"atomic editor replacement"
+
+        copied_in.unlink()
+        moved.unlink()
+        (renamed / "CHILD").rmdir()
+        renamed.rmdir()
+        (mountpoint / "NEWDIR").rmdir()
+        assert not copied_in.exists()
+        assert not moved.exists()
 
         unmount = subprocess.run(
             ["fusermount3", "-u", str(mountpoint)],
@@ -303,6 +331,10 @@ def test_live_writable_fuse_lifecycle(tmp_path: Path) -> None:
 
     assert validate_image_report(dat_path).findings == ()
     assert pending_recovery(dat_path) is None
+    with ReadOnlyImage.open(dat_path) as image:
+        readme = image.lookup(ROOT_INODE, b"README")
+        assert readme is not None
+        assert image.read(readme.inode, 0, 1024) == b"atomic editor replacement"
 
 
 @pytest.mark.skipif(
