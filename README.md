@@ -349,7 +349,9 @@ Debian package boundaries and exact Ubuntu runtime package names are documented
 in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`
 production remains blocked until the project licence is selected and Oaknut has
 a reviewed Debian packaging or vendoring route; AcornFS will not disguise those
-requirements with a root-time `pip` download.
+requirements with a root-time `pip` download. Maintainers can run
+`make debian-staging` to produce three disjoint, non-distributable amd64 package
+roots and an ownership/dependency manifest under `build/debian-staging`.
 The exact Oaknut pin and private-adapter upgrade gate are documented in
 [docs/oaknut-compatibility.md](docs/oaknut-compatibility.md).
 

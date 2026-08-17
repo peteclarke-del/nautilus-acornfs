@@ -19,9 +19,10 @@ during package builds.
    tests or assumptions.
 2. Run `make check`, `make benchmark`, `make test-live` on a permitted amd64
    FUSE host, install `.[release]`, and run `make release`.
-3. Run `make package-smoke`, then install the built wheel into a clean supported
-   Ubuntu environment and run the documented mount, writable-edit and recovery
-   acceptance tests.
+3. Run `make package-smoke` and `make debian-staging`, then inspect the three
+   disjoint package roots and their non-publishable manifest. Install the built
+   wheel into a clean supported Ubuntu environment and run the documented mount,
+   writable-edit and recovery acceptance tests.
 4. Set the version, date the changelog section, and review the complete diff.
 5. Merge the release commit, create the matching annotated tag, then publish
    release notes derived from the changelog.
@@ -33,8 +34,10 @@ during package builds.
 
 The project must have an explicit licence before its first public release.
 Signed archives and Debian artefact production remain separate acceptance items
-until a licence and release-key policy exist. The automated release job builds
-the wheel and source archive twice with one commit-derived timestamp, compares
+until a licence and release-key policy exist. Debian staging also remains
+explicitly non-publishable until the pinned Oaknut family has a Debian package
+or an approved vendoring plan. The automated release job builds the wheel and
+source archive twice with one commit-derived timestamp, compares
 their SHA-256 digests, emits a reproducible CycloneDX 1.6 SBOM and writes an
 unsigned checksum manifest. The automated wheel lifecycle test covers managed
 installation, atomic upgrade and uninstall while preserving preferences,

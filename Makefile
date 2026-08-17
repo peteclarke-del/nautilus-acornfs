@@ -1,6 +1,9 @@
-.PHONY: benchmark check format fuzz-smoke lint messages package-smoke release test test-live typecheck
+.PHONY: benchmark check debian-staging format fuzz-smoke lint messages package-smoke release test test-live typecheck
 
 check: lint typecheck test
+
+debian-staging:
+	python tools/debian_staging.py --output build/debian-staging
 
 benchmark:
 	python -m acornfs.benchmark --output build/performance/amd64.json --check-budgets
