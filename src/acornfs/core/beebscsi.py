@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import mmap
 import os
@@ -89,8 +90,24 @@ def open_locked_reader(
         mapping = mmap.mmap(mapping_handle.fileno(), 0, access=access)
         stack.callback(mapping.close)
         reader = ImageReader(mapping, suffix=pair.dat_path.suffix, writable=True)
-    except Exception:
+    except Exception as exc:
         stack.close()
+        if (
+            writable
+            and isinstance(exc, OSError)
+            and exc.errno
+            in {
+                errno.EACCES,
+                errno.EROFS,
+                errno.EPERM,
+            }
+        ):
+            raise PairDiscoveryError(
+                _(
+                    "The DAT/DSC pair is on read-only storage or is not writable by this "
+                    "user. Open it read-only, or copy both members to writable local storage."
+                )
+            ) from exc
         raise
     stack.pop_all()
     return reader, (mapping, mapping_handle, dat_lock, dsc_lock), descriptor
