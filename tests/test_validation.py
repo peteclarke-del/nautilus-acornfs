@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
-from acornfs.core.validation import FindingSeverity, validate_image_report
+from acornfs.core.validation import (
+    COMPATIBILITY_PROFILE_ID,
+    COMPATIBILITY_PROFILE_VERSION,
+    VALIDATION_REPORT_SCHEMA_VERSION,
+    FindingSeverity,
+    validate_image_report,
+)
 from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.recovery import pending_recovery
 from tests.image_fixture import (
@@ -34,6 +40,18 @@ def test_clean_image_has_complete_extent_accounting(tmp_path: Path) -> None:
     assert empty_report.safe_for_write
     assert empty_report.used_sectors == 7
     assert empty_report.free_sectors == 5273
+
+
+def test_validation_json_has_a_versioned_compatibility_contract(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+
+    payload = validate_image_report(dat_path).as_dict()
+
+    assert payload["schema_version"] == VALIDATION_REPORT_SCHEMA_VERSION
+    assert payload["compatibility_profile"] == {
+        "id": COMPATIBILITY_PROFILE_ID,
+        "version": COMPATIBILITY_PROFILE_VERSION,
+    }
 
 
 def test_free_space_overlapping_allocated_data_is_fatal(tmp_path: Path) -> None:
