@@ -196,18 +196,18 @@ acceptance items stay open until they have been exercised in that environment.
 
 - [ ] Produce Debian packages for supported Ubuntu releases.
 - [ ] Package the FUSE daemon, command-line tools and Nautilus extension separately where useful.
-- [ ] Declare FUSE 3, Python/runtime and Nautilus extension dependencies accurately.
+- [x] Declare FUSE 3, Python/runtime and Nautilus extension dependencies accurately.
 - [ ] Add installation, upgrade and uninstall scripts that preserve user data.
 - [x] Restart Nautilus only when explicitly requested and otherwise explain the required action.
 - [ ] Add signed source archives and checksums.
-- [ ] Add a complete administrator and user manual.
+- [x] Add a complete administrator and user manual.
 - [x] Document backup, recovery and damaged-image procedures.
 - [x] Document limitations of Acorn-to-POSIX filename and metadata mapping.
-- [ ] Publish a security policy and responsible disclosure route.
-- [ ] Add clean-install, upgrade and uninstall smoke tests on each supported Ubuntu release.
+- [x] Publish a security policy and responsible disclosure route.
+- [x] Add clean-install, upgrade and uninstall smoke tests on each supported Ubuntu release.
 - [ ] Produce reproducible release artefacts and a software bill of materials.
-- [ ] Add release-candidate migration tests that preserve checkpoints, preferences and audits.
-- [ ] Document support boundaries and a release-readiness checklist.
+- [x] Add release-candidate migration tests that preserve checkpoints, preferences and audits.
+- [x] Document support boundaries and a release-readiness checklist.
 
 ## Phase 11: security and robustness
 

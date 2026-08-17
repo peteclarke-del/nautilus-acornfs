@@ -23,6 +23,12 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   as labelled directories through a bounded lazy DFS-mount cache.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
 - Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
+- Ubuntu 24.04 amd64 wheel lifecycle smoke coverage for clean installation,
+  forced upgrade and uninstall with retained user-state verification.
+- Complete user, administrator, security-reporting and release-readiness guides,
+  plus an explicit Debian split-package and dependency contract.
+- A coherent Oaknut 12.13.1 dependency set, preventing pip from combining the
+  pinned `oaknut-disc` command package with untested newer filesystem modules.
 
 ### Changed
 
