@@ -3,15 +3,16 @@
 ## What AcornFS mounts
 
 AcornFS exposes supported Acorn images as ordinary Linux folders. It currently
-mounts paired BeebSCSI DAT/DSC old-map ADFS hard discs read-only or read-write,
-and mounts ADFS S/M/L/D/E/E+/F/F+/G/G+ floppies, standalone FileCore/unpaired
-raw ADFS hard discs, Acorn and Watford DFS SSD/DSD images, standard and extended
-MMB containers, and Acorn ROMFS paged-ROM images read-only. An
-installed native Acorn File Forge app can open supported source pairs through
+mounts paired BeebSCSI DAT/DSC images, ADFS S/M/L/D/E/E+/F/F+/G/G+ floppies,
+standalone FileCore and unpaired raw ADFS hard discs, Acorn and Watford DFS
+SSD/DSD images, and standard or extended MMB containers read-only or read-write.
+Acorn ROMFS paged-ROM images remain read-only. An installed native
+Acorn File Forge app can open supported source pairs through
 the same submenu.
 
-Read-only is always the default. Only a BeebSCSI DAT/DSC pair that passes the
-complete write-safety validation can be opened read-write.
+Read-only is always the default. A disk image is offered read-write only after
+its format has been identified and its structural validation can protect the
+write path. ROMFS never offers writable access.
 
 ## Install and enable Files integration
 
@@ -35,24 +36,28 @@ command by its full path.
 ## Mount and browse
 
 Keep a BeebSCSI DAT beside its same-basename DSC. In Files, right-click either
-member and choose **Acorn FS Support → Open read-only**. For a writable hard
-disc, choose **Open read-write**; AcornFS validates the image and creates a
-checkpoint before accepting changes. The mount opens in Files and appears in
-the sidebar.
+member and choose **Acorn FS Support → Open read-only** or **Open read-write**.
+The writable action validates the image and creates a checkpoint before
+accepting changes. The mount opens in Files and appears in the sidebar.
 
 Right-click an ADFS floppy, DFS image, MMB or ROMFS image in the same way.
 Capability-driven menus show only safe actions. MMB slots appear as numbered
 directories; DFS catalogue prefixes are presentation directories and do not
 change the image. Extended MMB slots retain one global number across all
 declared extents. Newer ADFS `+` images retain Big-directory long filenames,
-but every standalone floppy remains read-only. A ROMFS flat catalogue appears
+including on writable mounts. A ROMFS flat catalogue appears
 at the mount root. Its names remain case-sensitive, an embedded `/` is displayed
 as `∕`, and the Acorn run-only flag appears in mounted-file Properties.
 
 Standalone `.hdf`/`.hd4` FileCore images and content-valid raw ADFS hard discs
-without a DSC are also browsable read-only. Their Properties show logical map
-details and explicitly state that physical CHS is unavailable. They never offer
-read-write, validation, repair or recovery actions.
+without a DSC are also writable. Their Properties show logical map details and
+state that physical CHS is unavailable. They offer validation and recovery but
+not descriptor-specific repair or File Forge actions.
+
+DFS writes remain inside the selected catalogue prefix and DSD side. MMB writes
+remain inside one slot marked read-write by its catalogue; locked slots are
+readable but protected. AcornFS does not currently insert, eject, replace or
+change the access status of whole MMB slots.
 
 ### Write an image with Greaseweazle
 
@@ -85,27 +90,28 @@ acornfs status
 acornfs unmount "$HOME/AcornFS/scsi0"
 ```
 
-Add `--read-write` only for a supported, validated BeebSCSI pair.
+Add `--read-write` for any supported ADFS, DFS or MMB image. ROMFS rejects the
+option.
 
 ## Validate, repair and recover
 
 **Validate image** never changes the image. Findings distinguish fatal damage,
 warnings and compatibility advice. **Repair image…** is offered only when the
 format has supported repairs; it shows the proposed changes, creates a
-checkpoint and verifies the complete image afterwards.
+checkpoint and verifies the full image afterwards.
 
 If a writable session is interrupted, the next attempt offers recovery. Restore
-the checkpoint to return to the pre-mount image, or explicitly keep the current
-image. Preserve both image members and recovery state until that decision is
-made. See [damaged-images.md](damaged-images.md) for command examples and the
-rollback guarantees.
+the checkpoint to return to the pre-mount image, or keep the current image.
+Preserve the image, any companion descriptor and recovery state until that
+decision is made. See [damaged-images.md](damaged-images.md) for command examples
+and the rollback guarantees.
 
 ## Create and transfer files
 
 Right-click a writable local folder and choose **Acorn FS Support → Create
 BeebSCSI image…**. The pair is published only after validation succeeds.
 
-Files copied through a writable mount retain normal contents, but Linux tools do
+Files copied through a writable mount retain their contents, but Linux tools do
 not automatically understand every Acorn catalogue field. Use `acornfs
 export-file` and `acornfs import-file` with `.inf` sidecars when metadata must
 survive a host round trip. The precise mapping and filename limits are in

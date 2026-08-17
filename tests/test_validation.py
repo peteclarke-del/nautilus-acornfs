@@ -14,7 +14,11 @@ from acornfs.core.validation import (
 from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.recovery import pending_recovery
 from tests.image_fixture import (
+    create_adfs_floppy,
+    create_adfs_hard_disc,
     create_beebscsi_image,
+    create_dfs_floppy,
+    create_mmb_image,
     reserve_adfs_tail,
     rewrite_old_map,
     set_root_entry_length,
@@ -52,6 +56,25 @@ def test_validation_json_has_a_versioned_compatibility_contract(tmp_path: Path) 
         "id": COMPATIBILITY_PROFILE_ID,
         "version": COMPATIBILITY_PROFILE_VERSION,
     }
+
+
+@pytest.mark.parametrize("format_name", ["adfs", "filecore", "dfs", "mmb"])
+def test_standalone_validation_profiles_are_safe_for_write(
+    tmp_path: Path, format_name: str
+) -> None:
+    image_path = {
+        "adfs": lambda: create_adfs_floppy(tmp_path, format_name="g+"),
+        "filecore": lambda: create_adfs_hard_disc(tmp_path),
+        "dfs": lambda: create_dfs_floppy(tmp_path, double_sided=True),
+        "mmb": lambda: create_mmb_image(tmp_path),
+    }[format_name]()
+
+    report = validate_image_report(image_path)
+
+    assert report.safe_for_write
+    assert report.findings == ()
+    assert report.compatibility_profile_id.startswith("acornfs-")
+    assert report.dat_path == str(image_path.resolve())
 
 
 def test_free_space_overlapping_allocated_data_is_fatal(tmp_path: Path) -> None:

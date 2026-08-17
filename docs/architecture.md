@@ -13,30 +13,33 @@ precedence because its descriptor supplies hard-disc geometry that content
 cannot recover. Otherwise Oaknut ranks content evidence; suffixes only break
 equal-confidence ties. AcornFS accepts the detected ADFS S/M/L/D/E/E+/F/F+/G/G+
 and DFS SSD/DSD floppy families and CRC-validated 8/16 KiB Acorn ROMFS images
-as read-only profiles. Same-sized D/E/E+ and plus variants are refined from the
+as capability-backed profiles. ADFS and DFS are writable; ROMFS remains
+read-only. Same-sized D/E/E+ and plus variants are refined from the
 on-disc map and directory records rather than their suffix. DFS catalogue
-prefixes use Oaknut's virtual directory model; DSD mounts add a presentation-only drive level (`0` and `2`)
-over the two independently catalogued surfaces. Other recognised-but-unsupported
-filesystems are rejected explicitly. ROMFS retains its case-sensitive flat
+prefixes use Oaknut's virtual directory model; DSD mounts add a
+presentation-only drive level (`0` and `2`) over the two independently
+catalogued surfaces. Recognised but unsupported filesystems are rejected.
+ROMFS retains its case-sensitive flat
 namespace and distinct run-only access bit through the POSIX presentation.
 
 Content-valid standalone FileCore HDF/HD4 and unpaired raw ADFS hard-disc
-images are also read-only profiles. Their filesystem geometry comes from the
+images are also writable profiles. Their filesystem geometry comes from the
 map, but AcornFS reports physical CHS as unavailable instead of inventing a
-descriptor. Only a complete, validated old-map DAT/DSC pair receives the
-writable BeebSCSI capability set.
+descriptor. A New Map DAT/DSC pair uses the standalone FileCore write profile;
+an old-map pair additionally receives BeebSCSI repair and File Forge actions.
 
 MMB support is a container adapter, not another filesystem parser. It validates
-all 1–16 repeated catalogue/payload extents, exposes formatted slots through one
-globally numbered virtual root, and delegates each 200 KiB payload to an Oaknut
-DFS mount. An eight-slot LRU bounds copied read-only payload buffers. MMB
-mutations still fail closed; the lock/checkpoint/commit design is recorded in
-[mmb.md](mmb.md).
-Read-only indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
+all 1 to 16 repeated catalogue/payload extents, exposes formatted slots through
+a single globally numbered virtual root, and delegates each 200 KiB payload to
+an Oaknut DFS mount. An eight-slot LRU bounds active payload mounts. MMB
+file and metadata mutations are delegated only to slots whose catalogue status
+is read-write. Locked slots and cross-slot renames fail closed. Whole-slot
+catalogue operations remain deferred as recorded in [mmb.md](mmb.md).
+Indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
 metadata, filetype, size and free-space capabilities. Private ADFS access is
-confined to `acornfs.core`: read-only format refinement and properties inspect
-the pinned map/directory objects, while the separately capability-gated
-BeebSCSI write and ranged-read paths remain old-map only.
+confined to `acornfs.core`: format refinement, properties, old-map sector
+transactions and ranged reads inspect pinned map/directory objects. Normal
+ADFS, DFS and MMB mutations use Oaknut's mount capabilities.
 
 The initial host baseline is Ubuntu 24.04 LTS or later, FUSE 3, and Nautilus 46
 or later using the Nautilus 4 GObject-introspection API. CI also exercises
@@ -51,7 +54,7 @@ parsing, geometry, catalogue and mutation logic belongs upstream in Oaknut;
 AcornFS owns pairing, mount policy, caching, POSIX mapping and FUSE lifecycle.
 No module will import code from the Acorn File Forge application package.
 
-AcornFS pins Oaknut because complete allocation validation and efficient ranged
+AcornFS pins Oaknut because full allocation validation and efficient ranged
 I/O currently require a small adapter over its old-ADFS internals. Those private
 calls are isolated in `acornfs.core`; the Nautilus and FUSE layers never depend
 on them directly. The exact-family upgrade and contract-test requirements are
@@ -59,14 +62,21 @@ defined in [oaknut-compatibility.md](oaknut-compatibility.md).
 
 ## Writable transaction boundary
 
-A writable session holds exclusive locks on both pair members and retains a
-persistent pre-session checkpoint until clean validation and unmount. Each
-individual mutation additionally captures compact before-images of the two map
-sectors, affected directory blocks, and any existing live file allocation that
-may be overwritten. Failure restores those sectors, runs complete integrity
-validation, flushes them durably, and allows the session to continue only when
-rollback is verified. Newly allocated sectors need no before-image because
-restoring the map makes them free and unreachable.
+A writable session opens each image member once, verifies its device and inode,
+refuses hard-linked files, takes exclusive advisory locks and retains a
+persistent pre-session checkpoint until clean validation and unmount. Read-only
+mounts take shared locks. External identity, size or timestamp changes fail the
+writable session closed.
+
+Old-map ADFS mutations capture compact before-images of the map sectors,
+affected directory blocks and any live allocation that may be overwritten.
+New Map ADFS, DFS and MMB mutations create a private whole-image before-image in
+the session recovery directory. Copy-on-write reflinks avoid data duplication
+when supported; an 8 MiB bounded-copy loop supplies the same rollback guarantee
+otherwise. Failure restores the appropriate before-image, validates and flushes
+the filesystem, and allows the session to continue only when rollback is
+verified. A rollback that cannot be verified retains the session checkpoint and
+blocks further writes.
 
 Immediately after one logical mutation succeeds, AcornFS increments the 16-bit
 old-map disc cycle ID modulo 65536 and asks Oaknut to regenerate both map
@@ -103,10 +113,11 @@ invalidations to the kernel. Unsupported invalidation calls never turn an
 already-successful on-image transaction into a reported failure.
 
 Generated stress fixtures exercise a 64-level hierarchy at both sides of the
-configured depth/node gates, the old-directory maximum of 47 entries, the
-10-byte filename boundary, case collisions, and every non-POSIX display mapping.
-Creation rejects any mapped value that cannot round trip through old ADFS; in
-particular, NUL is an on-disc terminator rather than a valid creatable character.
+configured depth/node gates, the old-directory maximum of 47 entries, format
+filename boundaries, case collisions, and every non-POSIX display mapping.
+Creation enforces 7-byte DFS, 10-byte ADFS Old/New directory and 255-byte ADFS
+Big directory limits. It rejects values that cannot round trip; NUL is an
+on-disc terminator rather than a valid creatable character.
 
 ## Package boundaries
 
@@ -125,7 +136,7 @@ all converge on the same read-only desktop-mount path.
 UEF is sequential tape media rather than a mounted random-access filesystem,
 while general archive traversal introduces nested decompression and resource
 accounting that do not share the disk-image mount contract. Both were considered
-for read-only support and are deliberately deferred until after the initial
+for read-only support and are deferred until after the initial
 disk-filesystem release; either needs its own bounded media model and hostile
 input design before format detection is extended.
 
@@ -152,8 +163,8 @@ published member and all temporary files.
 `/proc/self/mountinfo` is authoritative for active FUSE mounts. A private
 per-user runtime record enriches each entry with the canonical primary image and
 optional companion paths, their device/inode identities, the daemon PID and
-access mode. Records use a `0700`
-directory and `0600` files and are removed only after the image context has
+access mode. Records use a `0700` directory and `0600` files. They are removed
+only after the image context has
 completed close-time flush and validation. Dead records are pruned; a live
 post-detach record represents a writable daemon still finalising.
 
@@ -174,7 +185,7 @@ healthy writable daemon.
 
 Read-only desktop mounts may detach lazily. Writable mounts may not: callers
 wait for the lifecycle record to disappear and then verify that no recovery
-checkpoint remains before claiming a safe unmount. Diagnostics deliberately
+checkpoint remains before claiming a safe unmount. Diagnostics
 reduce paths to basenames and hash device/inode identities; they never inspect
 or copy image content.
 
@@ -191,8 +202,8 @@ verification and a retained audit record in one operation; none of those
 guarantees is inferred from planning. All other plans remain read-only guidance.
 The repair API reports monotonic stage progress, including byte-level checkpoint
 copying, to desktop callers without coupling the core transaction to Zenity. The
-desktop progress window is deliberately non-cancellable after typed confirmation;
-the transaction remains the sole authority for rollback and checkpoint retention.
+desktop progress window cannot be cancelled after typed confirmation. The
+transaction remains the sole authority for rollback and checkpoint retention.
 
 Long read-only validation uses cooperative cancellation points between directory
 and extent checks. Recovery stages complete DAT and DSC replacements alongside

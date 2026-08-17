@@ -1,8 +1,11 @@
-"""Small before-image transactions for old-format ADFS mutations."""
+"""Before-image transactions for protected Acorn filesystem mutations."""
 
 from __future__ import annotations
 
+import os
+import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, cast
 
 SECTOR_BYTES = 256
@@ -93,5 +96,66 @@ class SectorTransaction:
         free_space_map._recalculate_checksums()
         return old_id, new_id
 
+    def complete(self) -> None:
+        """Release transaction state after commit or verified rollback."""
 
-__all__ = ["SectorTransaction"]
+
+class FileTransaction:
+    """Whole-image before-image for formats without a sector transaction adapter.
+
+    The snapshot is held in the session's private recovery directory. A reflink
+    is used when the image and state directory share a compatible filesystem;
+    otherwise a bounded copy preserves the same rollback guarantee.
+    """
+
+    def __init__(
+        self,
+        path: Path,
+        mapping: Any,
+        handle: Any,
+        *,
+        backup_directory: Path,
+    ) -> None:
+        from acornfs.recovery import _checkpoint_copy
+
+        self._mapping = mapping
+        self._backup = backup_directory / f"operation-{uuid.uuid4().hex}.bin"
+        _checkpoint_copy(path, self._backup, source_handle=handle, destination_mode=0o600)
+
+    def capture_sectors(self, _start: int, _count: int) -> None:
+        pass
+
+    def capture_parent(self, _path: str) -> int:
+        return 0
+
+    def capture_directory_at(self, _sector: int) -> None:
+        pass
+
+    def capture_file(self, _path: str) -> None:
+        pass
+
+    def capture_directory(self, _path: str) -> int:
+        return 0
+
+    def advance_disc_id(self) -> tuple[int, int]:
+        return (0, 0)
+
+    def restore(self) -> None:
+        offset = 0
+        with self._backup.open("rb") as handle:
+            while chunk := handle.read(8 * 1024 * 1024):
+                self._mapping[offset : offset + len(chunk)] = chunk
+                offset += len(chunk)
+        if offset != len(self._mapping):
+            raise OSError("transaction before-image length does not match the mounted image")
+
+    def complete(self) -> None:
+        self._backup.unlink(missing_ok=True)
+        directory = os.open(self._backup.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+
+
+__all__ = ["FileTransaction", "SectorTransaction"]

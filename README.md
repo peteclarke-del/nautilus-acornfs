@@ -1,29 +1,26 @@
 # Nautilus AcornFS
 
-Nautilus AcornFS is an in-progress, user-space filesystem for Acorn disk
-images. Paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S through G+
-floppies and FileCore hard-disc images, DFS `SSD`/`DSD` images,
-standard/extended MMB containers, and Acorn ROMFS paged-ROM images are mounted
-through FUSE 3 and exposed to Nautilus through a small
-extension, while the filesystem engine remains usable from any Linux
-application.
+Nautilus AcornFS is a userspace filesystem for Acorn disk images. It mounts
+paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S through G+ floppies,
+FileCore hard-disc images, DFS `SSD`/`DSD` images, standard and extended MMB
+containers, and Acorn ROMFS paged-ROM images through FUSE 3. A small extension
+integrates the mounted filesystems with Nautilus. Other Linux applications can
+use the mounts without Nautilus.
 
-Read-only mounting remains the default. Opt-in writable mounts use exclusive
-pair locks, persistent pre-write checkpoints, external-change detection and
-complete pre-write and post-write ADFS integrity validation. Fatal geometry,
-map, directory or allocation findings refuse writable access before a checkpoint
-is created, while safe warnings and compatibility advice remain non-blocking.
-Each mutation also uses a compact sector before-image, so a partially failed map
-or catalogue update is rolled back and verified without sacrificing the rest of
-the writable session. A successful logical mutation advances the old-ADFS disc
-cycle ID exactly once and refreshes both map checksums; rollback restores the
-previous ID. Oversized writes are rejected before their FUSE buffers consume the
-unavailable capacity.
+Mounts are read-only by default. Every writable ADFS, DFS and MMB mount uses
+exclusive image locks, persistent pre-write checkpoints, external-change
+detection, structural validation before writing and validation again before a
+clean unmount. Fatal findings refuse writable access before a checkpoint is
+created. Each mutation also has a private before-image. Old-map ADFS records
+only the affected sectors; New Map ADFS, DFS and MMB use a reflink of the image
+when possible and a bounded full copy otherwise. A failed mutation is restored
+and validated before the session may continue. ROMFS is always read-only.
+
 Acorn load/execute addresses, filetypes, lock/run-only state, source filesystem
 and original paths are available as extended attributes. See [TODO.md](TODO.md) for
 the remaining lifecycle and format work. Release history and policy are in
 [CHANGELOG.md](CHANGELOG.md) and [docs/releases.md](docs/releases.md).
-The complete desktop walkthrough is in [docs/user-guide.md](docs/user-guide.md),
+The desktop walkthrough is in [docs/user-guide.md](docs/user-guide.md),
 with the release acceptance matrix in
 [docs/desktop-acceptance.md](docs/desktop-acceptance.md) and deployment and
 retained-state guidance in
@@ -32,35 +29,42 @@ retained-state guidance in
 ## Current functionality
 
 - Discover a matching BeebSCSI `DAT`/`DSC` pair from either member.
-- Detect the complete ADFS S/M/L/D/E/E+/F/F+/G/G+ floppy family from content
-  and mount it read-only, including Big-directory long filenames.
+- Detect the ADFS S/M/L/D/E/E+/F/F+/G/G+ floppy family from content
+  and mount it read-only or read-write, including Big-directory long filenames.
 - Mount content-valid standalone FileCore HDF/HD4 and unpaired raw ADFS hard
-  discs read-only when physical CHS geometry is unavailable.
-- Mount content-detected Acorn and Watford DFS SSD/DSD images read-only, exposing
-  catalogue prefixes and both DSD sides coherently.
-- Mount standard and extended MMB containers read-only with formatted slots
-  exposed as globally numbered directories and an eight-mount DFS cache.
+  discs read-only or read-write when physical CHS geometry is unavailable.
+- Mount content-detected Acorn and Watford DFS SSD/DSD images read-only or
+  read-write, exposing catalogue prefixes and both DSD sides coherently.
+- Mount standard and extended MMB containers read-only or read-write, with
+  formatted slots exposed as globally numbered directories and an eight-mount
+  DFS cache. Mutations are confined to slots marked read-write by the MMB.
 - Mount CRC-validated 8 KiB and 16 KiB Acorn ROMFS images read-only, preserving
   case-sensitive flat-catalogue names and run-only metadata.
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
-- Validate geometry, maps, directories and used/free sector allocation with typed reports.
+- Validate geometry, maps, directories and used/free sector allocation with
+  typed reports.
 - Publish versioned validation JSON and a stable BeebSCSI old-map compatibility profile.
-- Mount supported ADFS images read-only and validated BeebSCSI pairs read-write through FUSE 3.
+- Mount every supported disk image read-only or read-write through FUSE 3,
+  except ROMFS, which remains read-only.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
-- Keep concurrent handles to one writable file coherent and flush dirty open handles on shutdown.
+- Keep concurrent handles to one writable file consistent and flush dirty open
+  handles on shutdown.
 - Coalesce compatible Acorn metadata changes and notify kernel caches after mutations.
-- Enforce and test deep-tree, 47-entry old-directory, 10-byte name and display-mapping boundaries.
+- Enforce and test deep-tree, 47-entry old-directory, 10-byte name and
+  display-mapping boundaries.
 - Enforce published amd64 latency, throughput and open-memory budgets in CI artefacts.
 - Detect sequential large-file reads and use globally bounded per-handle read-ahead.
 - Roll back and validate failed mutations while retaining crash-recovery checkpoints.
 - Keep mount, validation, recovery and unmount actions together in one Nautilus submenu.
 - Hand image pairs to an installed Acorn File Forge desktop launcher without invoking a shell.
 - Create an empty, validated BeebSCSI DAT/DSC pair from a writable Nautilus folder.
-- Identify ADFS DAT content without claiming generic DAT files and open image or `acornfs:` URIs read-only.
-- Cancel long validation and recovery work only at boundaries that leave images and checkpoints safe.
+- Identify ADFS DAT content without claiming generic DAT files, and open image
+  or `acornfs:` URIs read-only.
+- Cancel long validation and recovery work only at boundaries that leave images
+  and checkpoints safe.
 - Apply eligible low-risk catalogue repairs with confirmation, checkpointing and retained audits.
 - Show live repair progress through checkpoint copying, mutation, verification and finalisation.
 - Show image format, compatibility, geometry, capacity and validation details in Properties.
@@ -115,7 +119,7 @@ CI runs the same lifecycle on the supported Ubuntu 24.04 amd64 host.
 For a release build, install `.[release]` and run `make release` from a clean
 tagged checkout. The command derives `SOURCE_DATE_EPOCH` from the commit, builds
 the wheel and source archive twice, refuses differing output, generates a
-validated reproducible CycloneDX SBOM for the complete FUSE installation and
+validated reproducible CycloneDX SBOM for the full FUSE installation and
 writes `build/release/SHA256SUMS`. Release signing remains a separate manual
 gate until the project has an approved signing-key policy.
 
@@ -139,12 +143,13 @@ acornfs install-nautilus --restart
 ```
 
 Right-click either member of a valid pair, a supported ADFS/DFS floppy, an MMB,
-or a ROMFS image and open **Acorn FS Support**. BeebSCSI pairs offer
-**Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
-**Open in Acorn File Forge…**. Floppies, MMB and ROMFS images remain read-only.
+or a ROMFS image and open **Acorn FS Support**. Writable formats offer **Open
+read-only**, **Open read-write** and **Validate image**. BeebSCSI pairs may also
+offer **Repair image…** and **Open in Acorn File Forge…** when those actions are
+available. ROMFS offers read-only opening and properties only.
 When the `gw` command and a connected Greaseweazle both respond, compatible
 `.ssd`, `.dsd`, `.adf`, `.ads`, `.adm` and `.adl` files additionally offer
-**Write to physical floppy…**. The action is completely absent otherwise.
+**Write to physical floppy…**. The action is hidden otherwise.
 The mounted image opens in Nautilus and appears in its sidebar. The same submenu
 offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
@@ -167,8 +172,8 @@ nautilus --quit
 
 Right-click a compatible floppy image and choose **Acorn FS Support → Write to
 physical floppy…**. Select PC drive `A` or `B`, or Shugart unit `0` through `3`.
-AcornFS then shows an explicit overwrite confirmation, makes a private stable
-snapshot of the source, and invokes `gw write` without a shell. The progress
+AcornFS then requires overwrite confirmation, takes a private snapshot of the
+source, and invokes `gw write` without a shell. The progress
 dialog follows written tracks and verification retries. Success is reported
 only after Greaseweazle says all tracks verified; cancellation is available
 before the physical write starts, but not while a disk could be half-written.
@@ -191,7 +196,7 @@ private working session before editing.
 An equivalent installed launcher can be selected with
 `ACORN_FILE_FORGE_COMMAND`. The executable must also be resolvable before the
 menu action appears. The value is split into arguments and is never passed to a
-shell. It may use `{image}`, `{dat}`, and `{dsc}` as complete argument
+shell. It may use `{image}`, `{dat}`, and `{dsc}` as whole-argument
 placeholders; when it has no placeholders, DAT and DSC are appended:
 
 ```shell
@@ -219,7 +224,7 @@ The same setting is available as **Acorn FS Support → Mount location…** in F
 To create an image, right-click the background of a writable local folder and
 choose **Acorn FS Support → Create BeebSCSI image…**. Enter a basename, ADFS
 title and capacity; blank fields use `scsi0`, `BLANK` and `20MB`. Creation shows
-live progress and publishes the DAT/DSC pair only after complete validation. The
+live progress and publishes the DAT/DSC pair only after full validation. The
 equivalent terminal command is:
 
 ```shell
@@ -255,15 +260,17 @@ catalogue, packaging it, and completing the manual accessibility checks.
 
 ## Validate an image
 
-Validation is read-only and accepts either member of the pair:
+Validation is read-only. It accepts any supported writable image, including
+either member of a DAT/DSC pair:
 
 ```shell
 acornfs validate /path/to/scsi0.dat
 acornfs validate --json /path/to/scsi0.dsc
 ```
 
-The complete report checks DSC/DAT geometry, ADFS map and directory structures,
-and all used and free sector extents. Findings are classified as `FATAL`,
+For old-map BeebSCSI pairs, the report checks DSC/DAT geometry, the ADFS map,
+directory structures and every used and free sector extent. Other writable
+formats run their filesystem-specific structural validator. Findings are classified as `FATAL`,
 `WARNING`, or `ADVICE`; JSON includes stable finding codes, sector totals, and a
 `safe_for_write` flag. Fatal findings prevent a read-write mount before its
 recovery checkpoint is created. Warnings and compatibility advice do not block
@@ -283,7 +290,7 @@ acornfs repair-plan --json /path/to/scsi0.dsc
 ```
 
 The plan groups findings into candidate operations, records risk and identifies
-steps that require a human decision. AcornFS can apply a complete plan only when
+steps that require a human decision. AcornFS can apply a plan only when
 every action is a low-risk directory-length normalisation, empty-file catalogue
 normalisation, or restoration of a DSC-declared tail omitted beyond the exact
 ADFS boundary. First review the plan, then confirm with the exact DAT filename:
@@ -294,7 +301,7 @@ acornfs repair /path/to/scsi0.dat --confirm scsi0.dat
 
 Every applied repair obtains the same exclusive pair locks as a writable mount,
 creates a mandatory recovery checkpoint before mutation, performs sector-level
-rollback on failure, completely revalidates the image, and retains a JSON audit
+rollback on failure, revalidates the full image, and retains a JSON audit
 under `${XDG_STATE_HOME:-$HOME/.local/state}/acornfs/repair-audits`. Free-map,
 geometry, unreadable-structure and overlapping-allocation plans remain refused.
 See [docs/damaged-images.md](docs/damaged-images.md).
@@ -327,8 +334,9 @@ acornfs diagnostics --json > acornfs-diagnostics.json
 ```
 
 Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`. Pass
-`--read-write` for complete file and directory mutation support. Selection of
-either DAT or DSC is supported. The mountpoint must already exist and be empty.
+`--read-write` for file and directory writes on ADFS, DFS and MMB images.
+ROMFS rejects writable mounting. Selection of either DAT or DSC is supported.
+The mountpoint must already exist and be empty.
 
 The initial development and CI container target is amd64. Native arm64 and
 arm/v7 container builds remain on the roadmap.
@@ -357,25 +365,24 @@ roots and an ownership/dependency manifest under `build/debian-staging`.
 The exact Oaknut pin and private-adapter upgrade gate are documented in
 [docs/oaknut-compatibility.md](docs/oaknut-compatibility.md).
 
-The writable format is a BeebSCSI DAT/DSC hard-disc pair containing
-old-map ADFS with old (Hugo) directories. The image metadata is compatible with
-BBC Master BeebSCSI and RISC OS old-map ADFS access; the pair alone cannot prove
-which physical host will be used. Standalone ADFS S through G+ floppies,
-FileCore/unpaired raw hard discs and DFS SSD/DSD images are read-only. On an
-SSD, DFS catalogue prefixes (`$`, `A`-`Z`)
+Writable mounts support BeebSCSI DAT/DSC pairs, standalone ADFS S through G+
+floppies, FileCore and unpaired raw ADFS hard discs, Acorn and Watford DFS
+SSD/DSD images, and standard or extended MMB containers. On an SSD, DFS
+catalogue prefixes (`$`, `A`-`Z`)
 appear as directories. On a DSD, drive directories `0` and `2` contain each
 side's catalogue-prefix directories. These are presentation-only namespaces;
-AcornFS does not create directory records that DFS cannot represent. Standalone
-ADFS floppies and hard discs without a valid BeebSCSI descriptor remain
-read-only regardless of whether they use the Old or New map; other image types
-remain unsupported rather than being guessed.
+AcornFS does not create directory records that DFS cannot represent. Files
+cannot be renamed between DSD sides. Other image types remain unsupported
+rather than being guessed.
 
 Standard and extended MMB containers expose only formatted slots, named by a
 stable global slot number and catalogue label. Extended images may contain up
 to 16 independently catalogued 511-slot extents; all declared extents are
 validated and presented. Each slot contains the same DFS prefix directories as
-an SSD. All MMB mutations remain explicitly unsupported; see
-[docs/mmb.md](docs/mmb.md) for the namespace, limits and future transaction contract.
+an SSD. Files inside slots marked read-write may be created, replaced, renamed
+and removed. Locked slots remain protected, and files cannot be moved between
+slots. Slot insertion, replacement, ejection and access-mode changes are not
+yet supported. See [docs/mmb.md](docs/mmb.md) for the namespace and limits.
 
 Acorn ROMFS images are identified from their CRC-valid block chain rather than
 their filename extension. Their flat catalogue is presented at the mount root;

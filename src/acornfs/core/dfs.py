@@ -1,4 +1,4 @@
-"""Read-only namespace adapter for double-sided DFS images."""
+"""Namespace and mutation adapter for double-sided DFS images."""
 
 from __future__ import annotations
 
@@ -104,17 +104,38 @@ class DoubleSidedDFSMount:
     def size_bytes(self) -> int:
         return sum(int(mount.size_bytes()) for mount in self._mounts.values())
 
+    def available_bytes(self, path: str) -> int:
+        """Return free bytes on the independently allocated target side."""
+
+        drive, _inner = self._split(path)
+        return int(self._mounts[drive].free_bytes())
+
     def write_bytes(self, path: str, data: bytes) -> None:
-        raise PermissionError("double-sided DFS mounts are read-only")
+        drive, inner = self._split(path)
+        self._mounts[drive].write_bytes(inner, data)
 
     def remove(self, path: str, *, force: bool = False) -> None:
-        raise PermissionError("double-sided DFS mounts are read-only")
+        drive, inner = self._split(path)
+        if not inner:
+            raise PermissionError("DFS drive directories cannot be removed")
+        self._mounts[drive].remove(inner, force=force)
 
     def rename(self, old_path: str, new_path: str) -> None:
-        raise PermissionError("double-sided DFS mounts are read-only")
+        old_drive, old_inner = self._split(old_path)
+        new_drive, new_inner = self._split(new_path)
+        if old_drive != new_drive:
+            raise OSError("DFS files cannot be renamed between disk sides")
+        self._mounts[old_drive].rename(old_inner, new_inner)
 
     def set_acorn_meta(self, path: str, meta: AcornMeta) -> None:
-        raise PermissionError("double-sided DFS mounts are read-only")
+        drive, inner = self._split(path)
+        self._mounts[drive].set_acorn_meta(inner, meta)
+
+    def validate(self) -> list[Any]:
+        problems: list[Any] = []
+        for mount in self._mounts.values():
+            problems.extend(mount.validate())
+        return problems
 
 
 __all__ = ["DoubleSidedDFSMount"]

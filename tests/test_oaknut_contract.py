@@ -63,3 +63,5 @@ def test_pinned_new_map_floppy_adapter_contract(tmp_path: Path) -> None:
         assert hasattr(disc_record, "disc_name")
         assert hasattr(disc_record, "disc_id")
         assert adfs._dir_format.size_in_bytes > 0
+        assert callable(adfs._allocate_file_space)
+        assert callable(adfs._release_object)
