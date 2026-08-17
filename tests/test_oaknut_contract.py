@@ -2,6 +2,8 @@ import tomllib
 from importlib.metadata import version
 from pathlib import Path
 
+from oaknut.filesystem import filesystem_names
+
 from acornfs.core.image import ReadOnlyImage
 from tests.image_fixture import create_beebscsi_image
 
@@ -19,8 +21,9 @@ def test_oaknut_family_remains_one_exactly_pinned_release() -> None:
 
     assert oaknut
     assert all(separator == "==" and pinned for _package, separator, pinned in oaknut)
-    assert {pinned for _package, _separator, pinned in oaknut} == {"12.13.1"}
-    assert {version(package) for package, _separator, _pinned in oaknut} == {"12.13.1"}
+    assert {pinned for _package, _separator, pinned in oaknut} == {"12.15.1"}
+    assert {version(package) for package, _separator, _pinned in oaknut} == {"12.15.1"}
+    assert "acorn-romfs" in filesystem_names()
 
 
 def test_pinned_old_adfs_private_adapter_contract(tmp_path: Path) -> None:

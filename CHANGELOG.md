@@ -27,7 +27,7 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   forced upgrade and uninstall with retained user-state verification.
 - Complete user, administrator, security-reporting and release-readiness guides,
   plus an explicit Debian split-package and dependency contract.
-- A coherent Oaknut 12.13.1 dependency set, preventing pip from combining the
+- A coherent Oaknut dependency set, preventing pip from combining the
   pinned `oaknut-disc` command package with untested newer filesystem modules.
 - An amd64 threat model and coverage-guided fuzz targets for descriptors,
   desktop URIs and ADFS map/catalogue validation.
@@ -44,6 +44,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Changed
 
+- The complete Oaknut family is aligned with Acorn File Forge at 12.15.1,
+  including the content-detection plugin required for future ROMFS mounting.
 - The initial supported host architecture is explicitly limited to amd64.
 - Validation findings, repair plans/progress and known image-property values now use gettext.
 - Desktop lifecycle, creation, recovery and preference errors now use gettext.

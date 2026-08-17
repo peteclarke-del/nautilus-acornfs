@@ -9,7 +9,7 @@ guess at them.
 
 | Package | Contents | Dependencies |
 | --- | --- | --- |
-| `nautilus-acornfs-core` | Python filesystem core, `acornfs` command, translations and documentation | Python 3.11 or later and the exactly pinned Oaknut 12.13.1 family from `pyproject.toml` |
+| `nautilus-acornfs-core` | Python filesystem core, `acornfs` command, translations and documentation | Python 3.11 or later and the exactly pinned Oaknut 12.15.1 family from `pyproject.toml` |
 | `nautilus-acornfs-fuse` | FUSE mounting support | core package, `fuse3`, `python3-pyfuse3` and `python3-trio` |
 | `nautilus-acornfs-nautilus` | Nautilus extension, MIME and desktop integration | core and FUSE packages, `python3-nautilus`, `gir1.2-nautilus-4.0`, `shared-mime-info`, `desktop-file-utils`, `libnotify-bin` and `zenity` |
 
@@ -38,7 +38,7 @@ zenity
 
 `libfuse3-dev` and `pkg-config` are build dependencies when pyfuse3 is built
 from PyPI; they are not runtime dependencies. `python3-venv` is needed only for
-the documented source/virtual-environment installation. The Oaknut 12.13.1
+the documented source/virtual-environment installation. The Oaknut 12.15.1
 family is not an Ubuntu 24.04 archive package, so a policy-compliant source
 package needs an independently maintained Oaknut Debian package or a reviewed
 vendoring plan.
