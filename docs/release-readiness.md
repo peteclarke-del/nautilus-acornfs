@@ -14,8 +14,7 @@ claim into a completed item.
   remains browsable, writable opening fails closed, and checkpoint copying
   falls back when reflinks are unavailable. Real network and removable
   filesystems remain outside the verified matrix.
-- No claim yet for physical BeebSCSI hardware, ARM, extended MMB, UEF or
-  Acorn File Forge hand-off.
+- No claim yet for physical BeebSCSI hardware, ARM, extended MMB or UEF.
 
 ## Candidate gate
 

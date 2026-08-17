@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from acornfs.errors import AcornFSError
-from acornfs.file_forge import file_forge_command, open_in_file_forge
+from acornfs.file_forge import file_forge_available, file_forge_command, open_in_file_forge
 from tests.image_fixture import create_beebscsi_image
 
 
@@ -41,15 +41,45 @@ def test_configured_launcher_appends_both_pair_members_without_placeholders(
     ]
 
 
-def test_missing_launcher_explains_browser_handoff_requirement(
+def test_missing_native_launcher_is_unavailable_and_explained(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     monkeypatch.delenv("ACORN_FILE_FORGE_COMMAND", raising=False)
     monkeypatch.setattr("acornfs.file_forge.shutil.which", lambda _name: None)
+    monkeypatch.setattr("acornfs.file_forge.Path.home", lambda: tmp_path)
 
-    with pytest.raises(AcornFSError, match="browser-only service"):
+    assert not file_forge_available()
+    with pytest.raises(AcornFSError, match="native Acorn File Forge application"):
         file_forge_command(dat_path)
+
+
+def test_native_user_launcher_is_detected_when_nautilus_path_omits_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    launcher = tmp_path / ".local/bin/acorn-file-forge"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+    launcher.chmod(0o700)
+    monkeypatch.delenv("ACORN_FILE_FORGE_COMMAND", raising=False)
+    monkeypatch.setattr("acornfs.file_forge.shutil.which", lambda _name: None)
+    monkeypatch.setattr("acornfs.file_forge.Path.home", lambda: tmp_path)
+
+    assert file_forge_available()
+
+
+def test_configured_launcher_is_available_only_when_its_executable_resolves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ACORN_FILE_FORGE_COMMAND", "missing-file-forge --open {image}")
+    monkeypatch.setattr("acornfs.file_forge.shutil.which", lambda _name: None)
+    assert not file_forge_available()
+
+    launcher = tmp_path / "file-forge"
+    launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+    launcher.chmod(0o700)
+    monkeypatch.setenv("ACORN_FILE_FORGE_COMMAND", f"{launcher} --open {{image}}")
+    assert file_forge_available()
 
 
 def test_launcher_uses_an_argv_process_and_detaches(

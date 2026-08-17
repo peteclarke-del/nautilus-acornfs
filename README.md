@@ -173,27 +173,26 @@ compare it on the target Acorn hardware before relying on the result.
 
 ### Acorn File Forge hand-off
 
-The File Forge action first looks for an `acorn-file-forge` desktop command. Its
-launcher receives the canonical DAT and DSC paths as separate arguments. Until
-File Forge ships that helper, configure an equivalent installed launcher with
-`ACORN_FILE_FORGE_COMMAND`. The value is split into arguments and is never
-passed to a shell. It may use `{image}`, `{dat}`, and `{dsc}` as complete
-argument placeholders; when it has no placeholders, DAT and DSC are appended:
+The File Forge action is shown only when the native application's
+`acorn-file-forge` launcher is executable. Detection checks `PATH` and the
+native installer's stable `~/.local/bin/acorn-file-forge` location, because
+Files may not inherit the user's interactive-shell `PATH`. Its launcher receives
+the canonical DAT and DSC paths as separate arguments and copies them into a
+private working session before editing.
+
+An equivalent installed launcher can be selected with
+`ACORN_FILE_FORGE_COMMAND`. The executable must also be resolvable before the
+menu action appears. The value is split into arguments and is never passed to a
+shell. It may use `{image}`, `{dat}`, and `{dsc}` as complete argument
+placeholders; when it has no placeholders, DAT and DSC are appended:
 
 ```shell
 export ACORN_FILE_FORGE_COMMAND='file-forge-client --image {dat} --descriptor {dsc}'
 ```
 
-The launcher must treat both paths as read-only inputs and copy or upload them
-into File Forge's private working session; it must not edit the source pair.
-
-Set this in the graphical login environment before starting Files. A missing
-launcher produces an explanatory dialog. AcornFS deliberately does not upload
-the pair directly to `http://localhost:8666`: the browser application isolates
-working images by a private browser owner, so an external upload cannot be
-safely attached to the active browser session without a File Forge hand-off
-endpoint. This keeps large local image paths and session credentials out of
-URLs and command shells.
+Set an override in the graphical login environment before starting Files.
+Missing, malformed or non-executable launchers hide the action entirely. AcornFS
+does not probe or upload to the browser service at `http://localhost:8666`.
 
 Desktop mounts default to `~/AcornFS Mounts`, which gives Files the most reliable
 sidebar presentation. Select a private session-runtime location, inspect the

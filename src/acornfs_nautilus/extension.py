@@ -12,6 +12,7 @@ import gi
 
 from acornfs.core import read_image_properties
 from acornfs.errors import AcornFSError
+from acornfs.file_forge import file_forge_available
 from acornfs.greaseweazle import physical_write_available
 from acornfs.i18n import _
 from acornfs.mounts import is_mounted, mount_for_image
@@ -204,13 +205,14 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             if offer_physical_write:
                 return [self._support_menu([self._write_floppy_item(path)])]
             return []
+        offer_file_forge = capabilities.file_forge and file_forge_available()
         try:
             mounted = mount_for_image(path)
         except AcornFSError:
             return []
         if mounted is not None:
             mounted_items = [self._unmount_item(Path(mounted.mountpoint))]
-            if capabilities.file_forge:
+            if offer_file_forge:
                 mounted_items.append(self._file_forge_item(path))
             if offer_physical_write:
                 mounted_items.append(self._write_floppy_item(path))
@@ -233,7 +235,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                 recovery_items.append(self._read_only_item(path))
             if capabilities.validate:
                 recovery_items.append(self._validate_item(path))
-            if capabilities.file_forge:
+            if offer_file_forge:
                 recovery_items.append(self._file_forge_item(path))
             if offer_physical_write:
                 recovery_items.append(self._write_floppy_item(path))
@@ -259,7 +261,7 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             image_items.append(self._repair_item(path))
         if offer_physical_write:
             image_items.append(self._write_floppy_item(path))
-        if capabilities.file_forge:
+        if offer_file_forge:
             image_items.append(self._file_forge_item(path))
         image_items.append(self._configuration_item())
         return [self._support_menu(image_items)]
