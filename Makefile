@@ -15,7 +15,8 @@ lint:
 messages:
 	xgettext --language=Python --from-code=UTF-8 --sort-output --no-wrap \
 		--keyword=_ --keyword=N_ --keyword=ngettext:1,2 --output=po/acornfs.pot \
-		src/acornfs/core/beebscsi.py src/acornfs/core/create.py src/acornfs/core/image.py \
+		src/acornfs/core/beebscsi.py src/acornfs/core/create.py src/acornfs/core/formats.py \
+		src/acornfs/core/image.py \
 		src/acornfs/core/properties.py src/acornfs/core/repair.py \
 		src/acornfs/core/validation.py src/acornfs/desktop.py src/acornfs/file_forge.py \
 		src/acornfs/fuse_adapter/operations.py src/acornfs/fuse_adapter/runner.py \
