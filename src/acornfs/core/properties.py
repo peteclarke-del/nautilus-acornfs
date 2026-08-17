@@ -34,6 +34,11 @@ def _directory_format(adfs: Any) -> str:
 
 
 def _close_mount(mount: Mount | None) -> None:
+    close = getattr(mount, "close", None)
+    if callable(close):
+        with suppress(Exception):
+            close()
+        return
     close = getattr(getattr(mount, "_adfs", None), "close", None)
     if callable(close):
         with suppress(Exception):
@@ -71,6 +76,8 @@ class ImageProperties:
     advice_findings: int
     geometry_kind: str = "winchester"
     write_supported: bool = True
+    filesystem_size_label: str = "ADFS size"
+    show_disc_id: bool = True
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -145,7 +152,10 @@ def read_image_properties(selected: str | Path) -> ImageProperties:
 
 
 def _read_standalone_properties(source: ResolvedImage) -> ImageProperties:
-    """Read the capability-backed summary for a detected standalone ADFS image."""
+    """Read the capability-backed summary for a detected standalone image."""
+
+    if source.kind == "dfs-floppy":
+        return _read_dfs_properties(source)
 
     reader: ImageReader | None = None
     mount: Mount | None = None
@@ -199,6 +209,74 @@ def _read_standalone_properties(source: ResolvedImage) -> ImageProperties:
         ) from exc
     finally:
         _close_mount(mount)
+        if reader is not None:
+            with suppress(Exception):
+                reader.close()
+
+
+def _read_dfs_properties(source: ResolvedImage) -> ImageProperties:
+    """Read a summary across every independently catalogued DFS side."""
+
+    reader: ImageReader | None = None
+    mounts: list[Any] = []
+    try:
+        reader = reader_for(source.primary_path)
+        filesystem = create_filesystem(source.filesystem)
+        side_count = len(source.geometry.surface_specs)
+        for side in range(side_count):
+            mounts.append(filesystem.open(reader, source.geometry, surface=side))
+        free_bytes = sum(int(mount.free_bytes()) for mount in mounts)
+        filesystem_bytes = sum(int(mount.size_bytes()) for mount in mounts)
+        titles = [str(mount.title) for mount in mounts]
+        boots = [mount.boot_option for mount in mounts]
+        boot = boots[0]
+        boot_text = (
+            f"{boot.name.title()} ({int(boot)})"
+            if all(item == boot for item in boots)
+            else _("Different on each side")
+        )
+        specs = source.geometry.surface_specs
+        tracks = max(spec.num_tracks for spec in specs)
+        sectors_per_track = specs[0].sectors_per_track
+        filesystem_name = "Watford DFS" if source.filesystem == "watford-dfs" else "Acorn DFS"
+        return ImageProperties(
+            dat_path=str(source.primary_path),
+            dsc_path="",
+            image_type="DFS floppy image",
+            filesystem_format=filesystem_name,
+            directory_format="Flat catalogue prefixes",
+            hardware_profile="BBC Micro DFS floppy",
+            title=" / ".join(titles),
+            disc_name="",
+            disc_id=0,
+            boot_option=boot_text,
+            cylinders=tracks,
+            heads=side_count,
+            sectors_per_track=sectors_per_track,
+            sector_size=SECTOR_SIZE,
+            geometry_sectors=source.geometry.num_sectors,
+            adfs_sectors=filesystem_bytes // SECTOR_SIZE,
+            capacity_bytes=source.geometry.image_size,
+            adfs_bytes=filesystem_bytes,
+            used_bytes=filesystem_bytes - free_bytes,
+            free_bytes=free_bytes,
+            reserved_bytes=max(0, source.geometry.image_size - filesystem_bytes),
+            safe_for_write=False,
+            fatal_findings=0,
+            warning_findings=0,
+            advice_findings=0,
+            geometry_kind="floppy",
+            write_supported=False,
+            filesystem_size_label="DFS size",
+            show_disc_id=False,
+        )
+    except Exception as exc:
+        raise AcornFSError(
+            _("The DFS floppy properties could not be read safely: {error}").format(error=exc)
+        ) from exc
+    finally:
+        for mount in mounts:
+            _close_mount(mount)
         if reader is not None:
             with suppress(Exception):
                 reader.close()

@@ -5,7 +5,7 @@ import pytest
 from acornfs.core import resolve_image
 from acornfs.errors import UnsupportedImageError
 from acornfs_nautilus.logic import image_capabilities
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
 
 
 @pytest.mark.parametrize("format_name", ["s", "m", "l"])
@@ -26,6 +26,39 @@ def test_detects_adfs_floppies_from_content_and_geometry(tmp_path: Path, format_
 def test_content_detection_does_not_depend_on_a_floppy_extension(tmp_path: Path) -> None:
     image_path = create_adfs_floppy(tmp_path, filename="renamed.bin")
     assert resolve_image(image_path).kind == "adfs-floppy"
+
+
+@pytest.mark.parametrize("double_sided", [False, True])
+def test_detects_dfs_floppies_with_read_only_capabilities(
+    tmp_path: Path, double_sided: bool
+) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=double_sided)
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "dfs-floppy"
+    assert resolved.filesystem == "acorn-dfs"
+    assert len(resolved.geometry.surface_specs) == (2 if double_sided else 1)
+    assert resolved.capabilities.mount_read_only
+    assert not resolved.capabilities.mount_read_write
+    assert not resolved.capabilities.validate
+    assert resolved.capabilities.properties
+
+
+def test_dfs_content_detection_does_not_depend_on_extension(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, filename="catalogue.bin")
+    assert resolve_image(image_path).kind == "dfs-floppy"
+
+
+def test_detects_watford_dfs_as_a_read_only_dfs_profile(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, filesystem_name="watford-dfs")
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "dfs-floppy"
+    assert resolved.filesystem == "watford-dfs"
+    assert resolved.capabilities.mount_read_only
+    assert not resolved.capabilities.mount_read_write
 
 
 def test_complete_beebscsi_pair_has_precedence_over_standalone_content(tmp_path: Path) -> None:

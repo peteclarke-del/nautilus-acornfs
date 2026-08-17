@@ -180,8 +180,8 @@ acceptance items stay open until they have been exercised in that environment.
 
 - [x] Generalise the mount engine around filesystem capabilities rather than filename extensions.
 - [x] Add ADFS floppy images.
-- [ ] Add DFS SSD and DSD images, presenting DFS catalogue prefixes coherently.
-- [ ] Decide how DFS pseudo-directories should map to POSIX directories without changing on-disk semantics.
+- [x] Add DFS SSD and DSD images, presenting DFS catalogue prefixes coherently.
+- [x] Decide how DFS pseudo-directories should map to POSIX directories without changing on-disk semantics.
 - [ ] Add MMB read-only mounting with slots represented as directories.
 - [ ] Design safe MMB slot replacement, insertion, ejection and access-mode semantics.
 - [ ] Add ROMFS images.
@@ -227,6 +227,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Missing, mismatched, truncated and corrupt DSC files.
 - [x] Truncated, oversized, sparse and corrupt DAT files.
 - [x] Old ADFS S, M and L floppy directory formats used by BBC, Master and Electron hardware.
+- [x] Acorn and Watford DFS SSD/DSD flat catalogues, including both DSD sides.
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.
