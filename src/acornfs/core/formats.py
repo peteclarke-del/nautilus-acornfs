@@ -5,9 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from oaknut.filesystem import Geometry, geometry_from_dsc, identify
+from oaknut.filesystem import Geometry, floppy_geometry, geometry_from_dsc, identify
 
 from acornfs.core.beebscsi import BeebSCSIPair, discover_pair, parse_descriptor
+from acornfs.core.mmb import (
+    ExtendedMMBError,
+    MMBFormatError,
+    MMBLayout,
+    detect_mmb,
+    read_mmb_layout,
+    require_mmb_content_evidence,
+)
 from acornfs.errors import PairDiscoveryError, UnsupportedImageError
 from acornfs.i18n import _
 
@@ -36,6 +44,7 @@ class ResolvedImage:
     capabilities: ImageCapabilities
     companion_path: Path | None = None
     pair: BeebSCSIPair | None = None
+    mmb_layout: MMBLayout | None = None
 
     @property
     def identity_paths(self) -> tuple[Path, ...]:
@@ -49,6 +58,7 @@ class ResolvedImage:
 _BEEBSCSI_CAPABILITIES = ImageCapabilities(True, True, True, True, True, True, True)
 _ADFS_FLOPPY_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 _DFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
+_MMB_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 
 
 def resolve_image(selected: str | Path) -> ResolvedImage:
@@ -61,6 +71,8 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
         )
 
     pair_error: PairDiscoveryError | None = None
+    mmb_error: MMBFormatError | OSError | None = None
+    mmb_layout: MMBLayout | None = None
     if selected_path.suffix.casefold() in {".dat", ".dsc"}:
         try:
             pair = discover_pair(selected_path)
@@ -85,6 +97,31 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
                 capabilities=_BEEBSCSI_CAPABILITIES,
                 pair=pair,
             )
+
+    try:
+        if selected_path.suffix.casefold() == ".mmb":
+            mmb_layout = read_mmb_layout(selected_path)
+            require_mmb_content_evidence(selected_path, mmb_layout)
+        else:
+            mmb_layout = detect_mmb(selected_path)
+    except ExtendedMMBError as exc:
+        raise UnsupportedImageError(
+            _("The MMB container could not be opened safely: {error}").format(error=exc)
+        ) from exc
+    except (MMBFormatError, OSError) as exc:
+        mmb_error = exc
+        mmb_layout = None
+    if mmb_layout is not None:
+        return ResolvedImage(
+            primary_path=selected_path.resolve(),
+            filesystem="acorn-dfs",
+            geometry=floppy_geometry(
+                tracks=80, sides=1, sectors_per_track=10, label="MMB SSD slot"
+            ),
+            kind="mmb-container",
+            capabilities=_MMB_CAPABILITIES,
+            mmb_layout=mmb_layout,
+        )
 
     try:
         candidates = identify(selected_path)
@@ -119,6 +156,10 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
 
     if pair_error is not None:
         raise UnsupportedImageError(str(pair_error)) from pair_error
+    if mmb_error is not None:
+        raise UnsupportedImageError(
+            _("The MMB container could not be opened safely: {error}").format(error=mmb_error)
+        ) from mmb_error
     raise UnsupportedImageError(
         _("The file is not a supported AcornFS image: {path}").format(path=selected_path)
     )

@@ -2,9 +2,9 @@
 
 Nautilus AcornFS is an in-progress, user-space filesystem for Acorn disk
 images. Paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S/M/L floppies,
-and DFS `SSD`/`DSD` images are mounted through FUSE 3 and exposed to Nautilus
-through a small extension, while the filesystem engine remains usable from any
-Linux application.
+DFS `SSD`/`DSD` images, and standard MMB containers are mounted through FUSE 3
+and exposed to Nautilus through a small extension, while the filesystem engine
+remains usable from any Linux application.
 
 Read-only mounting remains the default. Opt-in writable mounts use exclusive
 pair locks, persistent pre-write checkpoints, external-change detection and
@@ -28,6 +28,8 @@ the remaining lifecycle and format work. Release history and policy are in
 - Detect standalone ADFS S, M and L floppy images from content and mount them read-only.
 - Mount content-detected Acorn and Watford DFS SSD/DSD images read-only, exposing
   catalogue prefixes and both DSD sides coherently.
+- Mount standard 511-slot MMB containers read-only with formatted slots exposed
+  as labelled directories and a bounded lazy DFS-mount cache.
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
@@ -95,8 +97,8 @@ Install the per-user Nautilus extension, MIME types and desktop handler, then re
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair or a supported ADFS/DFS floppy and open **Acorn FS
-Support**. BeebSCSI pairs offer
+Right-click either member of a valid pair, a supported ADFS/DFS floppy, or a
+standard MMB and open **Acorn FS Support**. BeebSCSI pairs offer
 **Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
 **Open in Acorn File Forge…**. Floppies offer only **Open read-only**, because
 writes, pair validation, recovery and repair do not yet have a safe profile.
@@ -267,3 +269,9 @@ appear as directories. On a DSD, drive directories `0` and `2` contain each
 side's catalogue-prefix directories. These are presentation-only namespaces;
 AcornFS does not create directory records that DFS cannot represent. Other maps
 and image types remain unsupported rather than being guessed.
+
+Standard MMB containers expose only formatted slots, named by stable slot number
+and catalogue label. Each slot contains the same DFS prefix directories as an
+SSD. Extended MMBs and all MMB mutations are explicitly unsupported; see
+[docs/mmb.md](docs/mmb.md) for the namespace, limits and future transaction
+contract.
