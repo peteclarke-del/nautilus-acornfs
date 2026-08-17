@@ -6,7 +6,8 @@ The current implementation supports Linux on amd64 with Python 3.11 or later,
 FUSE 3, and either a valid paired BeebSCSI DAT/DSC image, a standalone ADFS
 S/M/L/D/E/E+/F/F+/G/G+ floppy, an Acorn/Watford DFS SSD/DSD image, a standard
 or extended MMB container, a standalone FileCore/unpaired raw ADFS hard disc, or
-an Acorn ROMFS paged-ROM image. Standalone images, MMB and ROMFS are read-only.
+an Acorn ROMFS paged-ROM image. All disk formats may be mounted read-write;
+ROMFS remains read-only.
 On Ubuntu 24.04 or later, install the host packages with:
 
 ```shell
@@ -22,7 +23,7 @@ python -m pip install -e '.[fuse]'
 ```
 
 To exercise the real kernel FUSE lifecycle rather than the in-process adapter
-tests, use `make test-live`. This is deliberately opt-in because an exposed
+tests, use `make test-live`. The suite is opt-in because an exposed
 `/dev/fuse` device alone does not prove that a container or CI runner has mount
 permission. The dedicated amd64 live-FUSE CI job therefore verifies that the
 runner can open the device before executing the suite; it fails instead of
@@ -37,11 +38,11 @@ acornfs create-beebscsi /path/to/images --name scsi0 --title BLANK --capacity 20
 ```
 
 The command accepts a destination directory, never overwrites an existing DAT
-or DSC member, validates the complete temporary filesystem, and publishes the
+or DSC member, validates the full temporary filesystem, and publishes the
 pair together. Capacity uses Oaknut size syntax such as `2MB`, `20MB` or `512MB`
 subject to BeebSCSI DSC and old-map ADFS limits.
 
-For normal desktop use, install the Nautilus extension and mount from the file's
+For desktop use, install the Nautilus extension and mount from the file's
 context menu as described in [nautilus.md](nautilus.md). The commands below are
 the foreground terminal workflow.
 
@@ -71,20 +72,20 @@ geometry:
 acornfs mount /path/to/disc.adl "$HOME/AcornFS/floppy"
 ```
 
-Requesting `--read-write` for a floppy is rejected before FUSE initialisation.
-This includes New Map and Big-directory images; long RISC OS filenames are
-preserved for browsing but are not mutated.
+Add `--read-write` to edit the floppy. Old, New and Big directory formats retain
+their native filename and directory limits; Big-directory long names are
+preserved and may be created or changed.
 
 Content-valid FileCore `.hdf`/`.hd4` images and raw ADFS hard discs without a
-DSC use the same read-only command. AcornFS reports their logical map geometry
+DSC use the same command. AcornFS reports their logical map geometry
 but does not fabricate the physical CHS that only a descriptor can establish:
 
 ```shell
 acornfs mount /path/to/riscos.hdf "$HOME/AcornFS/filecore"
 ```
 
-Only a complete, validated old-map BeebSCSI DAT/DSC pair can be opened
-read-write.
+They may be opened read-write after their New Map or old-map structure passes
+validation.
 
 The privileged amd64 integration suite mounts both DAT-selected and
 DSC-selected pairs through real kernel FUSE, traverses them with `find`, `cat`
@@ -102,7 +103,8 @@ DFS has catalogue-letter prefixes, not nested on-disc directories. AcornFS
 presents each populated prefix (`$`, `A`-`Z`) as a directory. A double-sided
 DSD adds top-level `0` and `2` directories, matching the BBC drive designations;
 each contains that side's independent prefix directories. This mapping is
-read-only and does not alter or imply extra structures in the image.
+virtual and does not add directory records to the image. File and metadata
+mutations stay within one side; cross-side renames are refused.
 
 Standard and extended MMB containers also use the same command:
 
@@ -113,7 +115,10 @@ acornfs mount /path/to/BEEB.MMB "$HOME/AcornFS/mmb"
 Only formatted slots appear. Each is named with its zero-padded global slot
 number and catalogue label, and contains the normal DFS prefix-directory view.
 All declared extended-MMB catalogues are validated before traversal. See
-[mmb.md](mmb.md) for the format boundary and planned safe slot-mutation semantics.
+[mmb.md](mmb.md) for writable-slot behaviour and container limits.
+On a read-write mount, file and metadata changes are accepted only inside slots
+whose MMB catalogue status is read-write. Locked slots remain readable and
+reject mutation. Renames between slots are refused.
 
 CRC-valid 8 KiB and 16 KiB ROMFS images also use the same command; recognition
 does not depend on a `.rom` suffix:
@@ -127,43 +132,45 @@ on-disc `/` characters are displayed as `∕`. ROMFS remains read-only.
 
 ## Writable mount
 
-Enable complete file and directory mutations explicitly:
+Enable file and directory writes for any supported disk image:
 
 ```shell
-acornfs mount --read-write /path/to/scsi0.dat /path/to/mountpoint
+acornfs mount --read-write /path/to/image /path/to/mountpoint
 ```
 
-Read-only remains the default. A writable session takes exclusive locks on both
-the DAT and DSC; read-only sessions take shared locks and refuse to start while a
-writer is active. Each writable session creates a persistent checkpoint, flushes
-each completed mutation, and validates ADFS before a clean unmount removes that
-checkpoint. Names must obey old-ADFS rules: 7-bit ASCII, at most 10 bytes, with
-no `.`, `:` or carriage return.
+Read-only remains the default. A writable session takes an exclusive lock on
+each image member; read-only sessions take shared locks and refuse to start
+while a writer is active. Each writable session creates a persistent checkpoint,
+flushes each completed mutation and validates the filesystem before a clean
+unmount removes the checkpoint. ADFS names use 7-bit ASCII and exclude `.`, `:`
+and carriage return. Old and New directories allow 10 bytes, Big directories
+allow 255 bytes, and DFS names allow 7 bytes.
 
 While mounted, a private runtime record ties the kernel mount to the canonical
-DAT/DSC paths, both device/inode identities, daemon PID and access mode. The
+image paths, device/inode identities, daemon PID and access mode. The
 kernel mount table remains authoritative; dead records are discarded. Replacing
 a pair at the same pathname cannot silently alias the already-mounted image.
 
-Before creating that checkpoint, AcornFS validates the descriptor and DAT
-geometry, ADFS map and directory structures, and every used and free sector
-extent. A fatal finding refuses writable access. Warnings describe unusual but
-safe structures, and compatibility advice records details such as intentionally
-reserved capacity; neither blocks a writable mount. A read-only mount remains
-available when the directory tree can still be traversed safely.
+Before creating that checkpoint, AcornFS runs the format's structural validator.
+BeebSCSI old-map validation additionally checks descriptor geometry and complete
+used/free extent accounting. A fatal finding refuses writable access. Warnings
+and compatibility advice do not block a mount. Read-only traversal remains
+available where the format can still be opened safely.
 
 Existing load address, execute address and access/lock metadata survive content
 replacement. Acorn-locked entries are presented without POSIX write bits and
 reject writes, renames and deletion. Checkpoints use filesystem reflinks when
 the source and state location support them, falling back to a durable copy.
 
-Every file, directory, rename and metadata mutation has a compact sector-level
-before-image in addition to the session checkpoint. If an operation fails after
-partially changing the map or catalogue, AcornFS restores and validates that
+Every file, directory, rename and metadata mutation has a private before-image
+in addition to the session checkpoint. Old-map ADFS captures only affected
+sectors. New Map ADFS, DFS and MMB take a reflink in the private recovery
+directory when possible and fall back to a bounded full-image copy. If an
+operation fails after changing the image, AcornFS restores and validates that
 before-image before returning the error. The mount remains writable only after
-the rollback is verified; otherwise it is failed closed and the persistent
-checkpoint is retained for recovery. Oversized writes and truncates are rejected
-before their FUSE memory buffers grow.
+rollback is verified; otherwise it fails closed and retains the persistent
+checkpoint. Oversized writes and truncates are rejected before their FUSE
+buffers grow.
 
 Acorn metadata is available through standard Linux extended-attribute tools:
 
@@ -176,18 +183,23 @@ setfattr -n user.acorn.locked -v 1 /path/to/mountpoint/README
 `user.acorn.load` and `user.acorn.execute` use exactly eight hexadecimal digits;
 `user.acorn.filetype` uses exactly three. `user.acorn.locked` accepts `0`, `1`,
 `false`, or `true`. Those four attributes are writable only on a writable mount.
-`user.acorn.source` (`adfs`) and `user.acorn.path` are read-only provenance
+`user.acorn.source` and `user.acorn.path` are read-only provenance
 attributes. Setting a filetype changes the ADFS load/execute encoding in the
 normal RISC OS fashion, so callers should not treat the raw addresses and the
 filetype as independent metadata.
 
-If a session is interrupted, inspect and resolve it explicitly:
+If a session is interrupted, inspect and resolve it:
 
 ```shell
 acornfs recover /path/to/scsi0.dat
 acornfs recover /path/to/scsi0.dat --restore  # undo the interrupted session
 acornfs recover /path/to/scsi0.dat --discard  # accept the current image
 ```
+
+The same commands accept a standalone ADFS, DFS or MMB image. For a New Map
+DAT/DSC pair, either member identifies the checkpoint; recovery restores the DAT
+and preserves the descriptor because writable filesystem operations do not
+change it.
 
 Validate the ADFS structure without mounting or modifying the image:
 
@@ -219,14 +231,14 @@ terminal also unmounts cleanly. A writable unmount is never lazy: AcornFS waits
 for the daemon to flush, validate and remove its checkpoint before reporting
 success. If that cannot be confirmed, the image remains subject to recovery and
 must not be remounted read-write. If Nautilus keeps a read-only location busy,
-close its window and retry, or detach it explicitly:
+close its window and retry, or detach it:
 
 ```shell
 acornfs unmount --lazy "$HOME/AcornFS/scsi0"
 ```
 
 Applications may hold multiple writable descriptors for one file. AcornFS uses
-one coherent per-inode buffer, so writes and truncation are visible through all
+one shared per-inode buffer, so writes and truncation are visible through all
 of those descriptors and `fsync` on any one commits their combined state. On a
 graceful unmount, logout `SIGINT`, or normal FUSE-loop exit, any dirty buffers
 left open by applications are committed before final validation. If that flush
@@ -250,7 +262,7 @@ acornfs config-mount-location runtime
 This resolves to `$XDG_RUNTIME_DIR/acornfs/images`. The command also accepts an
 absolute path, reports the current setting without an argument, and restores the
 sidebar default with `--reset`. Manual `acornfs mount IMAGE MOUNTPOINT` commands
-continue to use the mountpoint supplied explicitly. Changing the preference
+continue to use the supplied mountpoint. Changing the preference
 does not relocate active images: AcornFS continues to recognise and reuse each
 existing mount at its original path, while later images use the new root.
 

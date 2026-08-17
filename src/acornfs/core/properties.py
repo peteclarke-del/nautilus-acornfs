@@ -1,4 +1,4 @@
-"""Typed compatibility and capacity metadata for BeebSCSI ADFS images."""
+"""Typed compatibility, capacity and validation metadata for Acorn images."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from oaknut.filesystem import create_filesystem, geometry_from_dsc, reader_for
+from oaknut.filesystem import create_filesystem, geometry_from_dsc
 from oaknut.filesystem.capabilities import Mount
 from oaknut.filesystem.reader import ImageReader
 
@@ -17,7 +17,8 @@ from acornfs.core.beebscsi import (
     parse_descriptor,
 )
 from acornfs.core.formats import ResolvedImage, resolve_image
-from acornfs.core.mmb import MMB_HEADER_BYTES, MMB_SLOT_BYTES
+from acornfs.core.mmb import MMB_HEADER_BYTES, MMB_SLOT_BYTES, MMBMount
+from acornfs.core.storage import open_locked_image
 from acornfs.core.validation import validate_open_mount
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
@@ -45,6 +46,16 @@ def _close_mount(mount: Mount | None) -> None:
     if callable(close):
         with suppress(Exception):
             close()
+
+
+def _close_reader(reader: ImageReader | None, closeables: tuple[Any, ...]) -> None:
+    if reader is not None:
+        with suppress(Exception):
+            reader.close()
+    for closeable in closeables:
+        with suppress(Exception):
+            if closeable is not None:
+                closeable.close()
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,8 +191,13 @@ def _read_standalone_properties(
 
     reader: ImageReader | None = None
     mount: Mount | None = None
+    closeables: tuple[Any, ...] = ()
     try:
-        reader = reader_for(source.primary_path)
+        reader, closeables = open_locked_image(
+            source.primary_path,
+            writable=False,
+            companion=source.companion_path,
+        )
         mount = create_filesystem(source.filesystem).open(reader, source.geometry)
         budget.checkpoint(items=1)
         api = cast(Any, mount)
@@ -191,6 +207,7 @@ def _read_standalone_properties(
         specs = source.geometry.surface_specs
         directory_format = _directory_format(adfs)
         boot = api.boot_option
+        validation_problems = tuple(api.validate())
         if adfs.is_new_map:
             map_metadata = adfs._map.disc_record
             filesystem_format = "ADFS new map"
@@ -260,12 +277,12 @@ def _read_standalone_properties(
             used_bytes=total_bytes - free_bytes,
             free_bytes=free_bytes,
             reserved_bytes=max(0, source.geometry.image_size - total_bytes),
-            safe_for_write=False,
-            fatal_findings=0,
+            safe_for_write=not validation_problems,
+            fatal_findings=len(validation_problems),
             warning_findings=0,
             advice_findings=0,
             geometry_kind="container" if hard_disc else "floppy",
-            write_supported=False,
+            write_supported=True,
             geometry_description=geometry_description,
         )
     except AcornFSError:
@@ -278,9 +295,7 @@ def _read_standalone_properties(
         ) from exc
     finally:
         _close_mount(mount)
-        if reader is not None:
-            with suppress(Exception):
-                reader.close()
+        _close_reader(reader, closeables)
 
 
 def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
@@ -288,8 +303,9 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
 
     reader: ImageReader | None = None
     mounts: list[Any] = []
+    closeables: tuple[Any, ...] = ()
     try:
-        reader = reader_for(source.primary_path)
+        reader, closeables = open_locked_image(source.primary_path, writable=False)
         filesystem = create_filesystem(source.filesystem)
         side_count = len(source.geometry.surface_specs)
         for side in range(side_count):
@@ -299,6 +315,7 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         filesystem_bytes = sum(int(mount.size_bytes()) for mount in mounts)
         titles = [str(mount.title) for mount in mounts]
         boots = [mount.boot_option for mount in mounts]
+        validation_problems = tuple(problem for mount in mounts for problem in mount.validate())
         boot = boots[0]
         boot_text = (
             f"{boot.name.title()} ({int(boot)})"
@@ -331,12 +348,12 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
             used_bytes=filesystem_bytes - free_bytes,
             free_bytes=free_bytes,
             reserved_bytes=max(0, source.geometry.image_size - filesystem_bytes),
-            safe_for_write=False,
-            fatal_findings=0,
+            safe_for_write=not validation_problems,
+            fatal_findings=len(validation_problems),
             warning_findings=0,
             advice_findings=0,
             geometry_kind="floppy",
-            write_supported=False,
+            write_supported=True,
             filesystem_size_label="DFS size",
             show_disc_id=False,
         )
@@ -349,9 +366,7 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
     finally:
         for mount in mounts:
             _close_mount(mount)
-        if reader is not None:
-            with suppress(Exception):
-                reader.close()
+        _close_reader(reader, closeables)
 
 
 def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
@@ -359,8 +374,9 @@ def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) ->
 
     reader: ImageReader | None = None
     mount: Mount | None = None
+    closeables: tuple[Any, ...] = ()
     try:
-        reader = reader_for(source.primary_path)
+        reader, closeables = open_locked_image(source.primary_path, writable=False)
         mount = create_filesystem(source.filesystem).open(reader, source.geometry)
         entries = tuple(mount.iter_entries(mount.path_root()))
         budget.checkpoint(items=1 + len(entries))
@@ -409,13 +425,11 @@ def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) ->
         ) from exc
     finally:
         _close_mount(mount)
-        if reader is not None:
-            with suppress(Exception):
-                reader.close()
+        _close_reader(reader, closeables)
 
 
 def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
-    """Report all MMB catalogue and payload capacity without opening every slot."""
+    """Report MMB catalogue, payload capacity and slot validation state."""
 
     layout = source.mmb_layout
     budget.checkpoint(items=1)
@@ -426,6 +440,13 @@ def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
     catalogue_bytes = layout.extent_count * MMB_HEADER_BYTES
     boot_slots = ", ".join(str(slot) for slot in layout.boot_slots)
     extended = layout.extent_count > 1
+    reader, closeables = open_locked_image(source.primary_path, writable=False)
+    mount = MMBMount(reader, layout)
+    try:
+        validation_problems = tuple(mount.validate())
+    finally:
+        mount.close()
+        _close_reader(reader, closeables)
     return ImageProperties(
         dat_path=str(source.primary_path),
         dsc_path="",
@@ -450,12 +471,12 @@ def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         used_bytes=formatted_bytes,
         free_bytes=payload_bytes - formatted_bytes,
         reserved_bytes=catalogue_bytes,
-        safe_for_write=False,
-        fatal_findings=0,
+        safe_for_write=not validation_problems,
+        fatal_findings=len(validation_problems),
         warning_findings=0,
         advice_findings=0,
         geometry_kind="mmb",
-        write_supported=False,
+        write_supported=True,
         filesystem_size_label="Slot payload",
         show_disc_id=False,
         show_disc_name=False,

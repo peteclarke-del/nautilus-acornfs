@@ -1,6 +1,8 @@
 import fcntl
 import hashlib
 import os
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,7 +12,7 @@ from acornfs.core.beebscsi import discover_pair, open_locked_reader
 from acornfs.core.image import ReadOnlyImage
 from acornfs.errors import AcornFSError, PairDiscoveryError
 from acornfs.recovery import RecoveryCheckpoint
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_beebscsi_image, create_dfs_floppy
 
 
 def _close_reader(reader: object, closeables: tuple[object, ...]) -> None:
@@ -68,6 +70,42 @@ def test_locked_mapping_does_not_extend_pair_lock_lifetime(tmp_path: Path) -> No
 
     with ReadOnlyImage.open(dat_path, writable=True) as writable:
         assert writable.writable
+
+
+def test_writable_open_refuses_hard_linked_standalone_image(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path)
+    os.link(image_path, tmp_path / "linked.ssd")
+
+    with pytest.raises(AcornFSError, match="hard links"):
+        ReadOnlyImage.open(image_path, writable=True)
+
+    with ReadOnlyImage.open(image_path) as image:
+        assert not image.writable
+
+
+def test_standalone_lock_blocks_other_acornfs_opens(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path)
+    script = """
+import sys
+from acornfs.core.image import ReadOnlyImage
+from acornfs.errors import AcornFSError
+
+try:
+    ReadOnlyImage.open(sys.argv[1])
+except AcornFSError as error:
+    print(error)
+    raise SystemExit(23)
+raise SystemExit(0)
+"""
+    with ReadOnlyImage.open(image_path, writable=True):
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(image_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    assert result.returncode == 23
+    assert "another AcornFS process" in result.stdout
 
 
 def test_checkpoint_refuses_symlinked_identity_directory(tmp_path: Path) -> None:

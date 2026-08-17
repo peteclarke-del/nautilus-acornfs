@@ -219,25 +219,31 @@ def test_mounted_image_keeps_file_forge_action(tmp_path: Path, monkeypatch: Any)
     ]
 
 
-def test_adfs_floppy_menu_offers_only_supported_actions(tmp_path: Path, monkeypatch: Any) -> None:
+def test_mutable_image_menu_offers_protected_write_actions(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
     extension = _load_extension(monkeypatch)
     monkeypatch.setattr(
         extension,
         "image_capabilities",
         lambda _path: _capabilities(
-            mount_read_write=False,
-            validate=False,
+            mount_read_write=True,
+            validate=True,
             repair=False,
-            recover=False,
+            recover=True,
             file_forge=False,
         ),
     )
     monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
 
-    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "disc.adl")])
+    image = tmp_path / "disc.adl"
+    image.write_bytes(b"")
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(image)])
 
     assert [item.label for item in items[0].submenu.items] == [
         "Open read-only",
+        "Open read-write",
+        "Validate image",
         "Mount location…",
     ]
 

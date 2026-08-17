@@ -53,8 +53,15 @@ def test_indexes_and_reads_standalone_adfs_floppies(tmp_path: Path, format_name:
             assert long_name is not None
             assert image.read(long_name.inode, 0, 1024) == b"Big directory filename\r"
 
-    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
-        ReadOnlyImage.open(image_path, writable=True)
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        hello = image.lookup(ROOT_INODE, b"HELLO")
+        assert hello is not None
+        image.replace_file(hello.inode, b"Updated floppy\r")
+
+    with ReadOnlyImage.open(image_path) as image:
+        hello = image.lookup(ROOT_INODE, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Updated floppy\r"
 
 
 def test_indexes_and_reads_standalone_filecore_hard_disc(tmp_path: Path) -> None:
@@ -72,8 +79,15 @@ def test_indexes_and_reads_standalone_filecore_hard_disc(tmp_path: Path) -> None
         assert image.source.kind == "adfs-hard-disc"
         assert not image.writable
 
-    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
-        ReadOnlyImage.open(image_path, writable=True)
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        hello = image.lookup(ROOT_INODE, b"HELLO")
+        assert hello is not None
+        image.replace_file(hello.inode, b"Updated FileCore\r")
+
+    with ReadOnlyImage.open(image_path) as image:
+        hello = image.lookup(ROOT_INODE, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Updated FileCore\r"
 
 
 def test_indexes_dfs_catalogue_prefixes_as_directories(tmp_path: Path) -> None:
@@ -94,8 +108,19 @@ def test_indexes_dfs_catalogue_prefixes_as_directories(tmp_path: Path) -> None:
         assert image.acorn_metadata(hello.inode).load_address == 0
         assert image.source.filesystem == "acorn-dfs"
 
-    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
-        ReadOnlyImage.open(image_path, writable=True)
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        default = image.lookup(ROOT_INODE, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        image.replace_file(hello.inode, b"Updated DFS\r")
+
+    with ReadOnlyImage.open(image_path) as image:
+        default = image.lookup(ROOT_INODE, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Updated DFS\r"
 
 
 def test_indexes_and_reads_watford_dfs(tmp_path: Path) -> None:
@@ -108,6 +133,13 @@ def test_indexes_and_reads_watford_dfs(tmp_path: Path) -> None:
         assert hello is not None
         assert image.read(hello.inode, 0, 1024) == b"Hello from DFS drive 0\r"
         assert image.source.filesystem == "watford-dfs"
+
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        default = image.lookup(ROOT_INODE, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        image.replace_file(hello.inode, b"Updated Watford DFS\r")
 
 
 def test_indexes_both_dsd_sides_as_drive_directories(tmp_path: Path) -> None:
@@ -132,6 +164,15 @@ def test_indexes_both_dsd_sides_as_drive_directories(tmp_path: Path) -> None:
         assert image.total_bytes == image_path.stat().st_size
         assert 0 < image.free_bytes < image.total_bytes
 
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        drive_two = image.lookup(ROOT_INODE, b"2")
+        assert drive_two is not None
+        default = image.lookup(drive_two.inode, b"$")
+        assert default is not None
+        other = image.lookup(default.inode, b"OTHER")
+        assert other is not None
+        image.replace_file(other.inode, b"Updated DFS drive 2\r")
+
 
 def test_indexes_mmb_slots_as_directories_and_reads_their_dfs_files(tmp_path: Path) -> None:
     image_path = create_mmb_image(tmp_path)
@@ -155,10 +196,25 @@ def test_indexes_mmb_slots_as_directories_and_reads_their_dfs_files(tmp_path: Pa
         assert image.read(hello_42.inode, 0, 1024) == b"Slot forty-two\r"
         assert image.acorn_metadata(hello_42.inode).load_address == 0
         assert image.total_bytes == image_path.stat().st_size
-        assert image.free_bytes == 0
+        assert 0 < image.free_bytes < 2 * 200 * 1024
 
-    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
-        ReadOnlyImage.open(image_path, writable=True)
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        slot_zero = image.lookup(ROOT_INODE, b"000 - WELCOME")
+        assert slot_zero is not None
+        default = image.lookup(slot_zero.inode, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        image.replace_file(hello.inode, b"Updated MMB slot\r")
+
+    with ReadOnlyImage.open(image_path) as image:
+        slot_zero = image.lookup(ROOT_INODE, b"000 - WELCOME")
+        assert slot_zero is not None
+        default = image.lookup(slot_zero.inode, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Updated MMB slot\r"
 
 
 def test_indexes_extended_mmb_slots_across_extent_boundaries(tmp_path: Path) -> None:
@@ -361,6 +417,77 @@ def test_external_dat_change_blocks_further_mutations(tmp_path: Path) -> None:
         image.create_file(ROOT_INODE, b"BLOCKED")
     image.close()
     assert recover_image(dat_path, discard=True) == "Recovery checkpoint discarded."
+
+
+def test_external_standalone_change_blocks_further_mutations(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path)
+    image = ReadOnlyImage.open(image_path, writable=True)
+    before = image_path.stat()
+    os.utime(image_path, ns=(before.st_atime_ns, before.st_mtime_ns + 1))
+    default = image.lookup(ROOT_INODE, b"$")
+    assert default is not None
+    with pytest.raises(AcornFSError, match="changed outside AcornFS"):
+        image.create_file(default.inode, b"BLOCKED")
+    image.close()
+    assert recover_image(image_path, discard=True) == "Recovery checkpoint discarded."
+
+
+def test_big_directory_accepts_long_riscos_filename(tmp_path: Path) -> None:
+    image_path = create_adfs_hard_disc(tmp_path)
+    name = b"A LONG FILE NAME USED BY RISC OS"
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        created = image.create_file(ROOT_INODE, name)
+        image.replace_file(created.inode, b"long filename")
+
+    with ReadOnlyImage.open(image_path) as image:
+        created = image.lookup(ROOT_INODE, name)
+        assert created is not None
+        assert image.read(created.inode, 0, created.size) == b"long filename"
+
+
+def test_double_sided_dfs_rejects_cross_side_rename_without_poisoning_session(
+    tmp_path: Path,
+) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=True)
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        drive_zero = image.lookup(ROOT_INODE, b"0")
+        drive_two = image.lookup(ROOT_INODE, b"2")
+        assert drive_zero is not None and drive_two is not None
+        zero_root = image.lookup(drive_zero.inode, b"$")
+        two_root = image.lookup(drive_two.inode, b"$")
+        assert zero_root is not None and two_root is not None
+
+        with pytest.raises(OSError, match="between disk sides"):
+            image.rename(zero_root.inode, b"HELLO", two_root.inode, b"MOVED")
+
+        assert image.lookup(zero_root.inode, b"HELLO") is not None
+        created = image.create_file(two_root.inode, b"NEWFILE")
+        image.replace_file(created.inode, b"session still writable")
+
+
+def test_mmb_enforces_slot_locks_and_rejects_cross_slot_rename(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+    with image_path.open("r+b") as handle:
+        handle.seek(16 + 15)
+        handle.write(b"\x00")
+
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        locked_slot = image.lookup(ROOT_INODE, b"000 - WELCOME")
+        writable_slot = image.lookup(ROOT_INODE, b"042 - UTILITIES")
+        assert locked_slot is not None and writable_slot is not None
+        locked_root = image.lookup(locked_slot.inode, b"$")
+        writable_root = image.lookup(writable_slot.inode, b"$")
+        assert locked_root is not None and writable_root is not None
+        locked_file = image.lookup(locked_root.inode, b"HELLO")
+        assert locked_file is not None
+
+        with pytest.raises(PermissionError, match="slot 0 is locked"):
+            image.replace_file(locked_file.inode, b"must not be written")
+        with pytest.raises(OSError, match="between slots"):
+            image.rename(writable_root.inode, b"HELLO", locked_root.inode, b"MOVED")
+
+        created = image.create_file(writable_root.inode, b"NEWFILE")
+        image.replace_file(created.inode, b"allowed")
 
 
 def test_replacing_contents_preserves_acorn_metadata(tmp_path: Path) -> None:

@@ -23,7 +23,7 @@ during package builds.
    disjoint package roots and their non-publishable manifest. Install the built
    wheel into a clean supported Ubuntu environment and run the documented mount,
    writable-edit and recovery acceptance tests.
-4. Set the version, date the changelog section, and review the complete diff.
+4. Set the version, date the changelog section, and review the full diff.
 5. Merge the release commit, create the matching annotated tag, then publish
    release notes derived from the changelog.
 6. Verify `build/release/SHA256SUMS`, inspect the validated CycloneDX SBOM, sign
@@ -34,34 +34,34 @@ during package builds.
 
 The project must have an explicit licence before its first public release.
 Signed archives and Debian artefact production remain separate acceptance items
-until a licence and release-key policy exist. Debian staging also remains
-explicitly non-publishable until the pinned Oaknut family has a Debian package
+until a licence and release-key policy exist. Debian staging remains
+non-publishable until the pinned Oaknut family has a Debian package
 or an approved vendoring plan. The automated release job builds the wheel and
 source archive twice with one commit-derived timestamp, compares
 their SHA-256 digests, emits a reproducible CycloneDX 1.6 SBOM and writes an
 unsigned checksum manifest. The automated wheel lifecycle test covers managed
 installation, atomic upgrade and uninstall while preserving preferences,
-checkpoint-shaped state and repair audits.
-No release procedure may claim those guarantees early.
+checkpoint-shaped state and repair audits. Do not mark these gates complete
+without the required evidence.
 
 ## Compatibility and support
 
 The first release line supports amd64 on the Ubuntu, GNOME and Nautilus versions
-documented in the README. BeebSCSI DAT/DSC old-map ADFS is the only writable
-image format; ADFS S/M/L/D/E/E+/F/F+/G/G+ floppies are supported read-only.
-Standalone FileCore and unpaired raw ADFS hard discs are also read-only. Other
-architectures, image formats and physical-hardware claims remain unsupported
-until their specific TODO and test-matrix entries close.
+documented in the README. BeebSCSI DAT/DSC, standalone ADFS
+S/M/L/D/E/E+/F/F+/G/G+, FileCore/unpaired raw ADFS hard discs, DFS SSD/DSD and
+standard/extended MMB images support protected writable mounts. ROMFS remains
+read-only. Other architectures, image formats and physical-hardware claims
+remain unsupported until their specific TODO and test-matrix entries close.
 
 The on-disc safety boundary has priority over host API compatibility. A release
 must refuse uncertain writes rather than weaken validation to preserve an old
 command outcome. Any unavoidable command, metadata or recovery-format change is
-called out explicitly in the changelog with migration or rollback instructions.
+identified in the changelog with migration or rollback instructions.
 Oaknut upgrades follow the dedicated exact-family and private-adapter gate in
 [oaknut-compatibility.md](oaknut-compatibility.md); mixed or floating Oaknut
 families are outside the supported boundary.
 
-The complete support boundary, candidate gate and evidence requirements are in
+The support boundary, candidate gate and evidence requirements are in
 [release-readiness.md](release-readiness.md). User and administrator procedures
 are maintained separately in [user-guide.md](user-guide.md) and
 [admin-guide.md](admin-guide.md).

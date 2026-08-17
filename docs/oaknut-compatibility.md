@@ -2,8 +2,9 @@
 
 AcornFS uses Oaknut's public filesystem interfaces wherever they provide the
 required capability. Content refinement and properties for same-sized New Map
-floppies, plus old-map ADFS validation, ranged reads and rollback-safe mutation,
-need small private adapters contained entirely within `acornfs.core`. No FUSE,
+floppies, old-map ADFS validation, ranged reads and rollback-safe mutation, plus
+the pinned New Map zero-length file compatibility bridge, need small private
+adapters contained entirely within `acornfs.core`. No FUSE,
 Nautilus or desktop module may add a direct dependency on an Oaknut private
 attribute.
 
@@ -19,7 +20,7 @@ An Oaknut upgrade uses a dedicated pull request and must:
 1. update every Oaknut pin together and describe upstream behavioural changes;
 2. update the explicit private-adapter contract test rather than weakening or
    deleting it when an API moves;
-3. run the complete Python matrix, amd64 live-FUSE lifecycle, generated image
+3. run the full Python matrix, amd64 live-FUSE lifecycle, generated image
    fixtures, mutation failure injection, validation, repair and recovery tests;
 4. pass coverage-guided parser smoke tests, amd64 performance budgets,
    dependency auditing and the clean install/upgrade/uninstall package test;
@@ -32,8 +33,10 @@ The contract tests inventory the private surface currently relied upon: the
 old-ADFS object, free-space map and its checksum buffer, directory format and
 read helpers, path resolution, raw ranged sector access and catalogue entry
 disc addresses, plus the New Map disc-record fields used to distinguish E/F/G
-and Big-directory variants. Ordinary public protocol behaviour remains covered
-by the format, image, validation and FUSE test suites.
+and Big-directory variants and the New Map allocation/release hooks needed to
+represent an empty file without allocating zero sectors. Ordinary public
+protocol behaviour remains covered by the format, image, validation and FUSE
+test suites.
 
 Private API compatibility is a source-level support promise only for the exact
 pinned family. AcornFS does not claim compatibility with arbitrary newer Oaknut

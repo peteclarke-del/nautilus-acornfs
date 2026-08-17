@@ -9,7 +9,7 @@ import pytest
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.recovery import pending_recovery, recover_image
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_beebscsi_image, create_dfs_floppy
 
 
 class FaultController:
@@ -180,3 +180,24 @@ def test_unverifiable_rollback_fails_closed_and_retains_checkpoint(tmp_path: Pat
     image.close()
     assert pending_recovery(dat_path) is not None
     assert recover_image(dat_path, discard=True) == "Recovery checkpoint discarded."
+
+
+def test_standalone_mutation_fault_restores_private_before_image(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path)
+    faults = FaultController()
+    with ReadOnlyImage.open(image_path, writable=True, fault_injector=faults) as image:
+        default = image.lookup(ROOT_INODE, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        original = image.read(hello.inode, 0, hello.size)
+        checkpoint_directory = image._checkpoint.directory  # type: ignore[union-attr]
+
+        faults.arm("replace.after")
+        with pytest.raises(RuntimeError, match="replace.after"):
+            image.replace_file(hello.inode, b"this mutation must be rolled back")
+
+        assert image.read(hello.inode, 0, hello.size) == original
+        assert not tuple(checkpoint_directory.glob("operation-*.bin"))
+        created = image.create_file(default.inode, b"RECOVER")
+        image.replace_file(created.inode, b"the session remains usable")

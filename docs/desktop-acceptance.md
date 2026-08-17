@@ -13,7 +13,7 @@ contents in public evidence.
 ## Preparation
 
 1. Install the current branch using the user-install procedure and restart
-   Files explicitly.
+   Files.
 2. Create a generated BeebSCSI fixture with `acornfs create-beebscsi`; do not
    use irreplaceable media or private images.
 3. Keep a terminal open and record `acornfs status --json` before and after the
