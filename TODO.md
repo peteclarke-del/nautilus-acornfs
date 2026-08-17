@@ -214,11 +214,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Bound indexed node count, directory depth and file-cache memory for untrusted images.
 - [x] Refuse ambiguous pairs, remote desktop URIs and unsafe writable geometry.
 - [x] Keep lifecycle records and persistent preferences in private per-user directories.
-- [ ] Write and review a threat model covering malicious images, paths, FUSE callers and desktop IPC.
-- [ ] Add coverage-guided fuzzing for DSC parsing, ADFS map/catalogue validation and URI handling.
+- [x] Write and review a threat model covering malicious images, paths, FUSE callers and desktop IPC.
+- [x] Add coverage-guided fuzzing for DSC parsing, ADFS map/catalogue validation and URI handling.
 - [ ] Test symlink, hard-link, rename and time-of-check/time-of-use attacks around images, checkpoints and mount roots.
-- [ ] Add dependency vulnerability and licence scanning to CI.
-- [ ] Review subprocess environments, command construction and desktop file generation against injection.
+- [x] Add dependency vulnerability and licence scanning to CI.
+- [x] Review subprocess environments, command construction and desktop file generation against injection.
 - [ ] Define resource limits and timeouts for validation, properties and repair on adversarial images.
 - [ ] Ensure logs, notifications and errors never disclose unrelated paths or image contents.
 

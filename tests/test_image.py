@@ -201,9 +201,9 @@ def test_writable_open_persists_replacement_and_locks_pair(tmp_path: Path) -> No
         assert readme is not None
         image.replace_file(readme.inode, b"Changed through AcornFS\r")
         image.sync()
-        with pytest.raises(AcornFSError, match="could not be opened safely"):
+        with pytest.raises(AcornFSError, match="already open"):
             ReadOnlyImage.open(dat_path, writable=True)
-        with pytest.raises(AcornFSError, match="could not be opened safely"):
+        with pytest.raises(AcornFSError, match="already open"):
             ReadOnlyImage.open(dat_path)
 
     with ReadOnlyImage.open(dat_path) as image:

@@ -8,13 +8,14 @@ import json
 import os
 import pwd
 import shutil
+import stat
 import uuid
 from collections.abc import Callable
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from acornfs.core.beebscsi import BeebSCSIPair, discover_pair
 from acornfs.errors import AcornFSError
@@ -51,6 +52,29 @@ def _manifest_path(pair: BeebSCSIPair) -> Path:
     return state_root() / _identity(pair) / "manifest.json"
 
 
+def _ensure_checkpoint_directory(directory: Path) -> None:
+    """Create AcornFS-owned state without following symlinked descendants."""
+
+    root = state_root()
+    anchor = root.parent.parent
+    anchor.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        descendants = directory.relative_to(anchor).parts
+    except ValueError as exc:
+        raise AcornFSError(_("The recovery directory is outside the user state root.")) from exc
+    current = anchor
+    for part in descendants:
+        current /= part
+        with suppress(FileExistsError):
+            current.mkdir(mode=0o700)
+        metadata = current.lstat()
+        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.getuid():
+            raise AcornFSError(
+                _("Refusing an unsafe recovery state path: {path}").format(path=current)
+            )
+        os.chmod(current, 0o700, follow_symlinks=False)
+
+
 def _write_manifest(path: Path, info: RecoveryInfo) -> None:
     temporary = path.with_suffix(".tmp")
     with temporary.open("w", encoding="utf-8") as handle:
@@ -84,25 +108,39 @@ def pending_recovery(selected: str | Path) -> RecoveryInfo | None:
 
 
 def _checkpoint_copy(
-    source: Path, destination: Path, *, copied: Callable[[int], None] | None = None
+    source: Path,
+    destination: Path,
+    *,
+    copied: Callable[[int], None] | None = None,
+    source_handle: BinaryIO | None = None,
 ) -> bool:
     reflinked = False
-    with source.open("rb") as source_handle, destination.open("xb") as destination_handle:
-        try:
-            fcntl.ioctl(destination_handle.fileno(), FICLONE, source_handle.fileno())
-            reflinked = True
-        except OSError:
-            source_handle.seek(0)
-            while chunk := source_handle.read(8 * 1024 * 1024):
-                destination_handle.write(chunk)
+    opened_here = source.open("rb") if source_handle is None else None
+    handle = opened_here if opened_here is not None else source_handle
+    if handle is None:
+        raise AcornFSError(_("Could not open the checkpoint source."))
+    try:
+        metadata = os.fstat(handle.fileno())
+        with destination.open("xb") as destination_handle:
+            try:
+                fcntl.ioctl(destination_handle.fileno(), FICLONE, handle.fileno())
+                reflinked = True
+            except OSError:
+                handle.seek(0)
+                while chunk := handle.read(8 * 1024 * 1024):
+                    destination_handle.write(chunk)
+                    if copied is not None:
+                        copied(len(chunk))
+            else:
                 if copied is not None:
-                    copied(len(chunk))
-        else:
-            if copied is not None:
-                copied(source.stat().st_size)
-        destination_handle.flush()
-        os.fsync(destination_handle.fileno())
-    shutil.copystat(source, destination, follow_symlinks=False)
+                    copied(metadata.st_size)
+            destination_handle.flush()
+            os.fsync(destination_handle.fileno())
+    finally:
+        if opened_here is not None:
+            opened_here.close()
+    os.chmod(destination, stat.S_IMODE(metadata.st_mode))
+    os.utime(destination, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
     return reflinked
 
 
@@ -134,6 +172,7 @@ class RecoveryCheckpoint:
         pair: BeebSCSIPair,
         *,
         progress: Callable[[int, int], None] | None = None,
+        source_handles: tuple[BinaryIO, BinaryIO] | None = None,
     ) -> RecoveryCheckpoint:
         directory = _manifest_path(pair).parent
         manifest = directory / "manifest.json"
@@ -144,7 +183,7 @@ class RecoveryCheckpoint:
                     "'acornfs recover {path}' before mounting read-write."
                 ).format(path=pair.dat_path)
             )
-        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        _ensure_checkpoint_directory(directory)
         # A crash after a clean session removes its manifest may leave harmless
         # orphan backup files. They are not authoritative and must not prevent
         # the next exclusive checkpoint from using create-only writes.
@@ -161,7 +200,10 @@ class RecoveryCheckpoint:
         )
         _write_manifest(manifest, info)
         try:
-            total_bytes = pair.dat_path.stat().st_size + pair.dsc_path.stat().st_size
+            if source_handles is None:
+                total_bytes = pair.dat_path.stat().st_size + pair.dsc_path.stat().st_size
+            else:
+                total_bytes = sum(os.fstat(handle.fileno()).st_size for handle in source_handles)
             copied_bytes = 0
             if progress is not None:
                 progress(0, total_bytes)
@@ -172,8 +214,18 @@ class RecoveryCheckpoint:
                 if progress is not None:
                     progress(copied_bytes, total_bytes)
 
-            dat_reflinked = _checkpoint_copy(pair.dat_path, directory / "image.dat", copied=copied)
-            dsc_reflinked = _checkpoint_copy(pair.dsc_path, directory / "image.dsc", copied=copied)
+            dat_reflinked = _checkpoint_copy(
+                pair.dat_path,
+                directory / "image.dat",
+                copied=copied,
+                source_handle=source_handles[0] if source_handles is not None else None,
+            )
+            dsc_reflinked = _checkpoint_copy(
+                pair.dsc_path,
+                directory / "image.dsc",
+                copied=copied,
+                source_handle=source_handles[1] if source_handles is not None else None,
+            )
             info = RecoveryInfo(
                 identity=info.identity,
                 dat_path=info.dat_path,

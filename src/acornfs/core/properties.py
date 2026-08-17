@@ -101,10 +101,9 @@ def read_image_properties(selected: str | Path) -> ImageProperties:
     mount: Mount | None = None
     closeables: tuple[Any, ...] = ()
     try:
-        descriptor = pair.dsc_path.read_bytes()
+        reader, closeables, descriptor = open_locked_reader(pair, writable=False)
         descriptor_geometry = parse_descriptor(descriptor)
         geometry = geometry_from_dsc(descriptor)
-        reader, closeables = open_locked_reader(pair, writable=False)
         mount = create_filesystem("adfs").open(reader, geometry)
         mount = cast(Any, mount)
         adfs = mount._adfs

@@ -50,6 +50,31 @@ MOUNT_TIMEOUT = 15.0
 WRITABLE_MOUNT_TIMEOUT = 300.0
 _T = TypeVar("_T")
 
+_DESKTOP_ENVIRONMENT = (
+    "DBUS_SESSION_BUS_ADDRESS",
+    "DISPLAY",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "WAYLAND_DISPLAY",
+    "XAUTHORITY",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_RUNTIME_DIR",
+    "XDG_STATE_HOME",
+)
+
+
+def _desktop_environment() -> dict[str, str]:
+    """Return only the session variables a detached AcornFS child needs."""
+
+    environment = {
+        name: value for name in _DESKTOP_ENVIRONMENT if (value := os.environ.get(name)) is not None
+    }
+    environment["ACORNFS_DESKTOP_MOUNT"] = "1"
+    return environment
+
 
 def mountpoint_for_image(image_path: str | Path) -> Path:
     image = resolve_image(image_path)
@@ -403,7 +428,7 @@ def background_mount(
                 with log_path.open("ab") as log:
                     process = subprocess.Popen(
                         command,
-                        env={**os.environ, "ACORNFS_DESKTOP_MOUNT": "1"},
+                        env=_desktop_environment(),
                         stdin=subprocess.DEVNULL,
                         stdout=log,
                         stderr=subprocess.STDOUT,
@@ -466,14 +491,26 @@ def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:
     return 0
 
 
+def _expand_image_path(reference: str | Path) -> Path:
+    if "\0" in os.fspath(reference):
+        raise AcornFSError(_("The image path contains an invalid path character (NUL)."))
+    try:
+        return Path(reference).expanduser()
+    except (KeyError, RuntimeError) as exc:
+        raise AcornFSError(_("The image path names an unknown user account.")) from exc
+
+
 def local_image_reference(reference: str | Path) -> Path:
     """Convert a desktop path, file URI or AcornFS URI to one local image member."""
 
     if isinstance(reference, Path):
-        return reference.expanduser()
-    parsed = urlparse(reference)
+        return _expand_image_path(reference)
+    try:
+        parsed = urlparse(reference)
+    except ValueError as exc:
+        raise AcornFSError(_("The image URI is malformed.")) from exc
     if not parsed.scheme:
-        return Path(reference).expanduser()
+        return _expand_image_path(reference)
     if parsed.scheme not in {"file", "acornfs"}:
         raise AcornFSError(_("Unsupported image URI scheme: {scheme}").format(scheme=parsed.scheme))
     if parsed.netloc not in {"", "localhost"}:
@@ -481,9 +518,7 @@ def local_image_reference(reference: str | Path) -> Path:
     if parsed.params or parsed.query or parsed.fragment or not parsed.path:
         raise AcornFSError(_("The image URI must contain one unambiguous local path."))
     path = unquote(parsed.path)
-    if "\0" in path:
-        raise AcornFSError(_("The image URI contains an invalid path."))
-    return Path(path)
+    return _expand_image_path(path)
 
 
 def desktop_open(image_references: list[str]) -> int:
