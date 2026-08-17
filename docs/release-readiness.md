@@ -23,6 +23,9 @@ claim into a completed item.
 - [ ] Every required TODO acceptance item is checked with recorded evidence.
 - [ ] `make check`, `make benchmark` and permitted live-FUSE tests pass on the
   tagged source.
+- [x] Privileged Ubuntu amd64 CI mounts either DAT/DSC member read-only with
+  terminal tools and preserves retained data plus Acorn metadata across the
+  complete writable mutation, validation and remount lifecycle.
 - [x] Wheel and source archive builds are reproducible and have an SBOM.
 - [ ] The Ubuntu 24.04 amd64 package lifecycle smoke test passes.
 - [ ] A clean GNOME session passes keyboard, screen-reader, light/dark, narrow

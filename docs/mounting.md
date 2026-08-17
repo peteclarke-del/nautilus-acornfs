@@ -86,6 +86,12 @@ acornfs mount /path/to/riscos.hdf "$HOME/AcornFS/filecore"
 Only a complete, validated old-map BeebSCSI DAT/DSC pair can be opened
 read-write.
 
+The privileged amd64 integration suite mounts both DAT-selected and
+DSC-selected pairs through real kernel FUSE, traverses them with `find`, `cat`
+and `stat`, and verifies that writable create/edit/rename/move/delete operations
+plus Acorn load, execute, filetype and lock metadata survive validation and a
+fresh read-only reopen.
+
 DFS images use the same command:
 
 ```shell
