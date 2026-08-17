@@ -95,6 +95,10 @@ def _mime_package() -> str:
     <glob pattern="*.ads" weight="70"/>
     <glob pattern="*.adm" weight="70"/>
     <glob pattern="*.adl" weight="70"/>
+    <glob pattern="*.hdf" weight="70"/>
+    <glob pattern="*.HDF" weight="70"/>
+    <glob pattern="*.hd4" weight="70"/>
+    <glob pattern="*.HD4" weight="70"/>
   </mime-type>
   <mime-type type="application/x-beebscsi-descriptor">
     <comment>BeebSCSI geometry descriptor</comment>

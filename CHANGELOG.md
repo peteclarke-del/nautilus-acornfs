@@ -7,6 +7,9 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Added
 
+- Read-only mounting and properties for ADFS D/E/E+/F/F+/G/G+ floppies and
+  standalone FileCore/unpaired raw hard discs, including content-refined
+  same-size variants and Big-directory long names.
 - Read-only and checkpointed read-write mounting of paired BeebSCSI DAT/DSC images.
 - Nautilus integration for mounting, unmounting, validation, repair and image creation.
 - Transactional ADFS file, directory and Acorn metadata mutations with recovery checkpoints.

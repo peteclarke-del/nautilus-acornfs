@@ -12,7 +12,10 @@ from acornfs.core.mmb import (
 from acornfs.errors import UnsupportedImageError
 from acornfs_nautilus.logic import image_capabilities
 from tests.image_fixture import (
+    corrupt_adfs_new_map,
     create_adfs_floppy,
+    create_adfs_hard_disc,
+    create_adfs_new_map_pair,
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
@@ -20,7 +23,7 @@ from tests.image_fixture import (
 )
 
 
-@pytest.mark.parametrize("format_name", ["s", "m", "l"])
+@pytest.mark.parametrize("format_name", ["s", "m", "l", "d", "e", "e+", "f", "f+", "g", "g+"])
 def test_detects_adfs_floppies_from_content_and_geometry(tmp_path: Path, format_name: str) -> None:
     image_path = create_adfs_floppy(tmp_path, format_name=format_name)
 
@@ -36,8 +39,71 @@ def test_detects_adfs_floppies_from_content_and_geometry(tmp_path: Path, format_
 
 
 def test_content_detection_does_not_depend_on_a_floppy_extension(tmp_path: Path) -> None:
-    image_path = create_adfs_floppy(tmp_path, filename="renamed.bin")
-    assert resolve_image(image_path).kind == "adfs-floppy"
+    image_path = create_adfs_floppy(tmp_path, format_name="e+", filename="renamed.bin")
+    resolved = resolve_image(image_path)
+    assert resolved.kind == "adfs-floppy"
+    assert resolved.geometry.variant == "e+"
+
+
+def test_corrupt_new_map_floppy_is_not_accepted(tmp_path: Path) -> None:
+    image_path = create_adfs_floppy(tmp_path, format_name="f")
+    corrupt_adfs_new_map(image_path)
+
+    with pytest.raises(UnsupportedImageError, match="not a supported"):
+        resolve_image(image_path)
+
+
+def test_detects_standalone_filecore_hard_disc_from_content(tmp_path: Path) -> None:
+    image_path = create_adfs_hard_disc(tmp_path, filename="renamed.bin")
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "adfs-hard-disc"
+    assert resolved.filesystem == "adfs"
+    assert resolved.geometry.label == "ADFS hard disc (CHS unavailable)"
+    assert resolved.capabilities.mount_read_only
+    assert resolved.capabilities.properties
+    assert not resolved.capabilities.mount_read_write
+    assert not resolved.capabilities.validate
+
+
+def test_valid_unpaired_old_map_dat_remains_browsable_read_only(tmp_path: Path) -> None:
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    dsc_path.unlink()
+
+    resolved = resolve_image(dat_path)
+
+    assert resolved.kind == "adfs-hard-disc"
+    assert resolved.capabilities.mount_read_only
+    assert not resolved.capabilities.mount_read_write
+
+
+def test_new_map_dat_dsc_pair_never_receives_old_map_write_capabilities(
+    tmp_path: Path,
+) -> None:
+    dat_path, dsc_path = create_adfs_new_map_pair(tmp_path)
+
+    resolved = resolve_image(dsc_path)
+
+    assert resolved.kind == "adfs-hard-disc"
+    assert resolved.primary_path == dat_path.resolve()
+    assert resolved.companion_path == dsc_path.resolve()
+    assert resolved.pair is None
+    assert resolved.capabilities.mount_read_only
+    assert resolved.capabilities.properties
+    assert not resolved.capabilities.mount_read_write
+    assert not resolved.capabilities.validate
+    assert not resolved.capabilities.repair
+
+
+def test_corrupt_new_map_pair_cannot_fall_back_to_old_map_write_capabilities(
+    tmp_path: Path,
+) -> None:
+    _dat_path, dsc_path = create_adfs_new_map_pair(tmp_path)
+    corrupt_adfs_new_map(dsc_path.with_suffix(".dat"))
+
+    with pytest.raises(UnsupportedImageError, match="invalid zone checks"):
+        resolve_image(dsc_path)
 
 
 @pytest.mark.parametrize("double_sided", [False, True])

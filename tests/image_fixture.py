@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from oaknut.adfs import ADFS
+from oaknut.adfs.new_map import DiscRecord
 from oaknut.file import Access, AcornMeta
 from oaknut.filesystem import create_filesystem, geometry_from_dsc, reader_for, winchester_geometry
 
@@ -118,11 +120,11 @@ def create_beebscsi_image(
 def create_adfs_floppy(
     directory: Path, *, format_name: str = "l", filename: str | None = None
 ) -> Path:
-    """Create a populated standalone ADFS S, M or L floppy image."""
+    """Create a populated standalone ADFS floppy in any Oaknut preset."""
 
     filesystem = create_filesystem("adfs")
     geometry = filesystem.geometry_grammar().presets[format_name]
-    suffix = {"s": ".ads", "m": ".adm", "l": ".adl"}[format_name]
+    suffix = {"s": ".ads", "m": ".adm", "l": ".adl"}.get(format_name, ".adf")
     image_path = directory / (filename or f"floppy-{format_name}{suffix}")
     filesystem.create(image_path, geometry, title=f"ADFS-{format_name.upper()}")
     reader = reader_for(image_path, writable=True)
@@ -131,6 +133,8 @@ def create_adfs_floppy(
         mount.write_bytes("$.HELLO", b"Hello from floppy\r")
         mount.make_directory("$.DOCS", title="Documents")  # type: ignore[attr-defined]
         mount.write_bytes("$.DOCS.GUIDE", b"Floppy guide\r")
+        if format_name.endswith("+"):
+            mount.write_bytes("$.LONG RISC OS FILENAME", b"Big directory filename\r")
     finally:
         adfs = getattr(mount, "_adfs", None)
         close = getattr(adfs, "close", None)
@@ -138,6 +142,81 @@ def create_adfs_floppy(
             close()
         reader.close()
     return image_path
+
+
+def corrupt_adfs_new_map(image_path: Path) -> None:
+    """Damage the primary zone check of a generated New Map image."""
+
+    reader = reader_for(image_path)
+    mount = create_filesystem("adfs").open(reader)
+    try:
+        map_offset = mount._adfs._map._bootmap  # type: ignore[attr-defined]
+    finally:
+        mount._adfs.close()  # type: ignore[attr-defined]
+        reader.close()
+    data = image_path.read_bytes()
+    image_offset = 0
+    for candidate in (0, 0x200):
+        partial_offset = candidate + 0xDC0
+        if len(data) >= partial_offset + 60:
+            record = DiscRecord.parse(data, offset=partial_offset)
+            if record.looks_valid() and record.nzones > 1:
+                image_offset = candidate
+                break
+    with image_path.open("r+b") as handle:
+        handle.seek(image_offset + map_offset)
+        check = handle.read(1)
+        handle.seek(image_offset + map_offset)
+        handle.write(bytes((check[0] ^ 0x01,)))
+
+
+def create_adfs_hard_disc(
+    directory: Path,
+    *,
+    filename: str = "riscos.hdf",
+    big_directories: bool = True,
+    capacity: int | str = "4MB",
+) -> Path:
+    """Create a populated standalone FileCore New Map hard-disc image."""
+
+    image_path = directory / filename
+    adfs = ADFS.create_new_map_hard_disc(
+        capacity,
+        title="RISCOS",
+        big_directories=big_directories,
+    )
+    try:
+        (adfs.root / "HELLO").write_bytes(b"Hello from FileCore\r")
+        docs = adfs.root / "DOCUMENTATION"
+        docs.mkdir()
+        (docs / "A LONG RISC OS GUIDE").write_bytes(b"Hard-disc guide\r")
+        image_path.write_bytes(adfs._d.sector_range(0, adfs._d.num_sectors).tobytes())
+    finally:
+        adfs.close()
+    return image_path
+
+
+def create_adfs_new_map_pair(
+    directory: Path,
+    *,
+    stem: str = "scsi0",
+    cylinders: int = 160,
+    heads: int = 3,
+) -> tuple[Path, Path]:
+    """Create a New Map DAT/DSC pair that must remain read-only."""
+
+    capacity = cylinders * heads * 33 * 256
+    dat_path = create_adfs_hard_disc(
+        directory,
+        filename=f"{stem}.dat",
+        capacity=capacity,
+    )
+    dsc_path = dat_path.with_suffix(".dsc")
+    descriptor = bytearray(22)
+    descriptor[13:15] = cylinders.to_bytes(2, "big")
+    descriptor[15] = heads
+    dsc_path.write_bytes(descriptor)
+    return dat_path, dsc_path
 
 
 def create_dfs_floppy(

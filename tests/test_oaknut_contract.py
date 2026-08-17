@@ -5,7 +5,7 @@ from pathlib import Path
 from oaknut.filesystem import filesystem_names
 
 from acornfs.core.image import ReadOnlyImage
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
 
 
 def test_oaknut_family_remains_one_exactly_pinned_release() -> None:
@@ -46,3 +46,20 @@ def test_pinned_old_adfs_private_adapter_contract(tmp_path: Path) -> None:
         assert callable(free_space_map._recalculate_checksums)
         assert entry is not None
         assert hasattr(entry, "indirect_disc_address")
+
+
+def test_pinned_new_map_floppy_adapter_contract(tmp_path: Path) -> None:
+    image_path = create_adfs_floppy(tmp_path, format_name="e+")
+
+    with ReadOnlyImage.open(image_path) as image:
+        adfs = image._mount._adfs  # type: ignore[attr-defined]
+        disc_record = adfs._map.disc_record
+
+        assert adfs.is_new_map
+        assert disc_record.disc_size == image_path.stat().st_size
+        assert disc_record.nzones == 1
+        assert disc_record.sector_size == 1024
+        assert disc_record.uses_big_directories
+        assert hasattr(disc_record, "disc_name")
+        assert hasattr(disc_record, "disc_id")
+        assert adfs._dir_format.size_in_bytes > 0

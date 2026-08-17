@@ -8,6 +8,8 @@ from acornfs.errors import AcornFSError
 from acornfs_nautilus.logic import image_property_rows
 from tests.image_fixture import (
     create_adfs_floppy,
+    create_adfs_hard_disc,
+    create_adfs_new_map_pair,
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
@@ -35,26 +37,59 @@ def test_image_properties_report_format_geometry_and_validation(tmp_path: Path) 
 
 
 @pytest.mark.parametrize(
-    ("format_name", "tracks", "sides"), [("s", 40, 1), ("m", 80, 1), ("l", 80, 2)]
+    (
+        "format_name",
+        "tracks",
+        "sides",
+        "sectors_per_track",
+        "sector_size",
+        "map_format",
+        "directory_format",
+    ),
+    [
+        ("s", 40, 1, 16, 256, "ADFS old map", "Old directory (Hugo)"),
+        ("m", 80, 1, 16, 256, "ADFS old map", "Old directory (Hugo)"),
+        ("l", 80, 2, 16, 256, "ADFS old map", "Old directory (Hugo)"),
+        ("d", 80, 2, 5, 1024, "ADFS old map", "New directory (Nick)"),
+        ("e", 80, 2, 5, 1024, "ADFS new map", "New directory (Nick)"),
+        ("e+", 80, 2, 5, 1024, "ADFS new map", "Big directory"),
+        ("f", 80, 2, 10, 1024, "ADFS new map", "New directory (Nick)"),
+        ("f+", 80, 2, 10, 1024, "ADFS new map", "Big directory"),
+        ("g", 80, 2, 20, 1024, "ADFS new map", "New directory (Nick)"),
+        ("g+", 80, 2, 20, 1024, "ADFS new map", "Big directory"),
+    ],
 )
 def test_adfs_floppy_properties_are_explicitly_read_only(
-    tmp_path: Path, format_name: str, tracks: int, sides: int
+    tmp_path: Path,
+    format_name: str,
+    tracks: int,
+    sides: int,
+    sectors_per_track: int,
+    sector_size: int,
+    map_format: str,
+    directory_format: str,
 ) -> None:
     image_path = create_adfs_floppy(tmp_path, format_name=format_name)
 
     properties = read_image_properties(image_path)
 
     assert properties.image_type == "Standalone ADFS floppy image"
+    assert properties.filesystem_format == map_format
+    assert properties.directory_format == directory_format
     assert properties.cylinders == tracks
     assert properties.heads == sides
-    assert properties.sectors_per_track == 16
-    assert properties.capacity_bytes == tracks * sides * 16 * 256
+    assert properties.sectors_per_track == sectors_per_track
+    assert properties.sector_size == sector_size
+    assert properties.capacity_bytes == tracks * sides * sectors_per_track * sector_size
+    assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
     assert not properties.write_supported
     rows = dict(image_property_rows(properties))
     assert rows["Validation"] == "Supported read-only"
     assert rows["Geometry"] == (
-        f"{tracks} tracks × {sides} {'side' if sides == 1 else 'sides'} × 16 sectors/track"
+        f"{tracks} tracks × {sides} {'side' if sides == 1 else 'sides'} × "
+        f"{sectors_per_track} sectors/track"
     )
+    assert rows["Filesystem"] == map_format
 
 
 @pytest.mark.parametrize("double_sided", [False, True])
@@ -74,6 +109,39 @@ def test_dfs_properties_cover_all_sides(tmp_path: Path, double_sided: bool) -> N
     assert rows["DFS size"] == rows["Capacity"]
     assert "Disc cycle ID" not in rows
     assert rows["Validation"] == "Supported read-only"
+
+
+def test_filecore_hard_disc_properties_report_missing_physical_chs(tmp_path: Path) -> None:
+    image_path = create_adfs_hard_disc(tmp_path)
+
+    properties = read_image_properties(image_path)
+
+    assert properties.image_type == "Standalone ADFS hard-disc image"
+    assert properties.filesystem_format == "ADFS new map"
+    assert properties.directory_format == "Big directory"
+    assert properties.hardware_profile == "RISC OS FileCore hard disc"
+    assert properties.capacity_bytes == image_path.stat().st_size
+    assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
+    assert properties.sector_size == 512
+    assert not properties.write_supported
+    rows = dict(image_property_rows(properties))
+    assert rows["Geometry"] == "FileCore New Map, 4 zones, 512-byte sectors"
+    assert rows["Validation"] == "Supported read-only"
+
+
+def test_new_map_pair_properties_use_read_only_filecore_profile(tmp_path: Path) -> None:
+    dat_path, dsc_path = create_adfs_new_map_pair(tmp_path)
+
+    properties = read_image_properties(dsc_path)
+
+    assert properties.dat_path == str(dat_path.resolve())
+    assert properties.dsc_path == str(dsc_path.resolve())
+    assert properties.image_type == "ADFS DAT/DSC pair (New Map)"
+    assert properties.filesystem_format == "ADFS new map"
+    assert properties.capacity_bytes == dat_path.stat().st_size
+    assert not properties.write_supported
+    rows = dict(image_property_rows(properties))
+    assert rows["Geometry"].startswith("160 cylinders × 3 heads × 33 sectors/track")
 
 
 def test_dfs_properties_close_an_open_side_when_the_next_side_fails(
