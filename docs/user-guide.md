@@ -19,16 +19,16 @@ On the supported Ubuntu 24.04 amd64 host:
 sudo apt install python3-venv fuse3 libfuse3-dev pkg-config \
   python3-nautilus gir1.2-nautilus-4.0 shared-mime-info \
   desktop-file-utils libnotify-bin zenity
-python3 -m venv ~/.local/share/nautilus-acornfs/venv
 git clone https://github.com/peteclarke-del/nautilus-acornfs.git
-~/.local/share/nautilus-acornfs/venv/bin/pip install './nautilus-acornfs[fuse]'
-~/.local/share/nautilus-acornfs/venv/bin/acornfs install-nautilus --restart
+python3 nautilus-acornfs/tools/user_install.py --restart install ./nautilus-acornfs
 ```
 
 Run those commands from the directory containing the checkout, or use the
-development instructions in the README. The installer changes only generated
-files under the current user's XDG data directory. It never modifies images,
-preferences, checkpoints or repair audits.
+development instructions in the README. The installer creates a versioned
+environment and `~/.local/bin/acornfs`, then changes only generated files under
+the current user's XDG data directory. It never modifies images, preferences,
+checkpoints or repair audits. Ensure `~/.local/bin` is on `PATH`, or invoke that
+command by its full path.
 
 ## Mount and browse
 
@@ -81,15 +81,17 @@ export-file` and `acornfs import-file` with `.inf` sidecars when metadata must
 survive a host round trip. The precise mapping and filename limits are in
 [metadata.md](metadata.md).
 
-## Remove the desktop integration
+## Remove AcornFS
 
-Before removing the Python package, run:
+Unmount every image, retain the downloaded source archive or checkout containing
+the lifecycle tool, then run:
 
 ```shell
-acornfs uninstall-nautilus --restart
+python3 tools/user_install.py --restart uninstall
 ```
 
-This removes only generated extension, MIME and desktop-handler files. It does
+This refuses to proceed while a mount is active and removes only managed code,
+its command, and generated extension, MIME and desktop-handler files. It does
 not remove images, mount-location preferences, recovery checkpoints or repair
 audits. Do not manually delete recovery state for an unresolved writable mount.
 

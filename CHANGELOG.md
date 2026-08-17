@@ -37,6 +37,10 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Fault-injection coverage for low-memory, disk-full, interrupted and short
   private-state and checkpoint writes.
 - A documented exact-family Oaknut private-API compatibility and upgrade gate.
+- Reproducible wheel/source builds with a validated CycloneDX SBOM, unsigned
+  SHA-256 manifest and retained amd64 CI artefacts.
+- A transactional per-user install, upgrade and uninstall tool that keeps
+  images, preferences, checkpoints and repair audits outside its removal scope.
 
 ### Changed
 

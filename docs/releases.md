@@ -18,22 +18,27 @@ during package builds.
    environment, Nautilus, FUSE and hardware checks must not be replaced by unit
    tests or assumptions.
 2. Run `make check`, `make benchmark`, `make test-live` on a permitted amd64
-   FUSE host, and build both distributions with `python -m build`.
+   FUSE host, install `.[release]`, and run `make release`.
 3. Run `make package-smoke`, then install the built wheel into a clean supported
    Ubuntu environment and run the documented mount, writable-edit and recovery
    acceptance tests.
 4. Set the version, date the changelog section, and review the complete diff.
 5. Merge the release commit, create the matching annotated tag, then publish
    release notes derived from the changelog.
-6. Attach only artefacts built from that tag and record their SHA-256 checksums.
+6. Verify `build/release/SHA256SUMS`, inspect the validated CycloneDX SBOM, sign
+   the source archive and checksum manifest under the approved release-key
+   policy, and attach only those artefacts built from the tag.
 7. Keep the previous release and recovery documentation available so users can
    restore images and checkpoints before attempting an incompatible upgrade.
 
 The project must have an explicit licence before its first public release.
-Signed archives, Debian artefact production and SBOM generation remain separate
-acceptance items until implemented and tested. The automated wheel lifecycle
-test covers clean installation, forced upgrade and uninstall while preserving
-preferences, checkpoint-shaped state and repair audits.
+Signed archives and Debian artefact production remain separate acceptance items
+until a licence and release-key policy exist. The automated release job builds
+the wheel and source archive twice with one commit-derived timestamp, compares
+their SHA-256 digests, emits a reproducible CycloneDX 1.6 SBOM and writes an
+unsigned checksum manifest. The automated wheel lifecycle test covers managed
+installation, atomic upgrade and uninstall while preserving preferences,
+checkpoint-shaped state and repair audits.
 No release procedure may claim those guarantees early.
 
 ## Compatibility and support

@@ -21,7 +21,7 @@ claim into a completed item.
 - [ ] Every required TODO acceptance item is checked with recorded evidence.
 - [ ] `make check`, `make benchmark` and permitted live-FUSE tests pass on the
   tagged source.
-- [ ] Wheel and source archive builds are reproducible and have an SBOM.
+- [x] Wheel and source archive builds are reproducible and have an SBOM.
 - [ ] The Ubuntu 24.04 amd64 package lifecycle smoke test passes.
 - [ ] A clean GNOME session passes keyboard, screen-reader, light/dark, narrow
   window, 200 percent scaling and Nautilus file-operation workflows.
@@ -31,7 +31,8 @@ claim into a completed item.
   unresolved release blocker.
 - [ ] Upgrade and rollback instructions match the candidate's state formats.
 - [ ] Release archives, checksums, signatures and changelog are generated from
-  the annotated tag.
+  the annotated tag; archives, SBOM and unsigned checksums are automated, while
+  signing awaits an approved key policy.
 
 ## Evidence to retain
 
