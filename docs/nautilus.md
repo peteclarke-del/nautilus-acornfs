@@ -112,15 +112,13 @@ validation. If publishing the second member fails, the first is rolled back.
 Creation is intentionally absent inside a mounted ADFS image.
 
 **Open in Acorn File Forge…** now dispatches the canonical DAT/DSC pair through
-an argv-only desktop launcher contract. AcornFS uses an installed
-`acorn-file-forge` command, or `ACORN_FILE_FORGE_COMMAND` with optional complete
-`{image}`, `{dat}`, and `{dsc}` argument placeholders. It never invokes a shell.
-The end-to-end backlog item remains pending until File Forge provides the
-corresponding helper or browser-session hand-off endpoint; without one, the
-action explains what must be installed instead of pretending that opening the
-web home page transferred the selected image. The helper must treat the source
-pair as read-only input and upload or copy it into File Forge's private working
-session rather than editing the original files directly.
+the native application's argv-only launcher contract. The action is absent
+unless `acorn-file-forge` is executable through `PATH` or at the native
+installer's stable `~/.local/bin` location. An `ACORN_FILE_FORGE_COMMAND`
+override is accepted only when its executable can also be resolved; optional
+complete `{image}`, `{dat}`, and `{dsc}` argument placeholders remain supported.
+No command is passed to a shell. The native app treats the source pair as
+read-only input and copies it into its private working session.
 
 ## Interrupted writes and recovery
 
