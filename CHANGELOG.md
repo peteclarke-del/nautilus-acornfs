@@ -32,6 +32,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - An amd64 threat model and coverage-guided fuzz targets for descriptors,
   desktop URIs and ADFS map/catalogue validation.
 - amd64 dependency vulnerability auditing and licence-inventory artefacts in CI.
+- Shared five-minute, 100,000-item and 256-level budgets for validation,
+  properties and repair of untrusted images.
 
 ### Changed
 
@@ -47,6 +49,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Remaining Acorn File Forge integration is explicitly deferred until the other backlog is complete.
 - Writable pair handling now checkpoints and maps the exact locked inodes,
   refuses hard-linked members and strips unrelated secrets from detached mount environments.
+- Private state and mount directories now use no-follow descriptor-relative
+  creation; desktop errors and diagnostics redact unrelated path data.
 
 ### Fixed
 

@@ -18,7 +18,8 @@ from acornfs.core.image import ReadOnlyImage
 from acornfs.core.validation import IntegrityFinding, IntegrityReport, validate_image_report
 from acornfs.errors import AcornFSError
 from acornfs.i18n import N_, _
-from acornfs.operations import ProgressCallback, report_progress
+from acornfs.operations import OperationBudget, ProgressCallback, report_progress
+from acornfs.safe_paths import ensure_private_directory
 
 SUPPORTED_REPAIR_ACTIONS = frozenset(
     {"normalise_directory_lengths", "clear_empty_file_extents", "pad_reserved_tail"}
@@ -269,10 +270,10 @@ def plan_repairs_from_report(report: IntegrityReport) -> RepairPlan:
     return RepairPlan(report=report, actions=actions)
 
 
-def plan_repairs(selected: str | Path) -> RepairPlan:
+def plan_repairs(selected: str | Path, *, budget: OperationBudget | None = None) -> RepairPlan:
     """Validate an image and group its findings into deterministic dry-run actions."""
 
-    return plan_repairs_from_report(validate_image_report(selected))
+    return plan_repairs_from_report(validate_image_report(selected, budget=budget))
 
 
 def audit_root() -> Path:
@@ -284,16 +285,34 @@ def audit_root() -> Path:
 
 
 def _write_audit(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    with temporary.open("w", encoding="utf-8") as handle:
-        handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
-    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    root = audit_root()
+    ensure_private_directory(path.parent, anchor=root.parent.parent)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    temporary_created = False
     try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        temporary_descriptor = os.open(temporary.name, flags, 0o600, dir_fd=descriptor)
+        temporary_created = True
+        try:
+            with os.fdopen(temporary_descriptor, "w", encoding="utf-8", closefd=False) as handle:
+                handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            os.close(temporary_descriptor)
+        os.replace(
+            temporary.name,
+            path.name,
+            src_dir_fd=descriptor,
+            dst_dir_fd=descriptor,
+        )
         os.fsync(descriptor)
+    except BaseException:
+        if temporary_created:
+            with suppress(OSError):
+                os.unlink(temporary.name, dir_fd=descriptor)
+        raise
     finally:
         os.close(descriptor)
 
@@ -303,9 +322,12 @@ def apply_repairs(
     *,
     confirmation: str,
     progress: ProgressCallback | None = None,
+    budget: OperationBudget | None = None,
 ) -> RepairResult:
     """Apply a complete low-risk plan with confirmation, checkpointing and audit."""
 
+    operation = budget or OperationBudget.create()
+    operation.checkpoint()
     report_progress(progress, 0, _("Planning repair…"))
     pair = discover_pair(selected)
     if confirmation != pair.dat_path.name:
@@ -314,7 +336,7 @@ def apply_repairs(
                 name=pair.dat_path.name
             )
         )
-    plan = plan_repairs(pair.dat_path)
+    plan = plan_repairs(pair.dat_path, budget=operation)
     report_progress(progress, 10, _("Repair plan validated"))
     if plan.clean:
         raise AcornFSError(_("Validation found no problems, so there is nothing to repair."))
@@ -357,6 +379,7 @@ def apply_repairs(
         report_progress(progress, 20, _("Revalidating image before checkpoint creation…"))
 
         def checkpoint_progress(copied: int, total: int) -> None:
+            operation.checkpoint(items=1)
             fraction = copied / total if total else 1.0
             copied_mib = copied / (1024 * 1024)
             total_mib = total / (1024 * 1024)
@@ -373,12 +396,14 @@ def apply_repairs(
             writable=True,
             repair_mode=True,
             checkpoint_progress=checkpoint_progress,
+            operation_budget=operation,
         )
         report_progress(progress, 60, _("Recovery checkpoint ready"))
         payload["status"] = "applying"
         payload["checkpoint_created"] = True
         _write_audit(audit_path, payload)
         for index, action in enumerate(plan.actions, 1):
+            operation.checkpoint(items=1)
             action_percent = 60 + int((index - 1) * 15 / len(plan.actions))
             report_progress(
                 progress,
@@ -393,7 +418,7 @@ def apply_repairs(
             _write_audit(audit_path, payload)
 
         report_progress(progress, 78, _("Verifying the complete repaired image…"))
-        report = image.integrity_report()
+        report = image.integrity_report(budget=operation)
         remaining = {
             finding.code
             for finding in report.findings

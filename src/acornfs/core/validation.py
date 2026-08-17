@@ -21,9 +21,9 @@ from acornfs.core.beebscsi import (
     open_locked_reader,
     parse_descriptor,
 )
-from acornfs.errors import AcornFSError, OperationCancelled
+from acornfs.errors import AcornFSError, OperationCancelled, OperationLimitExceeded
 from acornfs.i18n import _, ngettext
-from acornfs.operations import CancellationCheck, cancellation_point
+from acornfs.operations import CancellationCheck, OperationBudget
 
 VALIDATION_REPORT_SCHEMA_VERSION = 1
 COMPATIBILITY_PROFILE_ID = "beebscsi-adfs-old-map"
@@ -272,10 +272,12 @@ def validate_open_mount(
     *,
     initial_findings: tuple[IntegrityFinding, ...] = (),
     cancelled: CancellationCheck | None = None,
+    budget: OperationBudget | None = None,
 ) -> IntegrityReport:
     """Validate geometry, directory structures, and used/free extent accounting."""
 
-    cancellation_point(cancelled)
+    operation = budget or OperationBudget.create()
+    operation.checkpoint(cancelled)
     findings = [*initial_findings, *_geometry_findings(pair, descriptor_geometry)]
     dat_bytes = pair.dat_path.stat().st_size
     geometry_sectors = descriptor_geometry.sectors
@@ -338,7 +340,7 @@ def validate_open_mount(
     validator = getattr(mount, "validate", None)
     if callable(validator):
         for problem in validator():
-            cancellation_point(cancelled)
+            operation.checkpoint(cancelled, items=1)
             findings.append(
                 _finding(
                     FindingSeverity.FATAL,
@@ -350,7 +352,7 @@ def validate_open_mount(
     free_extents: list[_Extent] = []
     try:
         for index, (start_bytes, length_bytes) in enumerate(fsm.free_space_entries()):
-            cancellation_point(cancelled)
+            operation.checkpoint(cancelled, items=1)
             start = int(start_bytes) // SECTOR_SIZE
             length = int(length_bytes) // SECTOR_SIZE
             if length <= 0:
@@ -384,7 +386,7 @@ def validate_open_mount(
                         ),
                     )
                 )
-    except OperationCancelled:
+    except (OperationCancelled, OperationLimitExceeded):
         raise
     except Exception as exc:
         findings.append(
@@ -400,9 +402,10 @@ def validate_open_mount(
     directory_sectors = int(adfs._dir_format.size_in_sectors)
     directory_bytes = int(adfs._dir_format.size_in_bytes)
 
-    def walk(directory: Any, path: str) -> None:
+    def walk(directory: Any, path: str, depth: int) -> None:
+        operation.checkpoint(cancelled, depth=depth)
         for entry in directory.entries:
-            cancellation_point(cancelled)
+            operation.checkpoint(cancelled, items=1, depth=depth)
             child_path = f"{path}.{entry.name}"
             if entry.is_directory:
                 start = int(entry.start_sector)
@@ -446,7 +449,7 @@ def validate_open_mount(
                         )
                     )
                     continue
-                walk(child, child_path)
+                walk(child, child_path, depth + 1)
             else:
                 length = int(entry.length)
                 sectors = (length + SECTOR_SIZE - 1) // SECTOR_SIZE
@@ -467,8 +470,8 @@ def validate_open_mount(
 
     try:
         root = adfs._read_root_directory()
-        walk(root, "$")
-    except OperationCancelled:
+        walk(root, "$", 0)
+    except (OperationCancelled, OperationLimitExceeded):
         raise
     except Exception as exc:
         findings.append(
@@ -481,7 +484,7 @@ def validate_open_mount(
         )
 
     for extent in used_extents:
-        cancellation_point(cancelled)
+        operation.checkpoint(cancelled, items=1)
         if extent.start < 0 or extent.end > adfs_sectors or extent.start >= extent.end:
             findings.append(
                 _finding(
@@ -499,7 +502,7 @@ def validate_open_mount(
                 )
             )
 
-    cancellation_point(cancelled)
+    operation.checkpoint(cancelled)
     findings.extend(
         _overlap_findings(used_extents, code="extent.used_overlap", label=_("Allocated"))
     )
@@ -537,11 +540,15 @@ def validate_open_mount(
 
 
 def validate_image_report(
-    selected: str | Path, *, cancelled: CancellationCheck | None = None
+    selected: str | Path,
+    *,
+    cancelled: CancellationCheck | None = None,
+    budget: OperationBudget | None = None,
 ) -> IntegrityReport:
     """Open and validate one pair read-only, returning fatal findings where possible."""
 
-    cancellation_point(cancelled)
+    operation = budget or OperationBudget.create()
+    operation.checkpoint(cancelled)
     pair = discover_pair(selected)
     dat_bytes = pair.dat_path.stat().st_size
     reader: ImageReader | None = None
@@ -577,8 +584,14 @@ def validate_image_report(
     try:
         geometry = geometry_from_dsc(descriptor)
         mount = create_filesystem("adfs").open(reader, geometry)
-        return validate_open_mount(pair, mount, descriptor_geometry, cancelled=cancelled)
-    except OperationCancelled:
+        return validate_open_mount(
+            pair,
+            mount,
+            descriptor_geometry,
+            cancelled=cancelled,
+            budget=operation,
+        )
+    except (OperationCancelled, OperationLimitExceeded):
         raise
     except Exception as exc:
         findings = _geometry_findings(pair, descriptor_geometry)

@@ -8,6 +8,8 @@ from unittest.mock import ANY, patch
 import pytest
 
 from acornfs.desktop import (
+    _last_log_line,
+    _notify,
     _run_with_progress,
     _run_with_reported_progress,
     _systemd_mount_command,
@@ -179,6 +181,21 @@ def test_desktop_mount_location_is_saved(tmp_path: Path) -> None:
     result_arguments = run.call_args_list[1].args[0]
     assert result_arguments[:2] == ["/usr/bin/zenity", "--info"]
     assert str(target) in next(item for item in result_arguments if item.startswith("--text="))
+
+
+def test_notification_and_log_details_redact_unrelated_paths(tmp_path: Path) -> None:
+    log = tmp_path / "mount.log"
+    log.write_text("failed at /home/alice/private/token\0\n", encoding="utf-8")
+    with (
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/notify-send"),
+        patch("acornfs.desktop.subprocess.run") as run,
+    ):
+        _notify("AcornFS failed", "failed at /home/alice/private/token\0", error=True)
+
+    arguments = run.call_args.args[0]
+    assert "/home/alice" not in arguments[-1]
+    assert "\0" not in arguments[-1]
+    assert "/home/alice" not in _last_log_line(log)
 
 
 def test_desktop_mount_location_can_replace_corrupt_preference() -> None:

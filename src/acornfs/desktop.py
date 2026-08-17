@@ -42,9 +42,11 @@ from acornfs.mounts import (
     runtime_root,
     wait_for_mount_shutdown,
 )
-from acornfs.preferences import mount_location, mount_root, set_mount_location
+from acornfs.preferences import ensure_mount_root, mount_location, mount_root, set_mount_location
+from acornfs.privacy import safe_user_message
 from acornfs.recovery import pending_recovery, recover_image
 from acornfs.retention import cleanup_retained_state
+from acornfs.safe_paths import ensure_private_directory
 
 MOUNT_TIMEOUT = 15.0
 WRITABLE_MOUNT_TIMEOUT = 300.0
@@ -150,7 +152,9 @@ def _unit_log_line(unit: str) -> str:
         capture_output=True,
         text=True,
     )
-    return result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+    return (
+        safe_user_message(result.stdout.strip().splitlines()[-1]) if result.stdout.strip() else ""
+    )
 
 
 def _stop_unit(unit: str) -> None:
@@ -168,7 +172,7 @@ def _notify(summary: str, body: str, *, error: bool = False) -> None:
         return
     urgency = "critical" if error else "normal"
     subprocess.run(
-        [command, f"--urgency={urgency}", summary, body],
+        [command, f"--urgency={urgency}", summary, safe_user_message(body)],
         check=False,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -204,6 +208,8 @@ def _dialog_report(report: IntegrityReport) -> str:
 def _show_desktop_message(title: str, message: str, *, error: bool = False) -> None:
     """Show a finite one-button result dialog, falling back to a notification."""
 
+    if error:
+        message = safe_user_message(message)
     dialog = shutil.which("zenity")
     if dialog is None:
         _notify(title, message, error=error)
@@ -381,7 +387,7 @@ def background_mount(
         timeout = WRITABLE_MOUNT_TIMEOUT if read_write else MOUNT_TIMEOUT
     mountpoint = mountpoint_for_image(image.primary_path)
     root = runtime_root()
-    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    ensure_private_directory(root, anchor=root.parent)
     lock_path = root / f".{mountpoint.name}.lock"
     log_path = root / f"{mountpoint.name}.log"
 
@@ -391,8 +397,10 @@ def background_mount(
         if mounted_image is not None:
             mountpoint = Path(mounted_image.mountpoint)
         else:
-            mountpoint.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            mountpoint.mkdir(mode=0o700, exist_ok=True)
+            ensured_root = ensure_mount_root()
+            if mountpoint.parent != ensured_root:
+                raise AcornFSError(_("The selected AcornFS mount root changed unexpectedly."))
+            ensure_private_directory(mountpoint, anchor=ensured_root)
             cleanup_stale_mountpoint(mountpoint)
         existing = mount_at(mountpoint)
         if existing is not None and mounted_image is None:
@@ -426,6 +434,7 @@ def background_mount(
                     )
             else:
                 with log_path.open("ab") as log:
+                    os.fchmod(log.fileno(), 0o600)
                     process = subprocess.Popen(
                         command,
                         env=_desktop_environment(),
@@ -479,7 +488,7 @@ def _last_log_line(log_path: Path) -> str:
         lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return ""
-    return lines[-1] if lines else ""
+    return safe_user_message(lines[-1]) if lines else ""
 
 
 def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:

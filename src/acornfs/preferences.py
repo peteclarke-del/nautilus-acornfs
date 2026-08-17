@@ -13,6 +13,7 @@ from typing import Any
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 from acornfs.mounts import runtime_root
+from acornfs.safe_paths import ensure_private_directory
 
 CONFIG_VERSION = 1
 MOUNT_ROOT_ENV = "ACORNFS_MOUNT_ROOT"
@@ -57,6 +58,8 @@ def _parse_location(value: str, *, source: str) -> MountLocation:
         raise AcornFSError(
             _("The mount location must be 'sidebar', 'runtime', or an absolute path.")
         )
+    if path.is_symlink():
+        raise AcornFSError(_("A symbolic link cannot be used as the AcornFS mount location."))
     path = path.resolve(strict=False)
     if path == Path("/"):
         raise AcornFSError(_("The filesystem root cannot be used as the AcornFS mount location."))
@@ -101,14 +104,26 @@ def mount_root() -> Path:
     return mount_location().root
 
 
+def ensure_mount_root() -> Path:
+    """Create and verify the selected mount root without following its final components."""
+
+    location = mount_location()
+    if location.mode == "sidebar":
+        anchor = _account_home()
+    elif location.mode == "runtime":
+        anchor = runtime_root().parent
+    else:
+        anchor = location.root.parent
+    return ensure_private_directory(location.root, anchor=anchor)
+
+
 def set_mount_location(value: str) -> MountLocation:
     """Validate and atomically persist a per-user mount location."""
 
     parsed = _parse_location(value, source="user")
     stored = parsed.mode if parsed.mode != "custom" else str(parsed.root)
     path = preferences_path()
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path.parent.chmod(0o700)
+    ensure_private_directory(path.parent, anchor=config_home())
     if path.is_symlink():
         raise AcornFSError(
             _("Refusing to replace a symbolic-link preferences file: {path}").format(path=path)
@@ -154,6 +169,7 @@ def reset_mount_location() -> MountLocation:
 __all__ = [
     "MountLocation",
     "config_home",
+    "ensure_mount_root",
     "mount_location",
     "mount_root",
     "preferences_path",
