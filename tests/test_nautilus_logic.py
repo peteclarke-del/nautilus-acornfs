@@ -5,7 +5,7 @@ from acornfs_nautilus.logic import (
     is_supported_image,
     mounted_file_property_rows,
 )
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
 
 
 def test_only_complete_pair_is_supported(tmp_path: Path) -> None:
@@ -30,6 +30,19 @@ def test_adfs_floppy_support_exposes_only_safe_actions(tmp_path: Path) -> None:
     assert not capabilities.file_forge
 
 
+def test_dfs_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=True)
+    capabilities = image_capabilities(image_path)
+    assert capabilities is not None
+    assert capabilities.mount_read_only
+    assert capabilities.properties
+    assert not capabilities.mount_read_write
+    assert not capabilities.validate
+    assert not capabilities.repair
+    assert not capabilities.recover
+    assert not capabilities.file_forge
+
+
 def test_mounted_file_properties_are_derived_from_acorn_xattrs(
     tmp_path: Path, monkeypatch: object
 ) -> None:
@@ -43,9 +56,14 @@ def test_mounted_file_properties_are_derived_from_acorn_xattrs(
         "user.acorn.filetype": b"FFD",
         "user.acorn.locked": b"1",
     }
-    monkeypatch.setattr(  # type: ignore[attr-defined]
-        "os.getxattr", lambda _path, name: attributes[name]
-    )
+
+    def getxattr(_path: str, name: str) -> bytes:
+        try:
+            return attributes[name]
+        except KeyError as exc:
+            raise OSError(name) from exc
+
+    monkeypatch.setattr("os.getxattr", getxattr)  # type: ignore[attr-defined]
 
     rows = dict(mounted_file_property_rows(path))
     assert rows == {
@@ -56,3 +74,30 @@ def test_mounted_file_properties_are_derived_from_acorn_xattrs(
         "RISC OS filetype": "FFD",
         "Locked": "1",
     }
+
+
+def test_mounted_dfs_file_properties_use_dfs_source_name(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    path = tmp_path / "HELLO"
+    path.touch()
+    attributes = {
+        "user.acorn.source": b"acorn-dfs",
+        "user.acorn.path": b"$.HELLO",
+        "user.acorn.load": b"00001900",
+        "user.acorn.execute": b"00001900",
+        "user.acorn.locked": b"0",
+    }
+
+    def getxattr(_path: str, name: str) -> bytes:
+        try:
+            return attributes[name]
+        except KeyError as exc:
+            raise OSError(name) from exc
+
+    monkeypatch.setattr("os.getxattr", getxattr)  # type: ignore[attr-defined]
+
+    rows = dict(mounted_file_property_rows(path))
+    assert rows["Source filesystem"] == "Acorn DFS"
+    assert rows["Original pathname"] == "$.HELLO"
+    assert "RISC OS filetype" not in rows

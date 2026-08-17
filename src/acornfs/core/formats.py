@@ -48,6 +48,7 @@ class ResolvedImage:
 
 _BEEBSCSI_CAPABILITIES = ImageCapabilities(True, True, True, True, True, True, True)
 _ADFS_FLOPPY_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
+_DFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 
 
 def resolve_image(selected: str | Path) -> ResolvedImage:
@@ -93,6 +94,14 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
         ) from exc
     if candidates:
         candidate = candidates[0]
+        if candidate.filesystem in {"acorn-dfs", "watford-dfs"} and candidate.geometry is not None:
+            return ResolvedImage(
+                primary_path=selected_path.resolve(),
+                filesystem=candidate.filesystem,
+                geometry=candidate.geometry,
+                kind="dfs-floppy",
+                capabilities=_DFS_CAPABILITIES,
+            )
         if candidate.filesystem != "adfs":
             raise UnsupportedImageError(
                 _("Detected filesystem {filesystem} is not yet mountable by AcornFS.").format(

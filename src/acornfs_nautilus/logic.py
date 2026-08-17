@@ -37,14 +37,21 @@ def _property_value(value: str) -> str:
     values = {
         "BeebSCSI DAT/DSC pair": _("BeebSCSI DAT/DSC pair"),
         "Standalone ADFS floppy image": _("Standalone ADFS floppy image"),
+        "DFS floppy image": _("DFS floppy image"),
         "ADFS old map": _("ADFS old map"),
+        "Acorn DFS": _("Acorn DFS"),
+        "Watford DFS": _("Watford DFS"),
         "Old directory (Hugo)": _("Old directory (Hugo)"),
         "New directory (Nick)": _("New directory (Nick)"),
         "Big directory": _("Big directory"),
+        "Flat catalogue prefixes": _("Flat catalogue prefixes"),
         "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)": _(
             "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
         ),
         "Acorn ADFS floppy": _("Acorn ADFS floppy"),
+        "BBC Micro DFS floppy": _("BBC Micro DFS floppy"),
+        "ADFS size": _("ADFS size"),
+        "DFS size": _("DFS size"),
     }
     return values.get(value, value)
 
@@ -103,14 +110,15 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
         (_("Hardware profile"), _property_value(properties.hardware_profile)),
         (_("Title"), properties.title or "—"),
         (_("Disc name"), properties.disc_name or "—"),
-        (_("Disc cycle ID"), f"&{properties.disc_id:04X}"),
         (_("Boot option"), _boot_option(properties.boot_option)),
         (_("Geometry"), geometry),
         (_("Capacity"), _size(properties.capacity_bytes)),
-        (_("ADFS size"), _size(properties.adfs_bytes)),
+        (_property_value(properties.filesystem_size_label), _size(properties.adfs_bytes)),
         (_("Used"), _size(properties.used_bytes)),
         (_("Free"), _size(properties.free_bytes)),
     ]
+    if properties.show_disc_id:
+        rows.insert(6, (_("Disc cycle ID"), f"&{properties.disc_id:04X}"))
     if properties.reserved_bytes:
         rows.append((_("Reserved tail"), _size(properties.reserved_bytes)))
     rows.append((_("Validation"), validation))
@@ -129,9 +137,10 @@ def mounted_file_property_rows(path: str | Path) -> tuple[tuple[str, str], ...]:
             return None
 
     source = value("user.acorn.source")
-    if source != "adfs":
+    source_names = {"adfs": "ADFS", "acorn-dfs": "Acorn DFS", "watford-dfs": "Watford DFS"}
+    if source not in source_names:
         return ()
-    rows = [(_("Source filesystem"), "ADFS")]
+    rows = [(_("Source filesystem"), _property_value(source_names[source]))]
     labels = (
         ("user.acorn.path", _("Original pathname")),
         ("user.acorn.load", _("Load address")),

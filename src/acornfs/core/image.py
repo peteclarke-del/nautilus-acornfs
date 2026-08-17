@@ -30,6 +30,7 @@ from acornfs.core.beebscsi import (
     open_locked_reader,
     parse_descriptor,
 )
+from acornfs.core.dfs import DoubleSidedDFSMount
 from acornfs.core.formats import ResolvedImage, resolve_image
 from acornfs.core.transaction import SectorTransaction
 from acornfs.errors import AcornFSError, FilenameTooLongError
@@ -170,7 +171,11 @@ class ReadOnlyImage:
             else:
                 geometry = source.geometry
                 reader = reader_for(source.primary_path, writable=False)
-            mount = create_filesystem(source.filesystem).open(reader, geometry)
+            filesystem = create_filesystem(source.filesystem)
+            mount = filesystem.open(reader, geometry)
+            if source.kind == "dfs-floppy" and len(geometry.surface_specs) > 1:
+                side_two = filesystem.open(reader, geometry, surface=1)
+                mount = cast(Mount, DoubleSidedDFSMount(mount, side_two))
             if writable:
                 from acornfs.core.validation import require_safe_for_write, validate_open_mount
 
@@ -230,7 +235,7 @@ class ReadOnlyImage:
             if isinstance(exc, AcornFSError):
                 raise
             raise AcornFSError(
-                _("The ADFS image could not be opened safely: {error}").format(error=exc)
+                _("The Acorn image could not be opened safely: {error}").format(error=exc)
             ) from exc
 
     def _index_tree(self) -> None:
@@ -250,14 +255,14 @@ class ReadOnlyImage:
         def visit(parent_inode: int, path: str, depth: int) -> None:
             if depth > self._max_depth:
                 raise AcornFSError(
-                    _("The ADFS directory tree exceeds {maximum} levels.").format(
+                    _("The Acorn filesystem tree exceeds {maximum} levels.").format(
                         maximum=self._max_depth
                     )
                 )
             path_key = path.casefold()
             if path_key in active_paths:
                 raise AcornFSError(
-                    _("The ADFS directory tree contains a cycle at {path}.").format(path=path)
+                    _("The Acorn filesystem tree contains a cycle at {path}.").format(path=path)
                 )
             active_paths.add(path_key)
             child_inodes: list[int] = []
@@ -269,7 +274,7 @@ class ReadOnlyImage:
                 for entry in entries:
                     if len(self.nodes) >= self._max_nodes:
                         raise AcornFSError(
-                            _("The ADFS image contains more than {maximum} entries.").format(
+                            _("The Acorn image contains more than {maximum} entries.").format(
                                 maximum=self._max_nodes
                             )
                         )
@@ -1027,6 +1032,10 @@ class ReadOnlyImage:
 
     @staticmethod
     def _close_oaknut_mount(mount: Mount) -> None:
+        close = getattr(mount, "close", None)
+        if callable(close):
+            close()
+            return
         adfs = getattr(mount, "_adfs", None)
         close = getattr(adfs, "close", None)
         if callable(close):

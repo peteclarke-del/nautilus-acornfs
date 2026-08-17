@@ -129,3 +129,39 @@ def create_adfs_floppy(
             close()
         reader.close()
     return image_path
+
+
+def create_dfs_floppy(
+    directory: Path,
+    *,
+    double_sided: bool = False,
+    filename: str | None = None,
+    filesystem_name: str = "acorn-dfs",
+) -> Path:
+    """Create a populated Acorn or Watford DFS SSD or DSD image."""
+
+    filesystem = create_filesystem(filesystem_name)
+    suffix = ".dsd" if double_sided else ".ssd"
+    geometry = filesystem.default_geometry(suffix)
+    assert geometry is not None
+    image_path = directory / (filename or f"dfs{suffix}")
+    filesystem.create(image_path, geometry, title="DFS ZERO")
+    reader = reader_for(image_path, writable=True)
+    try:
+        side_zero = filesystem.open(reader, geometry, surface=0)
+        try:
+            side_zero.write_bytes("$.HELLO", b"Hello from DFS drive 0\r")
+            side_zero.write_bytes("A.NOTES", b"Catalogue A\r")
+        finally:
+            side_zero.close()  # type: ignore[attr-defined]
+        if double_sided:
+            side_two = filesystem.open(reader, geometry, surface=1)
+            try:
+                side_two.set_title("DFS TWO")  # type: ignore[attr-defined]
+                side_two.write_bytes("$.OTHER", b"Hello from DFS drive 2\r")
+                side_two.write_bytes("B.DATA", b"Catalogue B\r")
+            finally:
+                side_two.close()  # type: ignore[attr-defined]
+    finally:
+        reader.close()
+    return image_path

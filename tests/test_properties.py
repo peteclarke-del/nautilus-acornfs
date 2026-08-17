@@ -1,10 +1,12 @@
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 from acornfs.core import read_image_properties
+from acornfs.errors import AcornFSError
 from acornfs_nautilus.logic import image_property_rows
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
 
 
 def test_image_properties_report_format_geometry_and_validation(tmp_path: Path) -> None:
@@ -47,6 +49,48 @@ def test_adfs_floppy_properties_are_explicitly_read_only(
     assert rows["Geometry"] == (
         f"{tracks} tracks × {sides} {'side' if sides == 1 else 'sides'} × 16 sectors/track"
     )
+
+
+@pytest.mark.parametrize("double_sided", [False, True])
+def test_dfs_properties_cover_all_sides(tmp_path: Path, double_sided: bool) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=double_sided)
+
+    properties = read_image_properties(image_path)
+
+    assert properties.image_type == "DFS floppy image"
+    assert properties.filesystem_format == "Acorn DFS"
+    assert properties.directory_format == "Flat catalogue prefixes"
+    assert properties.heads == (2 if double_sided else 1)
+    assert properties.capacity_bytes == image_path.stat().st_size
+    assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
+    assert not properties.write_supported
+    rows = dict(image_property_rows(properties))
+    assert rows["DFS size"] == rows["Capacity"]
+    assert "Disc cycle ID" not in rows
+    assert rows["Validation"] == "Supported read-only"
+
+
+def test_dfs_properties_close_an_open_side_when_the_next_side_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=True)
+    first_side = Mock()
+    filesystem = Mock()
+    filesystem.open.side_effect = [first_side, RuntimeError("bad second catalogue")]
+    monkeypatch.setattr("acornfs.core.properties.create_filesystem", lambda _name: filesystem)
+
+    with pytest.raises(AcornFSError, match="bad second catalogue"):
+        read_image_properties(image_path)
+
+    first_side.close.assert_called_once_with()
+
+
+def test_watford_dfs_properties_report_the_detected_variant(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, filesystem_name="watford-dfs")
+
+    properties = read_image_properties(image_path)
+
+    assert properties.filesystem_format == "Watford DFS"
 
 
 @pytest.mark.parametrize(("cylinders", "heads"), [(40, 1), (160, 2), (80, 4)])
