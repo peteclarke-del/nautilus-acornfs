@@ -220,6 +220,10 @@ acceptance items stay open until they have been exercised in that environment.
 
 ## Phase 10: packaging and release
 
+- [x] Define disjoint core, FUSE and Nautilus Debian payload ownership and
+  exact Ubuntu/Oaknut dependency contracts.
+- [x] Add deterministic amd64 package staging and exercise its manifest in CI
+  without presenting blocked staging roots as distributable `.deb` files.
 - [ ] Produce Debian packages for supported Ubuntu releases.
 - [ ] Package the FUSE daemon, command-line tools and Nautilus extension separately where useful.
 - [x] Declare FUSE 3, Python/runtime and Nautilus extension dependencies accurately.
