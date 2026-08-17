@@ -1,10 +1,11 @@
 # Oaknut compatibility policy
 
 AcornFS uses Oaknut's public filesystem interfaces wherever they provide the
-required capability. Old-map ADFS validation, ranged reads and rollback-safe
-mutation additionally need a small private adapter contained entirely within
-`acornfs.core`. No FUSE, Nautilus or desktop module may add a direct dependency
-on an Oaknut private attribute.
+required capability. Content refinement and properties for same-sized New Map
+floppies, plus old-map ADFS validation, ranged reads and rollback-safe mutation,
+need small private adapters contained entirely within `acornfs.core`. No FUSE,
+Nautilus or desktop module may add a direct dependency on an Oaknut private
+attribute.
 
 All Oaknut distributions must stay on one exact release. The supported set and
 version are declared together in `pyproject.toml`; partial or floating upgrades
@@ -27,11 +28,12 @@ An Oaknut upgrade uses a dedicated pull request and must:
 6. record any user-visible, on-disc or state-format consequence in the
    changelog and migration documentation.
 
-The contract test inventories the private surface currently relied upon: the
+The contract tests inventory the private surface currently relied upon: the
 old-ADFS object, free-space map and its checksum buffer, directory format and
 read helpers, path resolution, raw ranged sector access and catalogue entry
-disc addresses. Ordinary public protocol behaviour remains covered by the
-format, image, validation and FUSE test suites.
+disc addresses, plus the New Map disc-record fields used to distinguish E/F/G
+and Big-directory variants. Ordinary public protocol behaviour remains covered
+by the format, image, validation and FUSE test suites.
 
 Private API compatibility is a source-level support promise only for the exact
 pinned family. AcornFS does not claim compatibility with arbitrary newer Oaknut

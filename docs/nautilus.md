@@ -18,13 +18,13 @@ virtual environment. Re-run the installer after moving or recreating that
 environment.
 
 ADFS DAT files are recognised by their on-disc old-directory signature; AcornFS
-does not register a generic `*.dat` glob. ADFS `.ads`, `.adm`, `.adl` and
-ambiguous `.adf` floppy names are registered for discovery, but core content and
-geometry detection remains authoritative. DSC files use their specific extension,
-and the handler still validates the complete pair and descriptor before opening
-anything. Double-click a supported image to mount it read-only. Applications may
-also open a local URI such as `acornfs:///path/to/scsi0.dat`; remote hosts and
-other URI schemes are refused.
+does not register a generic `*.dat` glob. ADFS `.ads`, `.adm`, `.adl`, ambiguous
+`.adf` floppy names and FileCore `.hdf`/`.hd4` names are registered for
+discovery, but core content and geometry detection remains authoritative. DSC
+files use their specific extension, and the handler still validates the complete
+pair and descriptor before opening anything. Double-click a supported image to
+mount it read-only. Applications may also open a local URI such as
+`acornfs:///path/to/scsi0.dat`; remote hosts and other URI schemes are refused.
 
 ## Mount and unmount
 
@@ -86,16 +86,19 @@ Both modes carry `nodev`, `nosuid`, and `noexec`. A writable mount creates a
 persistent pre-write checkpoint before appearing in Files, so a large non-reflink
 image can take longer to mount.
 
-Standalone ADFS S/M/L and DFS SSD/DSD floppies expose only **Open read-only**
-and image properties. In DFS SSD mounts, catalogue prefixes appear as
-directories. DSD mounts add drive `0` and `2` directories above the prefixes so
-both sides remain visible in one Files window. Unsupported write, validation,
-repair, recovery and File Forge actions are omitted rather than being allowed
-to fail after selection. Standard and extended MMB containers use the same
-read-only action and expose each formatted slot as a globally numbered labelled
-directory. Every declared extent contributes to the image properties.
+Standalone ADFS S through G+ and DFS SSD/DSD floppies expose only **Open
+read-only** and image properties. D/E/F/G images retain New directories and the
+`+` variants retain Big-directory long filenames. In DFS SSD mounts, catalogue
+prefixes appear as directories. DSD mounts add drive `0` and `2` directories
+above the prefixes so both sides remain visible in one Files window. Unsupported
+write, validation, repair, recovery and File Forge actions are omitted rather
+than being allowed to fail after selection. Standard and extended MMB containers
+use the same read-only action and expose each formatted slot as a globally
+numbered labelled directory. Every declared extent contributes to the image properties.
 CRC-validated ROMFS images also expose only **Open read-only** and image
 properties. Their flat, case-sensitive catalogue is shown at the mount root.
+Standalone FileCore and unpaired raw ADFS hard discs follow the same read-only
+policy and report unavailable physical CHS explicitly.
 
 ## Create a BeebSCSI image
 

@@ -36,12 +36,15 @@ def _property_value(value: str) -> str:
 
     values = {
         "BeebSCSI DAT/DSC pair": _("BeebSCSI DAT/DSC pair"),
+        "ADFS DAT/DSC pair (New Map)": _("ADFS DAT/DSC pair (New Map)"),
         "Standalone ADFS floppy image": _("Standalone ADFS floppy image"),
+        "Standalone ADFS hard-disc image": _("Standalone ADFS hard-disc image"),
         "DFS floppy image": _("DFS floppy image"),
         "Standard MMB container": _("Standard MMB container"),
         "Extended MMB container": _("Extended MMB container"),
         "Acorn ROMFS image": _("Acorn ROMFS image"),
         "ADFS old map": _("ADFS old map"),
+        "ADFS new map": _("ADFS new map"),
         "Acorn DFS": _("Acorn DFS"),
         "Watford DFS": _("Watford DFS"),
         "MMB with Acorn DFS slots": _("MMB with Acorn DFS slots"),
@@ -57,6 +60,7 @@ def _property_value(value: str) -> str:
             "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
         ),
         "Acorn ADFS floppy": _("Acorn ADFS floppy"),
+        "RISC OS FileCore hard disc": _("RISC OS FileCore hard disc"),
         "BBC Micro DFS floppy": _("BBC Micro DFS floppy"),
         "BBC Micro MMC/SD MMB container": _("BBC Micro MMC/SD MMB container"),
         "BBC Micro / Acorn Electron paged ROM": _("BBC Micro / Acorn Electron paged ROM"),
