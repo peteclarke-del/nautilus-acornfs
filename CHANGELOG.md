@@ -16,6 +16,7 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Conservative retention for inactive runtime logs, completed repair audits and orphan checkpoint fragments.
 - Versioned validation JSON with a stable BeebSCSI old-map compatibility profile.
 - amd64 memory stress budgets for 100,000 indexed nodes and an 8 MiB write buffer.
+- Content-detected read-only mounting of standalone ADFS S, M and L floppy images.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
 - Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
 
@@ -28,6 +29,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Existing mounts remain at, and are reused from, their original path after a location change.
 - Compatible Acorn metadata changes are coalesced until a durability boundary.
 - Successful mutations explicitly invalidate relevant kernel inode and entry caches.
+- Mount identity, properties and Nautilus actions now follow detected format capabilities.
+- The ADFS desktop MIME type now covers both hard-disc data and floppy images.
 - Remaining Acorn File Forge integration is explicitly deferred until the other backlog is complete.
 
 ### Fixed

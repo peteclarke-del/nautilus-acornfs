@@ -3,7 +3,8 @@
 ## Requirements
 
 The current implementation supports Linux on amd64 with Python 3.11 or later,
-FUSE 3, and a valid paired BeebSCSI DAT/DSC image containing old-format ADFS.
+FUSE 3, and either a valid paired BeebSCSI DAT/DSC image or a standalone ADFS
+S, M or L floppy image. The latter is currently read-only.
 On Ubuntu 24.04 or later, install the host packages with:
 
 ```shell
@@ -58,6 +59,15 @@ nautilus "$HOME/AcornFS/scsi0"
 
 Files and directories are presented as mode `0444` and `0555`. The default
 kernel mount carries `ro,nodev,nosuid,noexec` and rejects mutations.
+
+Standalone ADFS floppies use the same command and may use `.ads`, `.adm`, `.adl`
+or an arbitrary filename when their content and exact geometry identify them:
+
+```shell
+acornfs mount /path/to/disc.adl "$HOME/AcornFS/floppy"
+```
+
+Requesting `--read-write` for a floppy is rejected before FUSE initialisation.
 
 ## Writable mount
 

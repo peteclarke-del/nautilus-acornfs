@@ -1,8 +1,8 @@
 # Nautilus AcornFS
 
 Nautilus AcornFS is an in-progress, user-space filesystem for Acorn disk
-images. The first supported format will be paired BeebSCSI `DAT` and `DSC`
-files. Images will be mounted through FUSE 3 and exposed to Nautilus through a
+images. Paired BeebSCSI `DAT`/`DSC` hard discs and standalone ADFS S, M and L
+floppy images are mounted through FUSE 3 and exposed to Nautilus through a
 small extension, while the filesystem engine remains usable from any Linux
 application.
 
@@ -25,12 +25,13 @@ the remaining lifecycle and format work. Release history and policy are in
 ## Current functionality
 
 - Discover a matching BeebSCSI `DAT`/`DSC` pair from either member.
+- Detect standalone ADFS S, M and L floppy images from content and mount them read-only.
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
 - Validate geometry, maps, directories and used/free sector allocation with typed reports.
 - Publish versioned validation JSON and a stable BeebSCSI old-map compatibility profile.
-- Mount a validated ADFS image read-only or read-write through FUSE 3.
+- Mount supported ADFS images read-only and validated BeebSCSI pairs read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Keep concurrent handles to one writable file coherent and flush dirty open handles on shutdown.
@@ -92,9 +93,11 @@ Install the per-user Nautilus extension, MIME types and desktop handler, then re
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair and open **Acorn FS Support**. Choose
+Right-click either member of a valid pair or a supported ADFS floppy and open **Acorn FS
+Support**. BeebSCSI pairs offer
 **Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
-**Open in Acorn File Forge…**.
+**Open in Acorn File Forge…**. Floppies offer only **Open read-only**, because
+writes, pair validation, recovery and repair do not yet have a safe profile.
 The mounted image opens in Nautilus and appears in its sidebar. The same submenu
 offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
@@ -253,8 +256,8 @@ either DAT or DSC is supported. The mountpoint must already exist and be empty.
 The initial development and CI container target is amd64. Native arm64 and
 arm/v7 container builds remain on the roadmap.
 
-The initial writable format is a BeebSCSI DAT/DSC hard-disc pair containing
+The writable format is a BeebSCSI DAT/DSC hard-disc pair containing
 old-map ADFS with old (Hugo) directories. The image metadata is compatible with
 BBC Master BeebSCSI and RISC OS old-map ADFS access; the pair alone cannot prove
-which physical host will be used. Other ADFS maps and image types remain
-unsupported rather than being guessed.
+which physical host will be used. Standalone ADFS S, M and L floppies are
+read-only. Other maps and image types remain unsupported rather than being guessed.

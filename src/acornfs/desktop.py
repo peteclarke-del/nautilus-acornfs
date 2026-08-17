@@ -29,6 +29,7 @@ from acornfs.core import (
     discover_pair,
     plan_repairs,
     plan_repairs_from_report,
+    resolve_image,
     validate_image_report,
 )
 from acornfs.errors import AcornFSError, OperationCancelled
@@ -51,10 +52,10 @@ _T = TypeVar("_T")
 
 
 def mountpoint_for_image(image_path: str | Path) -> Path:
-    pair = discover_pair(image_path)
-    identity = str(pair.dat_path).encode("utf-8", "surrogateescape")
+    image = resolve_image(image_path)
+    identity = str(image.primary_path).encode("utf-8", "surrogateescape")
     digest = hashlib.sha256(identity).hexdigest()[:10]
-    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", pair.dat_path.stem).strip(".-") or "image"
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", image.primary_path.stem).strip(".-") or "image"
     return mount_root() / f"{stem}-{digest}"
 
 
@@ -348,10 +349,12 @@ def background_mount(
     """Start a detached foreground mount process and wait until it is ready."""
 
     cleanup_retained_state()
-    pair = discover_pair(image_path)
+    image = resolve_image(image_path)
+    if read_write and not image.capabilities.mount_read_write:
+        raise AcornFSError(_("Read-write mounting is not supported for this image format."))
     if timeout is None:
         timeout = WRITABLE_MOUNT_TIMEOUT if read_write else MOUNT_TIMEOUT
-    mountpoint = mountpoint_for_image(pair.dat_path)
+    mountpoint = mountpoint_for_image(image.primary_path)
     root = runtime_root()
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     lock_path = root / f".{mountpoint.name}.lock"
@@ -359,15 +362,15 @@ def background_mount(
 
     with lock_path.open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        mounted_pair = mount_for_image(pair.dat_path)
-        if mounted_pair is not None:
-            mountpoint = Path(mounted_pair.mountpoint)
+        mounted_image = mount_for_image(image.primary_path)
+        if mounted_image is not None:
+            mountpoint = Path(mounted_image.mountpoint)
         else:
             mountpoint.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             mountpoint.mkdir(mode=0o700, exist_ok=True)
             cleanup_stale_mountpoint(mountpoint)
         existing = mount_at(mountpoint)
-        if existing is not None and mounted_pair is None:
+        if existing is not None and mounted_image is None:
             raise AcornFSError(
                 _(
                     "The image's mount location is occupied by a different file identity. "
@@ -378,7 +381,7 @@ def background_mount(
             command = [sys.executable, "-m", "acornfs.cli", "mount"]
             if read_write:
                 command.append("--read-write")
-            command.extend((str(pair.dat_path), str(mountpoint)))
+            command.extend((str(image.primary_path), str(mountpoint)))
             process: subprocess.Popen[bytes] | None = None
             unit: str | None = None
             if _systemd_user_available():
@@ -408,7 +411,7 @@ def background_mount(
                     )
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
-                if mount_for_image(pair.dat_path) is not None:
+                if mount_for_image(image.primary_path) is not None:
                     break
                 if process is not None and process.poll() is not None:
                     detail = _last_log_line(log_path)
@@ -430,7 +433,7 @@ def background_mount(
                 if unit is not None:
                     _stop_unit(unit)
                 raise AcornFSError(
-                    _("Timed out mounting {image}.").format(image=pair.dat_path.name)
+                    _("Timed out mounting {image}.").format(image=image.primary_path.name)
                 )
 
     if open_folder:
@@ -440,7 +443,7 @@ def background_mount(
         _notify(
             _("AcornFS image mounted"),
             _("{image} is available in Files ({mode}).").format(
-                image=pair.dat_path.name, mode=mode
+                image=image.primary_path.name, mode=mode
             ),
         )
     return mountpoint

@@ -178,17 +178,17 @@ acceptance items stay open until they have been exercised in that environment.
 
 ## Phase 9: additional Acorn formats
 
-- [ ] Generalise the mount engine around filesystem capabilities rather than filename extensions.
-- [ ] Add ADFS floppy images.
+- [x] Generalise the mount engine around filesystem capabilities rather than filename extensions.
+- [x] Add ADFS floppy images.
 - [ ] Add DFS SSD and DSD images, presenting DFS catalogue prefixes coherently.
 - [ ] Decide how DFS pseudo-directories should map to POSIX directories without changing on-disk semantics.
 - [ ] Add MMB read-only mounting with slots represented as directories.
 - [ ] Design safe MMB slot replacement, insertion, ejection and access-mode semantics.
 - [ ] Add ROMFS images.
 - [ ] Consider read-only UEF and archive traversal after disk filesystems are stable.
-- [ ] Keep unsupported operations disabled and return accurate errors for each format.
-- [ ] Define format detection precedence when one extension or container can hold multiple filesystems.
-- [ ] Add capability-driven menu actions so unsupported formats never offer write or repair commands.
+- [x] Keep unsupported operations disabled and return accurate errors for each format.
+- [x] Define format detection precedence when one extension or container can hold multiple filesystems.
+- [x] Add capability-driven menu actions so unsupported formats never offer write or repair commands.
 
 ## Phase 10: packaging and release
 
@@ -226,7 +226,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Valid DAT/DSC pairs across supported geometries.
 - [x] Missing, mismatched, truncated and corrupt DSC files.
 - [x] Truncated, oversized, sparse and corrupt DAT files.
-- [ ] Old ADFS directory formats used by BBC, Master and Electron hardware.
+- [x] Old ADFS S, M and L floppy directory formats used by BBC, Master and Electron hardware.
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.

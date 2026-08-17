@@ -86,11 +86,15 @@ def _desktop_quote(value: str) -> str:
 def _mime_package() -> str:
     return f"""{XML_MARKER}
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-  <mime-type type="application/x-beebscsi-adfs">
-    <comment>BeebSCSI ADFS data image</comment>
+  <mime-type type="application/x-acorn-adfs">
+    <comment>Acorn ADFS disk image</comment>
     <magic priority="80">
       <match type="string" value="Hugo" offset="513"/>
     </magic>
+    <glob pattern="*.adf" weight="60"/>
+    <glob pattern="*.ads" weight="70"/>
+    <glob pattern="*.adm" weight="70"/>
+    <glob pattern="*.adl" weight="70"/>
   </mime-type>
   <mime-type type="application/x-beebscsi-descriptor">
     <comment>BeebSCSI geometry descriptor</comment>
@@ -107,13 +111,13 @@ def _desktop_file() -> str:
 [Desktop Entry]
 Type=Application
 Name=AcornFS Image Mounter
-Comment=Open a paired BeebSCSI ADFS image read-only
+Comment=Open a supported Acorn disk image read-only
 Exec={executable} -m acornfs.cli desktop-open %U
 Icon=drive-harddisk
 Terminal=false
 NoDisplay=true
 StartupNotify=true
-MimeType=application/x-beebscsi-adfs;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
+MimeType=application/x-acorn-adfs;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
 Categories=System;FileTools;
 """
 

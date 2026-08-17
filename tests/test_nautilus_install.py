@@ -29,8 +29,13 @@ def test_installs_and_removes_complete_desktop_integration(
     mime_content = mime_package_path().read_text(encoding="utf-8")
     assert mime_package_path() == tmp_path / "mime" / "packages" / MIME_PACKAGE_NAME
     assert 'value="Hugo" offset="513"' in mime_content
+    assert 'type="application/x-acorn-adfs"' in mime_content
     assert 'pattern="*.dsc"' in mime_content
     assert 'pattern="*.dat"' not in mime_content
+    assert 'pattern="*.adf"' in mime_content
+    assert 'pattern="*.ads"' in mime_content
+    assert 'pattern="*.adm"' in mime_content
+    assert 'pattern="*.adl"' in mime_content
     desktop_content = desktop_file_path().read_text(encoding="utf-8")
     assert desktop_file_path() == tmp_path / "applications" / DESKTOP_FILE_NAME
     assert "desktop-open %U" in desktop_content

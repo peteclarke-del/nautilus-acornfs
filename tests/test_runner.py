@@ -21,7 +21,7 @@ def test_rejects_group_without_keyboard_interrupt() -> None:
 def test_mount_registration_spans_fuse_and_image_shutdown(tmp_path: Path) -> None:
     mountpoint = tmp_path / "mount"
     mountpoint.mkdir()
-    image = SimpleNamespace(pair=SimpleNamespace(dat_path=Path("/images/scsi0.dat")))
+    image = SimpleNamespace(source=SimpleNamespace(primary_path=Path("/images/scsi0.dat")))
     context = MagicMock()
     context.__enter__.return_value = image
     order: list[str] = []
@@ -60,7 +60,7 @@ def test_mount_registration_spans_fuse_and_image_shutdown(tmp_path: Path) -> Non
 def test_failed_shutdown_flush_detaches_and_retains_unclean_context(tmp_path: Path) -> None:
     mountpoint = tmp_path / "mount"
     mountpoint.mkdir()
-    image = SimpleNamespace(pair=SimpleNamespace(dat_path=Path("/images/scsi0.dat")))
+    image = SimpleNamespace(source=SimpleNamespace(primary_path=Path("/images/scsi0.dat")))
     context = MagicMock()
     context.__enter__.return_value = image
     context.__exit__.return_value = False

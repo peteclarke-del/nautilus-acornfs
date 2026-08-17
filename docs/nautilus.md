@@ -18,10 +18,12 @@ virtual environment. Re-run the installer after moving or recreating that
 environment.
 
 ADFS DAT files are recognised by their on-disc old-directory signature; AcornFS
-does not register a generic `*.dat` glob. DSC files use their specific extension,
+does not register a generic `*.dat` glob. ADFS `.ads`, `.adm`, `.adl` and
+ambiguous `.adf` floppy names are registered for discovery, but core content and
+geometry detection remains authoritative. DSC files use their specific extension,
 and the handler still validates the complete pair and descriptor before opening
-anything. Double-click either recognised member to mount it read-only. Applications
-may also open a local URI such as `acornfs:///path/to/scsi0.dat`; remote hosts and
+anything. Double-click a supported image to mount it read-only. Applications may
+also open a local URI such as `acornfs:///path/to/scsi0.dat`; remote hosts and
 other URI schemes are refused.
 
 ## Mount and unmount
@@ -30,7 +32,7 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 
 1. Right-click either file.
 2. Open **Acorn FS Support** and select **Open read-only**, or choose **Open
-   read-write** when changes should be possible.
+   read-write** for a validated BeebSCSI pair when changes should be possible.
 3. Wait for the completion notification; the mounted root opens automatically.
 4. Browse directories and open files normally. The image appears in the Files
    sidebar while it remains mounted.
@@ -83,6 +85,10 @@ flushes and validates the image before deleting its checkpoint.
 Both modes carry `nodev`, `nosuid`, and `noexec`. A writable mount creates a
 persistent pre-write checkpoint before appearing in Files, so a large non-reflink
 image can take longer to mount.
+
+Standalone ADFS S/M/L floppies expose only **Open read-only** and image
+properties. Unsupported write, validation, repair, recovery and File Forge
+actions are omitted rather than being allowed to fail after selection.
 
 ## Create a BeebSCSI image
 
