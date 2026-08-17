@@ -58,9 +58,11 @@ documented recovery flow at the next login.
 2. Resolve every pending recovery checkpoint; never discard one merely to make
    an upgrade proceed.
 3. Back up the XDG configuration and state directories.
-4. Install the new wheel into the existing dedicated environment.
-5. Re-run `acornfs install-nautilus --restart` so its generated bootstrap points
-   at the current interpreter and package tree.
+4. From the new source archive, run `python3 tools/user_install.py --restart
+   upgrade PATH_TO_WHEEL`. The tool stages a separate environment and switches
+   to it only after installation succeeds.
+5. If desktop activation fails, the tool restores the previous release pointer
+   and generated Nautilus bootstrap.
 6. Validate a disposable known-good image read-only before enabling writes.
 
 The automated package lifecycle smoke test force-reinstalls the wheel and proves
@@ -69,11 +71,13 @@ unchanged.
 
 ## Uninstall procedure
 
-Unmount all images first. Run `acornfs uninstall-nautilus --restart`, then
-remove the Python environment or package. Retain user state by default. If the
-user later requests complete erasure, first confirm that there is no pending
-recovery and identify the exact per-user AcornFS directories; never use a broad
-recursive deletion rooted at `$HOME`, an XDG root, or the mount parent.
+Unmount all images first, then run `python3 tools/user_install.py --restart
+uninstall` from a retained source archive or checkout. The tool refuses active
+mounts and removes only its marked install root, managed launcher and generated
+desktop integration. It retains user state. If the user later requests complete
+erasure, first confirm that there is no pending recovery and identify the exact
+per-user AcornFS directories; never use a broad recursive deletion rooted at
+`$HOME`, an XDG root, or the mount parent.
 
 ## Diagnostics and incident handling
 

@@ -94,10 +94,30 @@ Run the deterministic amd64 performance workload with `make benchmark`. It
 writes a machine-readable report and enforces the first-RC budgets documented
 in [docs/performance.md](docs/performance.md).
 
-`make package-smoke` builds the wheel in `dist/`, installs it with FUSE support
-into an isolated environment, force-reinstalls it as an upgrade, removes it and
-verifies throughout that preferences, recovery state and repair audits are
-unchanged. CI runs the same lifecycle on the supported Ubuntu 24.04 amd64 host.
+`make package-smoke` builds a wheel, installs it with FUSE support through the
+managed per-user installer, atomically upgrades it, removes it and verifies
+throughout that preferences, recovery state and repair audits are unchanged.
+CI runs the same lifecycle on the supported Ubuntu 24.04 amd64 host.
+
+For a release build, install `.[release]` and run `make release` from a clean
+tagged checkout. The command derives `SOURCE_DATE_EPOCH` from the commit, builds
+the wheel and source archive twice, refuses differing output, generates a
+validated reproducible CycloneDX SBOM for the complete FUSE installation and
+writes `build/release/SHA256SUMS`. Release signing remains a separate manual
+gate until the project has an approved signing-key policy.
+
+The source archive also contains a preservation-aware per-user lifecycle tool:
+
+```shell
+python3 tools/user_install.py install dist/nautilus_acornfs-0.1.0-py3-none-any.whl
+python3 tools/user_install.py upgrade dist/nautilus_acornfs-0.1.0-py3-none-any.whl
+python3 tools/user_install.py uninstall
+```
+
+It uses versioned environments below the user's XDG data directory, atomically
+switches the current release, refuses to uninstall active mounts, and never
+removes images, preferences, checkpoints or repair audits. Add `--restart`
+before the action only when Files should restart immediately.
 
 Install the per-user Nautilus extension, MIME types and desktop handler, then restart Files:
 

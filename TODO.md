@@ -197,15 +197,16 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Produce Debian packages for supported Ubuntu releases.
 - [ ] Package the FUSE daemon, command-line tools and Nautilus extension separately where useful.
 - [x] Declare FUSE 3, Python/runtime and Nautilus extension dependencies accurately.
-- [ ] Add installation, upgrade and uninstall scripts that preserve user data.
+- [x] Add installation, upgrade and uninstall scripts that preserve user data.
 - [x] Restart Nautilus only when explicitly requested and otherwise explain the required action.
-- [ ] Add signed source archives and checksums.
+- [x] Generate reproducible source archives and unsigned SHA-256 checksums.
+- [ ] Sign release archives after the release-key and fingerprint policy is approved.
 - [x] Add a complete administrator and user manual.
 - [x] Document backup, recovery and damaged-image procedures.
 - [x] Document limitations of Acorn-to-POSIX filename and metadata mapping.
 - [x] Publish a security policy and responsible disclosure route.
 - [x] Add clean-install, upgrade and uninstall smoke tests on each supported Ubuntu release.
-- [ ] Produce reproducible release artefacts and a software bill of materials.
+- [x] Produce reproducible release artefacts and a software bill of materials.
 - [x] Add release-candidate migration tests that preserve checkpoints, preferences and audits.
 - [x] Document support boundaries and a release-readiness checklist.
 

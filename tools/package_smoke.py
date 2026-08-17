@@ -10,6 +10,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from user_install import install, uninstall
+
 
 def _run(command: list[str], *, environment: dict[str, str]) -> None:
     subprocess.run(command, check=True, env=environment)
@@ -65,14 +67,20 @@ def smoke(wheel: Path) -> None:
         for directory in (root / "home", root / "runtime"):
             directory.mkdir(mode=0o700, parents=True)
 
-        environment_path = root / "venv"
-        _run([sys.executable, "-m", "venv", str(environment_path)], environment=environment)
-        python = environment_path / "bin" / "python"
-        pip = environment_path / "bin" / "pip"
-        acornfs = environment_path / "bin" / "acornfs"
-        requirement = f"nautilus-acornfs[fuse] @ {wheel.as_uri()}"
-
-        _run([str(pip), "install", "--quiet", requirement], environment=environment)
+        prefix = root / "managed-install"
+        bin_dir = root / "bin"
+        preserved = _seed_preserved_state(root / "config", root / "state")
+        launcher = install(
+            wheel,
+            prefix=prefix,
+            bin_dir=bin_dir,
+            upgrade=False,
+            restart=False,
+            environment=environment,
+        )
+        acornfs = prefix / "current" / "venv" / "bin" / "acornfs"
+        python = prefix / "current" / "venv" / "bin" / "python"
+        assert launcher == bin_dir / "acornfs"
         _run([str(acornfs), "--help"], environment=environment)
         _run(
             [
@@ -87,26 +95,25 @@ def smoke(wheel: Path) -> None:
             ],
             environment=environment,
         )
-        _run([str(acornfs), "install-nautilus"], environment=environment)
-        preserved = _seed_preserved_state(root / "config", root / "state")
-
-        _run(
-            [str(pip), "install", "--quiet", "--force-reinstall", requirement],
+        _assert_preserved(root / "config", root / "state", preserved)
+        install(
+            wheel,
+            prefix=prefix,
+            bin_dir=bin_dir,
+            upgrade=True,
+            restart=False,
             environment=environment,
         )
         _assert_preserved(root / "config", root / "state", preserved)
-        _run([str(acornfs), "install-nautilus"], environment=environment)
-        _assert_preserved(root / "config", root / "state", preserved)
-
-        _run([str(acornfs), "uninstall-nautilus"], environment=environment)
-        _assert_preserved(root / "config", root / "state", preserved)
-        _run(
-            [str(pip), "uninstall", "--quiet", "--yes", "nautilus-acornfs"],
+        uninstall(
+            prefix=prefix,
+            bin_dir=bin_dir,
+            restart=False,
             environment=environment,
         )
         _assert_preserved(root / "config", root / "state", preserved)
-        if acornfs.exists():
-            raise RuntimeError("wheel uninstall left the acornfs command installed")
+        if prefix.exists() or launcher.exists() or launcher.is_symlink():
+            raise RuntimeError("managed uninstall left AcornFS code or its command installed")
 
 
 def build_and_smoke() -> None:
