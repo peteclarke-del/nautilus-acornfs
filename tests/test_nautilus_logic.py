@@ -62,6 +62,19 @@ def test_mmb_support_exposes_only_safe_actions(tmp_path: Path) -> None:
     assert not capabilities.file_forge
 
 
+def test_extended_mmb_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=(0, 511))
+    capabilities = image_capabilities(image_path)
+    assert capabilities is not None
+    assert capabilities.mount_read_only
+    assert capabilities.properties
+    assert not capabilities.mount_read_write
+    assert not capabilities.validate
+    assert not capabilities.repair
+    assert not capabilities.recover
+    assert not capabilities.file_forge
+
+
 def test_romfs_support_exposes_only_safe_actions(tmp_path: Path) -> None:
     image_path = create_romfs_image(tmp_path)
     capabilities = image_capabilities(image_path)

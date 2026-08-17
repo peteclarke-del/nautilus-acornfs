@@ -1,4 +1,4 @@
-"""Read-only support for standard 511-slot BBC Micro MMB containers."""
+"""Read-only support for standard and extended BBC Micro MMB containers."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ MMB_SLOT_BYTES = 200 * 1024
 MMB_SLOT_COUNT = 511
 MMB_ENTRY_BYTES = 16
 MMB_STANDARD_BYTES = MMB_HEADER_BYTES + MMB_SLOT_COUNT * MMB_SLOT_BYTES
+MMB_MAX_EXTENTS = 16
 
 _STATUS_LOCKED = 0x00
 _STATUS_READ_WRITE = 0x0F
@@ -33,11 +34,7 @@ _KNOWN_STATUSES = {
 
 
 class MMBFormatError(ValueError):
-    """The container does not have a safe standard MMB structure."""
-
-
-class ExtendedMMBError(MMBFormatError):
-    """The container uses the separately laid-out extended MMB format."""
+    """The container does not have a safe MMB structure."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,19 +45,25 @@ class MMBSlot:
     label: str
     status: int
     offset: int
+    display_width: int = 3
 
     @property
     def display_name(self) -> str:
-        return f"{self.index:03d} - {self.label}" if self.label else f"{self.index:03d}"
+        number = f"{self.index:0{self.display_width}d}"
+        return f"{number} - {self.label}" if self.label else number
 
 
 @dataclass(frozen=True, slots=True)
 class MMBLayout:
-    """Validated standard-container header and its visible slots."""
+    """Validated repeated-extent layout and its visible slots."""
 
     slots: tuple[MMBSlot, ...]
     boot_slots: tuple[int, int, int, int]
-    total_slots: int = MMB_SLOT_COUNT
+    extent_count: int = 1
+
+    @property
+    def total_slots(self) -> int:
+        return self.extent_count * MMB_SLOT_COUNT
 
     @property
     def formatted_slots(self) -> int:
@@ -68,7 +71,7 @@ class MMBLayout:
 
 
 def read_mmb_layout(path: str | Path) -> MMBLayout:
-    """Parse a standard MMB catalogue without reading its SSD payloads."""
+    """Parse every declared MMB extent without reading its SSD payloads."""
 
     image_path = Path(path)
     size = image_path.stat().st_size
@@ -78,21 +81,13 @@ def read_mmb_layout(path: str | Path) -> MMBLayout:
         raise MMBFormatError("MMB catalogue is shorter than 8192 bytes")
 
     extension_marker = header[8]
-    extension_count = extension_marker & 0x0F if extension_marker & 0xF0 == 0xA0 else 0
-    if extension_count:
-        declared_size = (extension_count + 1) * MMB_STANDARD_BYTES
-        if size == declared_size:
-            raise ExtendedMMBError(
-                "Extended MMB containers are not yet supported; "
-                "split it into standard extents first."
-            )
+    extent_count = (extension_marker & 0x0F) + 1 if extension_marker & 0xF0 == 0xA0 else 1
+    declared_size = extent_count * MMB_STANDARD_BYTES
+    if size != declared_size:
+        format_name = "Extended" if extent_count > 1 else "Standard"
         raise MMBFormatError(
-            f"MMB header declares {extension_count + 1} extents "
+            f"{format_name} MMB declares {extent_count} extent(s) "
             f"({declared_size} bytes); found {size}."
-        )
-    if size != MMB_STANDARD_BYTES:
-        raise MMBFormatError(
-            f"Standard MMB length must be {MMB_STANDARD_BYTES} bytes; found {size}."
         )
 
     boot_slots = (
@@ -101,32 +96,45 @@ def read_mmb_layout(path: str | Path) -> MMBLayout:
         header[2] | (header[6] << 8),
         header[3] | (header[7] << 8),
     )
-    if any(slot >= MMB_SLOT_COUNT for slot in boot_slots):
-        raise MMBFormatError("MMB boot configuration refers outside its 511 slots")
+    total_slots = extent_count * MMB_SLOT_COUNT
+    if any(slot >= total_slots for slot in boot_slots):
+        raise MMBFormatError(f"MMB boot configuration refers outside its {total_slots} slots")
 
     slots: list[MMBSlot] = []
-    for index in range(MMB_SLOT_COUNT):
-        entry_offset = (index + 1) * MMB_ENTRY_BYTES
-        entry = header[entry_offset : entry_offset + MMB_ENTRY_BYTES]
-        status = entry[15]
-        if status not in _KNOWN_STATUSES:
-            raise MMBFormatError(f"MMB slot {index} has unknown catalogue status 0x{status:02X}")
-        if status not in {_STATUS_LOCKED, _STATUS_READ_WRITE}:
-            continue
-        label = entry[:12].decode("acorn").rstrip(" \x00")
-        slots.append(
-            MMBSlot(
-                index=index,
-                label=label,
-                status=status,
-                offset=MMB_HEADER_BYTES + index * MMB_SLOT_BYTES,
-            )
-        )
-    return MMBLayout(slots=tuple(slots), boot_slots=boot_slots)
+    display_width = len(str(total_slots - 1))
+    with image_path.open("rb") as handle:
+        for extent in range(extent_count):
+            extent_offset = extent * MMB_STANDARD_BYTES
+            handle.seek(extent_offset)
+            extent_header = handle.read(MMB_HEADER_BYTES)
+            if len(extent_header) != MMB_HEADER_BYTES:
+                raise MMBFormatError(f"MMB extent {extent} has a truncated catalogue")
+            for local_index in range(MMB_SLOT_COUNT):
+                index = extent * MMB_SLOT_COUNT + local_index
+                entry_offset = (local_index + 1) * MMB_ENTRY_BYTES
+                entry = extent_header[entry_offset : entry_offset + MMB_ENTRY_BYTES]
+                status = entry[15]
+                if status not in _KNOWN_STATUSES:
+                    raise MMBFormatError(
+                        f"MMB slot {index} has unknown catalogue status 0x{status:02X}"
+                    )
+                if status not in {_STATUS_LOCKED, _STATUS_READ_WRITE}:
+                    continue
+                label = entry[:12].decode("acorn").rstrip(" \x00")
+                slots.append(
+                    MMBSlot(
+                        index=index,
+                        label=label,
+                        status=status,
+                        offset=(extent_offset + MMB_HEADER_BYTES + local_index * MMB_SLOT_BYTES),
+                        display_width=display_width,
+                    )
+                )
+    return MMBLayout(slots=tuple(slots), boot_slots=boot_slots, extent_count=extent_count)
 
 
 def detect_mmb(path: str | Path) -> MMBLayout | None:
-    """Return a standard MMB layout when structural evidence is sufficient."""
+    """Return an MMB layout when structural evidence is sufficient."""
 
     try:
         layout = read_mmb_layout(path)
@@ -137,23 +145,30 @@ def detect_mmb(path: str | Path) -> MMBLayout | None:
 
 
 def require_mmb_content_evidence(path: str | Path, layout: MMBLayout) -> None:
-    """Require a marked-formatted container to contain at least one DFS payload."""
+    """Require each populated extent to contain recognisable DFS content."""
 
     if not layout.slots:
         return
-    first = layout.slots[0]
     reader = reader_for(path)
     try:
-        candidates = identify(reader.window(first.offset, MMB_SLOT_BYTES))
+        checked_extents: set[int] = set()
+        for slot in layout.slots:
+            extent = slot.index // MMB_SLOT_COUNT
+            if extent in checked_extents:
+                continue
+            checked_extents.add(extent)
+            candidates = identify(reader.window(slot.offset, MMB_SLOT_BYTES))
+            if not any(
+                candidate.filesystem in {"acorn-dfs", "watford-dfs"}
+                and candidate.geometry is not None
+                for candidate in candidates
+            ):
+                raise MMBFormatError(
+                    f"MMB slot {slot.index} is marked formatted but does not contain "
+                    "recognisable DFS"
+                )
     finally:
         reader.close()
-    if not any(
-        candidate.filesystem in {"acorn-dfs", "watford-dfs"} and candidate.geometry is not None
-        for candidate in candidates
-    ):
-        raise MMBFormatError(
-            f"MMB slot {first.index} is marked formatted but does not contain recognisable DFS"
-        )
 
 
 class MMBMount:
@@ -290,13 +305,14 @@ class MMBMount:
 
 
 __all__ = [
-    "ExtendedMMBError",
     "MMBFormatError",
     "MMBLayout",
     "MMBMount",
     "MMBSlot",
     "MMB_HEADER_BYTES",
+    "MMB_MAX_EXTENTS",
     "MMB_SLOT_BYTES",
+    "MMB_SLOT_COUNT",
     "MMB_STANDARD_BYTES",
     "detect_mmb",
     "read_mmb_layout",

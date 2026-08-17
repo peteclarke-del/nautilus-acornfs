@@ -84,6 +84,22 @@ def test_mmb_slot_namespace_reaches_fuse_operations(tmp_path: Path) -> None:
         )
 
 
+def test_extended_mmb_global_slot_namespace_reaches_fuse_operations(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path, extent_count=2, slot_indexes=(511,))
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(image_path) as image:
+        operations = ReadOnlyOperations(image)
+        slot = run_async(operations.lookup, ROOT_INODE, b"0511 - SLOT 511", context)
+        default = run_async(operations.lookup, slot.st_ino, b"$", context)
+        hello = run_async(operations.lookup, default.st_ino, b"HELLO", context)
+        handle = run_async(operations.open, hello.st_ino, os.O_RDONLY, context)
+        assert run_async(operations.read, handle.fh, 0, 1024) == b"Slot 511\r"
+        assert (
+            run_async(operations.getxattr, hello.st_ino, b"user.acorn.path", context)
+            == b"@511:$.HELLO"
+        )
+
+
 def test_romfs_names_contents_and_run_only_metadata_reach_fuse_operations(
     tmp_path: Path,
 ) -> None:
