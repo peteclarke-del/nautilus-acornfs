@@ -90,7 +90,7 @@ def smoke(wheel: Path) -> None:
                     "import importlib.metadata as m; "
                     "versions={d.version for d in m.distributions() "
                     "if d.metadata['Name'].startswith('oaknut-')}; "
-                    "assert versions == {'12.13.1'}, versions"
+                    "assert versions == {'12.15.1'}, versions"
                 ),
             ],
             environment=environment,

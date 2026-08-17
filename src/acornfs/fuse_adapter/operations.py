@@ -34,6 +34,7 @@ XATTR_FILETYPE = b"user.acorn.filetype"
 XATTR_LOCKED = b"user.acorn.locked"
 XATTR_SOURCE = b"user.acorn.source"
 XATTR_PATH = b"user.acorn.path"
+XATTR_RUN_ONLY = b"user.acorn.run_only"
 XATTR_NAMES = (XATTR_LOAD, XATTR_EXECUTE, XATTR_LOCKED, XATTR_SOURCE, XATTR_PATH)
 
 
@@ -572,6 +573,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
         if not self.image.has_acorn_metadata:
             return (XATTR_SOURCE, XATTR_PATH)
         names: tuple[bytes, ...] = XATTR_NAMES
+        if self.image.source.filesystem == "acorn-romfs":
+            names = (*names, XATTR_RUN_ONLY)
         update = self._metadata_updates.get(inode)
         if (update is not None and update.filetype is not None) or self.image.filetype(
             inode
@@ -602,6 +605,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
             return f"{int(value or 0):08X}".encode("ascii")
         if name == XATTR_LOCKED:
             return b"1" if self._node_locked(node) else b"0"
+        if name == XATTR_RUN_ONLY and self.image.source.filesystem == "acorn-romfs":
+            return b"1" if node.run_only else b"0"
         if name == XATTR_FILETYPE:
             update = self._metadata_updates.get(inode)
             filetype = update.filetype if update is not None else None

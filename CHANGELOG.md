@@ -21,13 +21,15 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   catalogue-prefix directories and both DSD sides exposed in one namespace.
 - Content-detected read-only standard MMB mounting, with formatted slots exposed
   as labelled directories through a bounded lazy DFS-mount cache.
+- CRC-validated read-only Acorn ROMFS mounting with case-sensitive flat
+  catalogues, load/execute metadata, run-only state and image properties.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
 - Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
 - Ubuntu 24.04 amd64 wheel lifecycle smoke coverage for clean installation,
   forced upgrade and uninstall with retained user-state verification.
 - Complete user, administrator, security-reporting and release-readiness guides,
   plus an explicit Debian split-package and dependency contract.
-- A coherent Oaknut 12.13.1 dependency set, preventing pip from combining the
+- A coherent Oaknut dependency set, preventing pip from combining the
   pinned `oaknut-disc` command package with untested newer filesystem modules.
 - An amd64 threat model and coverage-guided fuzz targets for descriptors,
   desktop URIs and ADFS map/catalogue validation.
@@ -44,6 +46,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Changed
 
+- The complete Oaknut family is aligned with Acorn File Forge at 12.15.1,
+  including the ROMFS content-detection and traversal plugin.
 - The initial supported host architecture is explicitly limited to amd64.
 - Validation findings, repair plans/progress and known image-property values now use gettext.
 - Desktop lifecycle, creation, recovery and preference errors now use gettext.

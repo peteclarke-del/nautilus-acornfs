@@ -86,6 +86,8 @@ class ImageProperties:
     formatted_slots: int = 0
     geometry_description: str = ""
     reserved_label: str = "Reserved tail"
+    show_boot_option: bool = True
+    show_space_breakdown: bool = True
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -172,6 +174,8 @@ def _read_standalone_properties(
         return _read_dfs_properties(source, budget=budget)
     if source.kind == "mmb-container":
         return _read_mmb_properties(source, budget=budget)
+    if source.kind == "romfs-image":
+        return _read_romfs_properties(source, budget=budget)
 
     reader: ImageReader | None = None
     mount: Mount | None = None
@@ -299,6 +303,66 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
     finally:
         for mount in mounts:
             _close_mount(mount)
+        if reader is not None:
+            with suppress(Exception):
+                reader.close()
+
+
+def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
+    """Read a ROMFS catalogue through Oaknut's public mount interface."""
+
+    reader: ImageReader | None = None
+    mount: Mount | None = None
+    try:
+        reader = reader_for(source.primary_path)
+        mount = create_filesystem(source.filesystem).open(reader, source.geometry)
+        entries = tuple(mount.iter_entries(mount.path_root()))
+        budget.checkpoint(items=1 + len(entries))
+        payload_bytes = sum(entry.length for entry in entries)
+        capacity = source.primary_path.stat().st_size
+        return ImageProperties(
+            dat_path=str(source.primary_path),
+            dsc_path="",
+            image_type="Acorn ROMFS image",
+            filesystem_format="Acorn ROMFS",
+            directory_format="Flat ROM catalogue",
+            hardware_profile="BBC Micro / Acorn Electron paged ROM",
+            title=str(getattr(mount, "title", "")),
+            disc_name="",
+            disc_id=0,
+            boot_option="",
+            cylinders=0,
+            heads=0,
+            sectors_per_track=0,
+            sector_size=1,
+            geometry_sectors=capacity,
+            adfs_sectors=payload_bytes,
+            capacity_bytes=capacity,
+            adfs_bytes=payload_bytes,
+            used_bytes=payload_bytes,
+            free_bytes=0,
+            reserved_bytes=0,
+            safe_for_write=False,
+            fatal_findings=0,
+            warning_findings=0,
+            advice_findings=0,
+            geometry_kind="container",
+            write_supported=False,
+            filesystem_size_label="File payload",
+            show_disc_id=False,
+            show_disc_name=False,
+            geometry_description=f"{capacity // 1024} KiB linear paged ROM",
+            show_boot_option=False,
+            show_space_breakdown=False,
+        )
+    except AcornFSError:
+        raise
+    except Exception as exc:
+        raise AcornFSError(
+            _("The ROMFS image properties could not be read safely: {error}").format(error=exc)
+        ) from exc
+    finally:
+        _close_mount(mount)
         if reader is not None:
             with suppress(Exception):
                 reader.close()

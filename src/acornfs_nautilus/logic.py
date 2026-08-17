@@ -39,24 +39,29 @@ def _property_value(value: str) -> str:
         "Standalone ADFS floppy image": _("Standalone ADFS floppy image"),
         "DFS floppy image": _("DFS floppy image"),
         "Standard MMB container": _("Standard MMB container"),
+        "Acorn ROMFS image": _("Acorn ROMFS image"),
         "ADFS old map": _("ADFS old map"),
         "Acorn DFS": _("Acorn DFS"),
         "Watford DFS": _("Watford DFS"),
         "MMB with Acorn DFS slots": _("MMB with Acorn DFS slots"),
+        "Acorn ROMFS": _("Acorn ROMFS"),
         "Old directory (Hugo)": _("Old directory (Hugo)"),
         "New directory (Nick)": _("New directory (Nick)"),
         "Big directory": _("Big directory"),
         "Flat catalogue prefixes": _("Flat catalogue prefixes"),
         "Slots with flat DFS catalogue prefixes": _("Slots with flat DFS catalogue prefixes"),
+        "Flat ROM catalogue": _("Flat ROM catalogue"),
         "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)": _(
             "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
         ),
         "Acorn ADFS floppy": _("Acorn ADFS floppy"),
         "BBC Micro DFS floppy": _("BBC Micro DFS floppy"),
         "BBC Micro MMC/SD MMB container": _("BBC Micro MMC/SD MMB container"),
+        "BBC Micro / Acorn Electron paged ROM": _("BBC Micro / Acorn Electron paged ROM"),
         "ADFS size": _("ADFS size"),
         "DFS size": _("DFS size"),
         "Slot payload": _("Slot payload"),
+        "File payload": _("File payload"),
         "Boot option": _("Boot option"),
         "Boot slots": _("Boot slots"),
         "Reserved tail": _("Reserved tail"),
@@ -121,13 +126,21 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
         (_("Directory format"), _property_value(properties.directory_format)),
         (_("Hardware profile"), _property_value(properties.hardware_profile)),
         (_("Title"), properties.title or "—"),
-        (_property_value(properties.boot_label), _boot_option(properties.boot_option)),
         (_("Geometry"), geometry),
         (_("Capacity"), _size(properties.capacity_bytes)),
         (_property_value(properties.filesystem_size_label), _size(properties.adfs_bytes)),
-        (_("Used"), _size(properties.used_bytes)),
-        (_("Free"), _size(properties.free_bytes)),
     ]
+    if properties.show_boot_option:
+        rows.insert(
+            5, (_property_value(properties.boot_label), _boot_option(properties.boot_option))
+        )
+    if properties.show_space_breakdown:
+        rows.extend(
+            (
+                (_("Used"), _size(properties.used_bytes)),
+                (_("Free"), _size(properties.free_bytes)),
+            )
+        )
     if properties.show_disc_name:
         rows.insert(5, (_("Disc name"), properties.disc_name or "—"))
     if properties.show_disc_id:
@@ -157,7 +170,12 @@ def mounted_file_property_rows(path: str | Path) -> tuple[tuple[str, str], ...]:
             return None
 
     source = value("user.acorn.source")
-    source_names = {"adfs": "ADFS", "acorn-dfs": "Acorn DFS", "watford-dfs": "Watford DFS"}
+    source_names = {
+        "adfs": "ADFS",
+        "acorn-dfs": "Acorn DFS",
+        "watford-dfs": "Watford DFS",
+        "acorn-romfs": "Acorn ROMFS",
+    }
     if source not in source_names:
         return ()
     rows = [(_("Source filesystem"), _property_value(source_names[source]))]
@@ -167,6 +185,7 @@ def mounted_file_property_rows(path: str | Path) -> tuple[tuple[str, str], ...]:
         ("user.acorn.execute", _("Execute address")),
         ("user.acorn.filetype", _("RISC OS filetype")),
         ("user.acorn.locked", _("Locked")),
+        ("user.acorn.run_only", _("Run-only")),
     )
     for attribute, label in labels:
         item = value(attribute)

@@ -9,8 +9,9 @@ interoperability layer and does not invent sidecar files.
 | Execute address | `user.acorn.execute`, eight uppercase hexadecimal digits | Lossless |
 | RISC OS filetype | `user.acorn.filetype`, three uppercase hexadecimal digits when encoded in a timestamped load address | Lossless when present |
 | Locked bit | `user.acorn.locked`, `0` or `1`; also removes POSIX write bits from the presentation | Lossless |
+| ROMFS run-only bit | `user.acorn.run_only`, `0` or `1` | Lossless, informational on a read-only mount |
 | ADFS pathname | `user.acorn.path` | Informational, read-only |
-| Source filesystem | `user.acorn.source`, currently `adfs` | Informational, read-only |
+| Source filesystem | `user.acorn.source`: `adfs`, `acorn-dfs`, `watford-dfs` or `acorn-romfs` | Informational, read-only |
 
 ADFS has no general POSIX owner, group, permission-bit, nanosecond timestamp,
 symbolic-link, device-node or Unix execute-bit equivalents. AcornFS therefore
@@ -31,6 +32,11 @@ AcornFS therefore resolves Linux lookups case-insensitively and refuses creation
 of a file or directory whose name differs from an existing sibling only by case.
 It does not invent a case-sensitive overlay that the on-disc catalogue cannot
 round trip.
+
+ROMFS is different: its flat catalogue permits distinct names such as `Case`
+and `case`, so Linux lookup remains case-sensitive. The same non-POSIX display
+mapping applies, including `/` to `∕`, but ROMFS mounts do not accept renamed or
+new entries.
 
 Optional `.inf` sidecars remain hidden from mounted images; mounting never
 creates them implicitly. The explicit `export-file` command creates a host file
