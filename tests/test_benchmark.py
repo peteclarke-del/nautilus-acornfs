@@ -9,6 +9,7 @@ from acornfs.benchmark import (
     _percentile,
     main,
 )
+from acornfs.core.image import DEFAULT_MAX_NODES
 
 
 def test_nearest_rank_percentile_handles_small_samples() -> None:
@@ -62,6 +63,8 @@ def test_benchmark_config_keeps_large_reads_outside_cache() -> None:
     assert config.large_file_bytes > config.cache_bytes
     assert config.large_file_bytes % 256 == 0
     assert config.root_entries <= 47
+    assert config.memory_nodes == DEFAULT_MAX_NODES
+    assert config.write_buffer_bytes == 8 * 1024 * 1024
 
 
 @pytest.mark.parametrize(
@@ -72,6 +75,8 @@ def test_benchmark_config_keeps_large_reads_outside_cache() -> None:
         {"depth": 257},
         {"large_file_bytes": 1024, "cache_bytes": 1024},
         {"open_samples": 0},
+        {"memory_nodes": DEFAULT_MAX_NODES + 1},
+        {"write_buffer_bytes": 0},
     ],
 )
 def test_benchmark_config_rejects_invalid_workloads(settings: dict[str, int]) -> None:

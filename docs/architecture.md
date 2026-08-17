@@ -55,10 +55,19 @@ All writable handles for one inode share one userspace buffer. Writes and
 truncation through any handle are immediately visible through every other
 handle; any handle's `flush` or `fsync` commits the combined buffer as one atomic
 image mutation. The buffer remains available until the final handle is released.
+Compatible Acorn extended-attribute changes are similarly coalesced per inode,
+remain immediately visible through the mounted view, and commit together at a
+durability boundary or before a conflicting namespace mutation. A failed batch
+remains pending so shutdown retains the recovery checkpoint.
 When the FUSE loop stops normally or receives graceful `SIGINT`, the runner
 commits every remaining dirty inode before detaching and before the image
 performs final validation. A failed shutdown flush detaches the mount but makes
 the image context retain its pre-mount recovery checkpoint.
+
+Writable replies use zero entry and attribute timeouts, and successful content,
+metadata and namespace mutations also send best-effort inode or directory-entry
+invalidations to the kernel. Unsupported invalidation calls never turn an
+already-successful on-image transaction into a reported failure.
 
 Generated stress fixtures exercise a 64-level hierarchy at both sides of the
 configured depth/node gates, the old-directory maximum of 47 entries, the

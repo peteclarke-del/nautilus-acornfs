@@ -15,6 +15,9 @@ from .repair import (
 )
 from .transfer import ExportedFile, ImportedFile, export_file, import_file
 from .validation import (
+    COMPATIBILITY_PROFILE_ID,
+    COMPATIBILITY_PROFILE_VERSION,
+    VALIDATION_REPORT_SCHEMA_VERSION,
     FindingSeverity,
     IntegrityFinding,
     IntegrityReport,
@@ -24,6 +27,8 @@ from .validation import (
 __all__ = [
     "BeebSCSIGeometry",
     "BeebSCSIPair",
+    "COMPATIBILITY_PROFILE_ID",
+    "COMPATIBILITY_PROFILE_VERSION",
     "CreatedImage",
     "ImageNode",
     "ImageProperties",
@@ -37,6 +42,7 @@ __all__ = [
     "RepairPlan",
     "RepairResult",
     "RepairRisk",
+    "VALIDATION_REPORT_SCHEMA_VERSION",
     "discover_pair",
     "export_file",
     "create_beebscsi_image",
