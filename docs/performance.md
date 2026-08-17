@@ -7,6 +7,9 @@ from every measurement. The open measurement includes DSC discovery, ADFS
 mounting and eager directory indexing; other measurements use that open image.
 The workload does not purge the host page cache, so it measures repeatable
 application/index costs and warm read paths rather than claiming cold-disk I/O.
+The memory stress additionally allocates the exact immutable node and index
+container types for the supported 100,000-node ceiling together with one 8 MiB
+open-write buffer.
 
 Run the same workload locally with:
 
@@ -30,9 +33,10 @@ budget, making changes comparable without parsing console output.
 | Read a warm cached 1 KiB file | p95 at most 100 µs |
 | Read the 4 MiB file through ranged reads | median at least 15 MiB/s |
 | Python allocation peak while opening | at most 32 MiB |
+| Python peak for 100,000 indexed nodes plus one 8 MiB write buffer | at most 64 MiB |
 
 These are regression guardrails for shared GitHub amd64 runners, not claims
 about all host storage. They are intentionally conservative for the first RC
-and should be tightened from retained CI history. Raspberry Pi 4/5 measurements,
-live-FUSE latency and maximum-node/write-buffer memory stress remain separate
-open tasks rather than being inferred from amd64 results.
+and should be tightened from retained CI history. Raspberry Pi 4/5 measurements
+and live-FUSE latency remain separate work rather than being inferred from amd64
+results.

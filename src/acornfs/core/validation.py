@@ -24,6 +24,10 @@ from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.i18n import _, ngettext
 from acornfs.operations import CancellationCheck, cancellation_point
 
+VALIDATION_REPORT_SCHEMA_VERSION = 1
+COMPATIBILITY_PROFILE_ID = "beebscsi-adfs-old-map"
+COMPATIBILITY_PROFILE_VERSION = 1
+
 
 class FindingSeverity(StrEnum):
     FATAL = "fatal"
@@ -81,6 +85,11 @@ class IntegrityReport:
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "schema_version": VALIDATION_REPORT_SCHEMA_VERSION,
+            "compatibility_profile": {
+                "id": COMPATIBILITY_PROFILE_ID,
+                "version": COMPATIBILITY_PROFILE_VERSION,
+            },
             "dat": self.dat_path,
             "dsc": self.dsc_path,
             "dat_bytes": self.dat_bytes,

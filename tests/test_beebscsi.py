@@ -44,6 +44,15 @@ def test_rejects_missing_partner(tmp_path: Path) -> None:
         discover_pair(dat)
 
 
+def test_pair_discovery_errors_are_translatable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("acornfs.core.beebscsi._", lambda message: f"translated: {message}")
+
+    with pytest.raises(PairDiscoveryError, match="translated: Image member"):
+        discover_pair(tmp_path / "missing.dat")
+
+
 def test_rejects_ambiguous_case_variants(tmp_path: Path) -> None:
     dat, _ = make_pair(tmp_path)
     (tmp_path / "SCSI0.DSC").write_bytes(descriptor())

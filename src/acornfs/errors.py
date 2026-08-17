@@ -15,3 +15,7 @@ class PairDiscoveryError(AcornFSError):
 
 class DescriptorError(AcornFSError):
     """A BeebSCSI DSC descriptor is invalid or unsupported."""
+
+
+class FilenameTooLongError(ValueError):
+    """An image entry name exceeds the filesystem's encoded byte limit."""

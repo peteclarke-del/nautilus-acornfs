@@ -237,7 +237,7 @@ def test_failed_shutdown_flush_keeps_buffer_dirty_for_recovery(tmp_path: Path) -
 
         with (
             patch.object(image, "replace_file", side_effect=AcornFSError("injected failure")),
-            pytest.raises(AcornFSError, match="pending FUSE write buffers"),
+            pytest.raises(AcornFSError, match="pending FUSE data and metadata"),
         ):
             operations.flush_pending()
 
@@ -293,6 +293,26 @@ def test_writable_fuse_rejects_overlong_adfs_name(tmp_path: Path) -> None:
         assert invalid.value.errno == errno.ENAMETOOLONG
 
 
+def test_translated_overlong_name_still_reports_enametoolong(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    monkeypatch.setattr("acornfs.core.image._", lambda _message: "translated")
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        with pytest.raises(pyfuse3.FUSEError) as invalid:
+            run_async(
+                operations.create,
+                ROOT_INODE,
+                b"ELEVENCHARS",
+                0o644,
+                os.O_WRONLY,
+                context,
+            )
+        assert invalid.value.errno == errno.ENAMETOOLONG
+
+
 def test_acorn_locked_file_is_presented_and_enforced_read_only(tmp_path: Path) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     with ReadOnlyImage.open(dat_path, writable=True) as image:
@@ -314,12 +334,22 @@ def test_acorn_locked_file_is_presented_and_enforced_read_only(tmp_path: Path) -
         assert locked.value.errno == errno.EACCES
 
 
-def test_acorn_extended_attributes_are_listed_and_persisted(tmp_path: Path) -> None:
+def test_acorn_extended_attributes_are_batched_visible_and_persisted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     dat_path, _dsc_path = create_beebscsi_image(tmp_path)
     context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
     with ReadOnlyImage.open(dat_path, writable=True) as image:
         operations = ReadOnlyOperations(image)
         readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        metadata_updates: list[dict[str, int | bool]] = []
+        set_metadata = image.set_acorn_metadata
+
+        def record_metadata(inode: int, **values: int | bool) -> None:
+            metadata_updates.append(values)
+            set_metadata(inode, **values)
+
+        monkeypatch.setattr(image, "set_acorn_metadata", record_metadata)
 
         names = set(run_async(operations.listxattr, readme.st_ino, context))
         assert names == {
@@ -399,6 +429,16 @@ def test_acorn_extended_attributes_are_listed_and_persisted(tmp_path: Path) -> N
             b"1",
             context,
         )
+        assert metadata_updates == []
+        operations.flush_pending()
+        assert metadata_updates == [
+            {
+                "load_address": 0x1234ABCD,
+                "exec_address": 0x10203040,
+                "filetype": 0xFFD,
+                "locked": True,
+            }
+        ]
 
     with ReadOnlyImage.open(dat_path) as image:
         operations = ReadOnlyOperations(image)
@@ -407,6 +447,52 @@ def test_acorn_extended_attributes_are_listed_and_persisted(tmp_path: Path) -> N
             run_async(operations.getxattr, readme.st_ino, b"user.acorn.filetype", context) == b"FFD"
         )
         assert run_async(operations.getxattr, readme.st_ino, b"user.acorn.locked", context) == b"1"
+
+
+def test_failed_metadata_batch_remains_pending(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        readme = run_async(operations.lookup, ROOT_INODE, b"README", context)
+        run_async(
+            operations.setxattr,
+            readme.st_ino,
+            b"user.acorn.load",
+            b"1234ABCD",
+            context,
+        )
+
+        def fail_metadata(_inode: int, **_values: int | bool) -> None:
+            raise OSError("injected failure")
+
+        monkeypatch.setattr(image, "set_acorn_metadata", fail_metadata)
+
+        with pytest.raises(AcornFSError, match="metadata"):
+            operations.flush_pending()
+
+        assert readme.st_ino in operations._metadata_updates
+
+
+def test_namespace_mutations_notify_the_kernel_cache(tmp_path: Path) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(dat_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        with (
+            patch("acornfs.fuse_adapter.operations.pyfuse3.invalidate_entry_async") as entry,
+            patch("acornfs.fuse_adapter.operations.pyfuse3.invalidate_inode") as inode,
+        ):
+            created = run_async(operations.mkdir, ROOT_INODE, b"CACHE", 0o755, context)
+            run_async(operations.rmdir, ROOT_INODE, b"CACHE", context)
+
+    assert entry.call_args_list == [
+        call(ROOT_INODE, b"CACHE", deleted=0, ignore_enoent=True),
+        call(ROOT_INODE, b"CACHE", deleted=created.st_ino, ignore_enoent=True),
+    ]
+    assert inode.call_count >= 2
 
 
 def test_acorn_extended_attributes_reject_invalid_or_read_only_changes(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ import errno
 import os
 import stat
 from collections import OrderedDict
+from contextlib import suppress
 from dataclasses import dataclass
 
 import pyfuse3
@@ -19,7 +20,8 @@ from oaknut.adfs.exceptions import (
 )
 
 from acornfs.core.image import ROOT_INODE, ImageNode, ReadOnlyImage
-from acornfs.errors import AcornFSError
+from acornfs.errors import AcornFSError, FilenameTooLongError
+from acornfs.i18n import _
 
 BLOCK_SIZE = 256
 CACHE_TIMEOUT = 60.0
@@ -42,6 +44,14 @@ class _ReadState:
     buffer_offset: int = 0
     buffer: bytes = b""
     buffer_position: int = 0
+
+
+@dataclass(slots=True)
+class _MetadataUpdate:
+    load_address: int | None = None
+    exec_address: int | None = None
+    filetype: int | None = None
+    locked: bool | None = None
 
 
 class ReadOnlyOperations(pyfuse3.Operations):
@@ -68,6 +78,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
         self._sequential_read_threshold = sequential_read_threshold
         self._write_buffers: dict[int, bytearray] = {}
         self._dirty: set[int] = set()
+        self._metadata_updates: dict[int, _MetadataUpdate] = {}
         self._handles: dict[int, int] = {}
         self._read_states: dict[int, _ReadState] = {}
         self._read_ahead_lru: OrderedDict[int, None] = OrderedDict()
@@ -92,8 +103,10 @@ class ReadOnlyOperations(pyfuse3.Operations):
             code = errno.EISDIR
         elif isinstance(exc, NotADirectoryError):
             code = errno.ENOTDIR
+        elif isinstance(exc, FilenameTooLongError):
+            code = errno.ENAMETOOLONG
         elif isinstance(exc, (ValueError, UnicodeError)):
-            code = errno.ENAMETOOLONG if "10 bytes" in str(exc) else errno.EINVAL
+            code = errno.EINVAL
         elif isinstance(exc, ADFSPathError):
             code = errno.ENOENT
         else:
@@ -170,6 +183,20 @@ class ReadOnlyOperations(pyfuse3.Operations):
         except KeyError as exc:
             raise pyfuse3.FUSEError(errno.ENOENT) from exc
 
+    def _node_locked(self, node: ImageNode) -> bool:
+        update = self._metadata_updates.get(node.inode)
+        return node.locked if update is None or update.locked is None else update.locked
+
+    @staticmethod
+    def _invalidate_inode(inode: int, *, attr_only: bool = False) -> None:
+        with suppress(OSError, RuntimeError):
+            pyfuse3.invalidate_inode(inode, attr_only=attr_only)
+
+    @staticmethod
+    def _invalidate_entry(parent_inode: int, name: bytes, *, deleted: int = 0) -> None:
+        with suppress(OSError, RuntimeError):
+            pyfuse3.invalidate_entry_async(parent_inode, name, deleted=deleted, ignore_enoent=True)
+
     def _write_buffer(self, inode: int) -> bytearray:
         data = self._write_buffers.get(inode)
         if data is None:
@@ -187,10 +214,10 @@ class ReadOnlyOperations(pyfuse3.Operations):
         attributes.entry_timeout = timeout
         attributes.attr_timeout = timeout
         if node.is_dir:
-            writable = self.image.writable and not node.locked
+            writable = self.image.writable and not self._node_locked(node)
             attributes.st_mode = stat.S_IFDIR | (0o755 if writable else 0o555)
         else:
-            writable = self.image.writable and not node.locked
+            writable = self.image.writable and not self._node_locked(node)
             attributes.st_mode = stat.S_IFREG | (0o644 if writable else 0o444)
         attributes.st_nlink = 2 if node.is_dir else 1
         attributes.st_uid = os.getuid()
@@ -254,7 +281,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
         wants_write = flags & os.O_ACCMODE != os.O_RDONLY
         if wants_write and not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
-        if wants_write and node.locked:
+        if wants_write and self._node_locked(node):
             raise pyfuse3.FUSEError(errno.EACCES)
         if wants_write:
             try:
@@ -341,6 +368,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
         except Exception as exc:
             self._raise_fuse(exc)
         self._write_buffers[node.inode] = bytearray()
+        self._invalidate_entry(parent_inode, name)
+        self._invalidate_inode(parent_inode, attr_only=True)
         info = pyfuse3.FileInfo(fh=self._new_handle(node.inode))
         return info, self._attributes(node)
 
@@ -354,6 +383,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
             node = self.image.make_directory(parent_inode, name)
         except Exception as exc:
             self._raise_fuse(exc)
+        self._invalidate_entry(parent_inode, name)
+        self._invalidate_inode(parent_inode, attr_only=True)
         return self._attributes(node)
 
     async def unlink(self, parent_inode: int, name: bytes, ctx: pyfuse3.RequestContext) -> None:
@@ -364,18 +395,33 @@ class ReadOnlyOperations(pyfuse3.Operations):
         if node is not None and node.inode in self._handles.values():
             raise pyfuse3.FUSEError(errno.EBUSY)
         try:
+            if node is not None:
+                self._commit_metadata(node.inode)
             self.image.remove(parent_inode, name, directory=False)
         except Exception as exc:
             self._raise_fuse(exc)
+        if node is not None:
+            self._metadata_updates.pop(node.inode, None)
+            self._invalidate_inode(node.inode)
+        self._invalidate_entry(parent_inode, name, deleted=node.inode if node else 0)
+        self._invalidate_inode(parent_inode, attr_only=True)
 
     async def rmdir(self, parent_inode: int, name: bytes, ctx: pyfuse3.RequestContext) -> None:
         del ctx
         if not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
+        node = self.image.lookup(parent_inode, name)
         try:
+            if node is not None:
+                self._commit_metadata(node.inode)
             self.image.remove(parent_inode, name, directory=True)
         except Exception as exc:
             self._raise_fuse(exc)
+        if node is not None:
+            self._metadata_updates.pop(node.inode, None)
+            self._invalidate_inode(node.inode)
+        self._invalidate_entry(parent_inode, name, deleted=node.inode if node else 0)
+        self._invalidate_inode(parent_inode, attr_only=True)
 
     async def rename(
         self,
@@ -396,10 +442,22 @@ class ReadOnlyOperations(pyfuse3.Operations):
             raise pyfuse3.FUSEError(errno.EEXIST)
         if destination is not None and destination.inode in self._handles.values():
             raise pyfuse3.FUSEError(errno.EBUSY)
+        source = self.image.lookup(parent_inode_old, name_old)
         try:
+            if source is not None:
+                self._commit_metadata(source.inode)
             self.image.rename(parent_inode_old, name_old, parent_inode_new, name_new)
         except Exception as exc:
             self._raise_fuse(exc)
+        self._invalidate_entry(
+            parent_inode_old, name_old, deleted=source.inode if source is not None else 0
+        )
+        self._invalidate_entry(parent_inode_new, name_new)
+        self._invalidate_inode(parent_inode_old, attr_only=True)
+        if parent_inode_new != parent_inode_old:
+            self._invalidate_inode(parent_inode_new, attr_only=True)
+        if source is not None:
+            self._invalidate_inode(source.inode)
 
     async def setattr(
         self,
@@ -439,8 +497,23 @@ class ReadOnlyOperations(pyfuse3.Operations):
             return
         self.image.replace_file(inode, bytes(self._write_buffers[inode]))
         self._dirty.discard(inode)
+        self._invalidate_inode(inode)
         if inode not in self._handles.values():
             self._write_buffers.pop(inode, None)
+
+    def _commit_metadata(self, inode: int) -> None:
+        update = self._metadata_updates.get(inode)
+        if update is None:
+            return
+        self.image.set_acorn_metadata(
+            inode,
+            load_address=update.load_address,
+            exec_address=update.exec_address,
+            filetype=update.filetype,
+            locked=update.locked,
+        )
+        self._metadata_updates.pop(inode, None)
+        self._invalidate_inode(inode)
 
     def _flush_inode(self, inode: int) -> None:
         try:
@@ -454,11 +527,22 @@ class ReadOnlyOperations(pyfuse3.Operations):
         try:
             for inode in sorted(self._dirty):
                 self._commit_buffer(inode)
+            for inode in sorted(self._metadata_updates):
+                self._commit_metadata(inode)
         except Exception as exc:
-            raise AcornFSError(f"Could not flush pending FUSE write buffers safely: {exc}") from exc
+            raise AcornFSError(
+                _("Could not flush pending FUSE data and metadata safely: {error}").format(
+                    error=exc
+                )
+            ) from exc
 
     async def flush(self, fh: int) -> None:
-        self._flush_inode(self._handle_inode(fh))
+        inode = self._handle_inode(fh)
+        self._flush_inode(inode)
+        try:
+            self._commit_metadata(inode)
+        except Exception as exc:
+            self._raise_fuse(exc)
 
     async def fsync(self, fh: int, datasync: bool) -> None:
         del datasync
@@ -476,7 +560,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
         node = self._node(inode)
         if mode & os.W_OK and not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
-        if mode & os.W_OK and node.locked:
+        if mode & os.W_OK and self._node_locked(node):
             raise pyfuse3.FUSEError(errno.EACCES)
         return True
 
@@ -486,7 +570,10 @@ class ReadOnlyOperations(pyfuse3.Operations):
         if node.inode == ROOT_INODE:
             return (XATTR_SOURCE, XATTR_PATH)
         names: tuple[bytes, ...] = XATTR_NAMES
-        if self.image.filetype(inode) is not None:
+        update = self._metadata_updates.get(inode)
+        if (update is not None and update.filetype is not None) or self.image.filetype(
+            inode
+        ) is not None:
             names = (*names, XATTR_FILETYPE)
         return names
 
@@ -502,13 +589,22 @@ class ReadOnlyOperations(pyfuse3.Operations):
         except ValueError as exc:
             raise pyfuse3.FUSEError(errno.ENODATA) from exc
         if name == XATTR_LOAD:
-            return f"{int(metadata.load_address or 0):08X}".encode("ascii")
+            value = metadata.load_address
+            if (update := self._metadata_updates.get(inode)) is not None:
+                value = update.load_address if update.load_address is not None else value
+            return f"{int(value or 0):08X}".encode("ascii")
         if name == XATTR_EXECUTE:
-            return f"{int(metadata.exec_address or 0):08X}".encode("ascii")
+            value = metadata.exec_address
+            if (update := self._metadata_updates.get(inode)) is not None:
+                value = update.exec_address if update.exec_address is not None else value
+            return f"{int(value or 0):08X}".encode("ascii")
         if name == XATTR_LOCKED:
-            return b"1" if node.locked else b"0"
+            return b"1" if self._node_locked(node) else b"0"
         if name == XATTR_FILETYPE:
-            filetype = self.image.filetype(inode)
+            update = self._metadata_updates.get(inode)
+            filetype = update.filetype if update is not None else None
+            if filetype is None:
+                filetype = self.image.filetype(inode)
             if filetype is None:
                 raise pyfuse3.FUSEError(errno.ENODATA)
             return f"{filetype:03X}".encode("ascii")
@@ -520,28 +616,30 @@ class ReadOnlyOperations(pyfuse3.Operations):
         del ctx
         if not self.image.writable:
             raise pyfuse3.FUSEError(errno.EROFS)
+        self._node(inode)
+        update = self._metadata_updates.get(inode) or _MetadataUpdate()
         try:
             text = value.decode("ascii").strip()
             if name == XATTR_LOAD:
                 if len(text) != 8:
                     raise ValueError("load address must be exactly 8 hexadecimal digits")
-                self.image.set_acorn_metadata(inode, load_address=int(text, 16))
+                update.load_address = int(text, 16)
             elif name == XATTR_EXECUTE:
                 if len(text) != 8:
                     raise ValueError("execute address must be exactly 8 hexadecimal digits")
-                self.image.set_acorn_metadata(inode, exec_address=int(text, 16))
+                update.exec_address = int(text, 16)
             elif name == XATTR_FILETYPE:
                 if len(text) != 3:
                     raise ValueError("filetype must be exactly 3 hexadecimal digits")
                 filetype = int(text, 16)
                 if not 0 <= filetype <= 0xFFF:
                     raise ValueError("filetype must be 000..FFF")
-                self.image.set_acorn_metadata(inode, filetype=filetype)
+                update.filetype = filetype
             elif name == XATTR_LOCKED:
                 normalised = text.casefold()
                 if normalised not in {"0", "1", "false", "true"}:
                     raise ValueError("locked must be 0, 1, false or true")
-                self.image.set_acorn_metadata(inode, locked=normalised in {"1", "true"})
+                update.locked = normalised in {"1", "true"}
             elif name in {XATTR_SOURCE, XATTR_PATH}:
                 raise pyfuse3.FUSEError(errno.EPERM)
             else:
@@ -552,6 +650,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
             raise pyfuse3.FUSEError(errno.EINVAL) from exc
         except Exception as exc:
             self._raise_fuse(exc)
+        self._metadata_updates[inode] = update
+        self._invalidate_inode(inode)
 
     async def removexattr(self, inode: int, name: bytes, ctx: pyfuse3.RequestContext) -> None:
         del inode, name, ctx

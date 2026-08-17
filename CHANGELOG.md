@@ -14,6 +14,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Deterministic amd64 performance budgets and bounded sequential large-file read-ahead.
 - Privileged amd64 CI coverage for live writable FUSE, recovery and shutdown lifecycles.
 - Conservative retention for inactive runtime logs, completed repair audits and orphan checkpoint fragments.
+- Versioned validation JSON with a stable BeebSCSI old-map compatibility profile.
+- amd64 memory stress budgets for 100,000 indexed nodes and an 8 MiB write buffer.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
 - Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
 
@@ -22,7 +24,10 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - The initial supported host architecture is explicitly limited to amd64.
 - Validation findings, repair plans/progress and known image-property values now use gettext.
 - Desktop lifecycle, creation, recovery and preference errors now use gettext.
+- Desktop-reachable pair, image and FUSE messages now complete gettext coverage.
 - Existing mounts remain at, and are reused from, their original path after a location change.
+- Compatible Acorn metadata changes are coalesced until a durability boundary.
+- Successful mutations explicitly invalidate relevant kernel inode and entry caches.
 - Remaining Acorn File Forge integration is explicitly deferred until the other backlog is complete.
 
 ### Fixed

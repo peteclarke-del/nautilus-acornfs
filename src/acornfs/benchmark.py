@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from acornfs.core import create_beebscsi_image
-from acornfs.core.image import ROOT_INODE, ReadOnlyImage
+from acornfs.core.image import DEFAULT_MAX_NODES, ROOT_INODE, ImageNode, ReadOnlyImage
 
 MIB = 1024 * 1024
 SCHEMA_VERSION = 1
@@ -43,6 +43,8 @@ class BenchmarkConfig:
     operation_samples: int = 250
     large_read_samples: int = 3
     read_bytes: int = 64 * 1024
+    memory_nodes: int = DEFAULT_MAX_NODES
+    write_buffer_bytes: int = 8 * MIB
 
     def __post_init__(self) -> None:
         if not 1 <= self.root_entries <= 47:
@@ -59,6 +61,10 @@ class BenchmarkConfig:
             raise ValueError("large_file_bytes must exceed cache_bytes")
         if min(self.open_samples, self.operation_samples, self.large_read_samples) <= 0:
             raise ValueError("sample counts must be positive")
+        if not 1 <= self.memory_nodes <= DEFAULT_MAX_NODES:
+            raise ValueError(f"memory_nodes must be between 1 and {DEFAULT_MAX_NODES}")
+        if self.write_buffer_bytes <= 0:
+            raise ValueError("write_buffer_bytes must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +83,7 @@ AMD64_BUDGETS = {
     "small_cached_read_us": Budget("p95", "at_most", 100.0),
     "large_ranged_read_mib_s": Budget("median", "at_least", 15.0),
     "open_peak_python_mib": Budget("max", "at_most", 32.0),
+    "max_nodes_open_buffer_peak_python_mib": Budget("max", "at_most", 64.0),
 }
 
 
@@ -186,6 +193,50 @@ def _metric(name: str, unit: str, values: Sequence[float]) -> tuple[dict[str, ob
     )
 
 
+def _profile_memory_stress(config: BenchmarkConfig) -> float:
+    """Measure a full valid 47-way index plus one large FUSE-style write buffer."""
+
+    tracemalloc.start()
+    try:
+        nodes: dict[int, ImageNode] = {}
+        children: dict[int, tuple[int, ...]] = {}
+        children_by_name: dict[int, dict[bytes, int]] = {}
+        last_directory = (
+            (config.memory_nodes - 2) // 47 + ROOT_INODE
+            if config.memory_nodes > ROOT_INODE
+            else ROOT_INODE
+        )
+        for inode in range(1, config.memory_nodes + 1):
+            is_root = inode == ROOT_INODE
+            parent = ROOT_INODE if is_root else (inode - 2) // 47 + ROOT_INODE
+            name = b"" if is_root else f"N{inode:09d}".encode("ascii")
+            path = "$" if is_root else f"{nodes[parent].acorn_path}.{name.decode('ascii')}"
+            is_dir = inode <= last_directory
+            nodes[inode] = ImageNode(
+                inode=inode,
+                parent_inode=parent,
+                name=name,
+                acorn_path=path,
+                is_dir=is_dir,
+                size=0,
+            )
+            if is_dir:
+                children[inode] = ()
+                children_by_name[inode] = {}
+            if not is_root:
+                children[parent] = (*children[parent], inode)
+                children_by_name[parent][name] = inode
+        write_buffers = {config.memory_nodes: bytearray(config.write_buffer_bytes)}
+        if len(nodes) != config.memory_nodes or len(write_buffers[config.memory_nodes]) != (
+            config.write_buffer_bytes
+        ):
+            raise RuntimeError("memory stress allocation was incomplete")
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    return peak / MIB
+
+
 def _measure_fixture(dat_path: Path, config: BenchmarkConfig) -> dict[str, object]:
     open_values: list[float] = []
     image: ReadOnlyImage | None = None
@@ -256,6 +307,10 @@ def _measure_fixture(dat_path: Path, config: BenchmarkConfig) -> dict[str, objec
         "small_cached_read_us": ("us", small_values),
         "large_ranged_read_mib_s": ("MiB/s", large_values),
         "open_peak_python_mib": ("MiB", [peak / MIB]),
+        "max_nodes_open_buffer_peak_python_mib": (
+            "MiB",
+            [_profile_memory_stress(config)],
+        ),
     }
     metrics: dict[str, object] = {}
     passed = True
@@ -295,6 +350,8 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> dict[str, object]:
             "small_file_bytes": config.small_file_bytes,
             "large_file_bytes": config.large_file_bytes,
             "cache_bytes": config.cache_bytes,
+            "memory_nodes": config.memory_nodes,
+            "write_buffer_bytes": config.write_buffer_bytes,
         },
         **measurements,
     }
