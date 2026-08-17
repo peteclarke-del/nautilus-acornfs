@@ -19,8 +19,9 @@ during package builds.
    tests or assumptions.
 2. Run `make check`, `make benchmark`, `make test-live` on a permitted amd64
    FUSE host, and build both distributions with `python -m build`.
-3. Install the built wheel into a clean supported Ubuntu environment and run
-   the documented mount, writable-edit, recovery and uninstall smoke tests.
+3. Run `make package-smoke`, then install the built wheel into a clean supported
+   Ubuntu environment and run the documented mount, writable-edit and recovery
+   acceptance tests.
 4. Set the version, date the changelog section, and review the complete diff.
 5. Merge the release commit, create the matching annotated tag, then publish
    release notes derived from the changelog.
@@ -29,8 +30,10 @@ during package builds.
    restore images and checkpoints before attempting an incompatible upgrade.
 
 The project must have an explicit licence before its first public release.
-Signed archives, Debian packaging, SBOM generation and release-candidate
-migration tests remain separate acceptance items until implemented and tested.
+Signed archives, Debian artefact production and SBOM generation remain separate
+acceptance items until implemented and tested. The automated wheel lifecycle
+test covers clean installation, forced upgrade and uninstall while preserving
+preferences, checkpoint-shaped state and repair audits.
 No release procedure may claim those guarantees early.
 
 ## Compatibility and support
@@ -45,3 +48,8 @@ The on-disc safety boundary has priority over host API compatibility. A release
 must refuse uncertain writes rather than weaken validation to preserve an old
 command outcome. Any unavoidable command, metadata or recovery-format change is
 called out explicitly in the changelog with migration or rollback instructions.
+
+The complete support boundary, candidate gate and evidence requirements are in
+[release-readiness.md](release-readiness.md). User and administrator procedures
+are maintained separately in [user-guide.md](user-guide.md) and
+[admin-guide.md](admin-guide.md).

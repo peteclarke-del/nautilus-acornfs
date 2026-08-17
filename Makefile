@@ -1,4 +1,4 @@
-.PHONY: benchmark check format lint messages test test-live typecheck
+.PHONY: benchmark check format lint messages package-smoke test test-live typecheck
 
 check: lint typecheck test
 
@@ -23,6 +23,9 @@ messages:
 		src/acornfs/mounts.py src/acornfs/operations.py src/acornfs/preferences.py \
 		src/acornfs/recovery.py src/acornfs_nautilus/extension.py \
 		src/acornfs_nautilus/logic.py
+
+package-smoke:
+	python tools/package_smoke.py --build
 
 typecheck:
 	python -m mypy src

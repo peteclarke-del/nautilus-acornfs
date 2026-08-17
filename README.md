@@ -21,6 +21,9 @@ Acorn load/execute addresses, filetypes, lock state, source filesystem and
 original paths are available as extended attributes. See [TODO.md](TODO.md) for
 the remaining lifecycle and format work. Release history and policy are in
 [CHANGELOG.md](CHANGELOG.md) and [docs/releases.md](docs/releases.md).
+The complete desktop walkthrough is in [docs/user-guide.md](docs/user-guide.md),
+with deployment and retained-state guidance in
+[docs/admin-guide.md](docs/admin-guide.md).
 
 ## Current functionality
 
@@ -90,6 +93,11 @@ make test-live
 Run the deterministic amd64 performance workload with `make benchmark`. It
 writes a machine-readable report and enforces the first-RC budgets documented
 in [docs/performance.md](docs/performance.md).
+
+`make package-smoke` builds the wheel in `dist/`, installs it with FUSE support
+into an isolated environment, force-reinstalls it as an upgrade, removes it and
+verifies throughout that preferences, recovery state and repair audits are
+unchanged. CI runs the same lifecycle on the supported Ubuntu 24.04 amd64 host.
 
 Install the per-user Nautilus extension, MIME types and desktop handler, then restart Files:
 
@@ -259,6 +267,12 @@ either DAT or DSC is supported. The mountpoint must already exist and be empty.
 
 The initial development and CI container target is amd64. Native arm64 and
 arm/v7 container builds remain on the roadmap.
+
+Debian package boundaries and exact Ubuntu runtime package names are documented
+in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`
+production remains blocked until the project licence is selected and Oaknut has
+a reviewed Debian packaging or vendoring route; AcornFS will not disguise those
+requirements with a root-time `pip` download.
 
 The writable format is a BeebSCSI DAT/DSC hard-disc pair containing
 old-map ADFS with old (Hugo) directories. The image metadata is compatible with
