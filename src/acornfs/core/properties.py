@@ -17,6 +17,7 @@ from acornfs.core.beebscsi import (
     parse_descriptor,
 )
 from acornfs.core.formats import ResolvedImage, resolve_image
+from acornfs.core.mmb import MMB_HEADER_BYTES, MMB_SLOT_BYTES
 from acornfs.core.validation import validate_open_mount
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
@@ -78,6 +79,12 @@ class ImageProperties:
     write_supported: bool = True
     filesystem_size_label: str = "ADFS size"
     show_disc_id: bool = True
+    show_disc_name: bool = True
+    boot_label: str = "Boot option"
+    slot_count: int = 0
+    formatted_slots: int = 0
+    geometry_description: str = ""
+    reserved_label: str = "Reserved tail"
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -156,6 +163,8 @@ def _read_standalone_properties(source: ResolvedImage) -> ImageProperties:
 
     if source.kind == "dfs-floppy":
         return _read_dfs_properties(source)
+    if source.kind == "mmb-container":
+        return _read_mmb_properties(source)
 
     reader: ImageReader | None = None
     mount: Mount | None = None
@@ -280,6 +289,54 @@ def _read_dfs_properties(source: ResolvedImage) -> ImageProperties:
         if reader is not None:
             with suppress(Exception):
                 reader.close()
+
+
+def _read_mmb_properties(source: ResolvedImage) -> ImageProperties:
+    """Report standard MMB catalogue and payload capacity without opening every slot."""
+
+    layout = source.mmb_layout
+    if layout is None:
+        raise AcornFSError(_("The MMB container catalogue is unavailable."))
+    payload_bytes = layout.total_slots * MMB_SLOT_BYTES
+    formatted_bytes = layout.formatted_slots * MMB_SLOT_BYTES
+    boot_slots = ", ".join(str(slot) for slot in layout.boot_slots)
+    return ImageProperties(
+        dat_path=str(source.primary_path),
+        dsc_path="",
+        image_type="Standard MMB container",
+        filesystem_format="MMB with Acorn DFS slots",
+        directory_format="Slots with flat DFS catalogue prefixes",
+        hardware_profile="BBC Micro MMC/SD MMB container",
+        title="",
+        disc_name="",
+        disc_id=0,
+        boot_option=boot_slots,
+        cylinders=0,
+        heads=0,
+        sectors_per_track=0,
+        sector_size=SECTOR_SIZE,
+        geometry_sectors=source.primary_path.stat().st_size // SECTOR_SIZE,
+        adfs_sectors=payload_bytes // SECTOR_SIZE,
+        capacity_bytes=source.primary_path.stat().st_size,
+        adfs_bytes=payload_bytes,
+        used_bytes=formatted_bytes,
+        free_bytes=payload_bytes - formatted_bytes,
+        reserved_bytes=MMB_HEADER_BYTES,
+        safe_for_write=False,
+        fatal_findings=0,
+        warning_findings=0,
+        advice_findings=0,
+        geometry_kind="container",
+        write_supported=False,
+        filesystem_size_label="Slot payload",
+        show_disc_id=False,
+        show_disc_name=False,
+        boot_label="Boot slots",
+        slot_count=layout.total_slots,
+        formatted_slots=layout.formatted_slots,
+        geometry_description="511 × 200 KiB SSD slots",
+        reserved_label="Container catalogue",
+    )
 
 
 __all__ = ["ImageProperties", "read_image_properties"]

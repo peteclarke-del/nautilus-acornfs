@@ -3,9 +3,15 @@ from pathlib import Path
 import pytest
 
 from acornfs.core import resolve_image
+from acornfs.core.mmb import MMB_STANDARD_BYTES
 from acornfs.errors import UnsupportedImageError
 from acornfs_nautilus.logic import image_capabilities
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
+from tests.image_fixture import (
+    create_adfs_floppy,
+    create_beebscsi_image,
+    create_dfs_floppy,
+    create_mmb_image,
+)
 
 
 @pytest.mark.parametrize("format_name", ["s", "m", "l"])
@@ -59,6 +65,77 @@ def test_detects_watford_dfs_as_a_read_only_dfs_profile(tmp_path: Path) -> None:
     assert resolved.filesystem == "watford-dfs"
     assert resolved.capabilities.mount_read_only
     assert not resolved.capabilities.mount_read_write
+
+
+def test_detects_standard_mmb_with_read_only_capabilities(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "mmb-container"
+    assert resolved.mmb_layout is not None
+    assert [slot.index for slot in resolved.mmb_layout.slots] == [0, 42]
+    assert resolved.capabilities.mount_read_only
+    assert resolved.capabilities.properties
+    assert not resolved.capabilities.mount_read_write
+    assert not resolved.capabilities.validate
+
+
+def test_mmb_detection_is_structural_not_extension_driven(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path, filename="library.bin")
+    assert resolve_image(image_path).kind == "mmb-container"
+
+
+def test_mmb_extension_does_not_override_valid_dfs_content(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, filename="renamed.mmb")
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "dfs-floppy"
+    assert resolved.filesystem == "acorn-dfs"
+
+
+def test_malformed_and_extended_mmb_files_are_rejected_clearly(tmp_path: Path) -> None:
+    malformed = create_mmb_image(tmp_path, filename="malformed.mmb")
+    with malformed.open("r+b") as handle:
+        handle.seek(16 + 15)
+        handle.write(b"\x55")
+    with pytest.raises(UnsupportedImageError, match="unknown catalogue status"):
+        resolve_image(malformed)
+
+    extended = create_mmb_image(tmp_path, filename="extended.mmb")
+    with extended.open("r+b") as handle:
+        handle.seek(8)
+        handle.write(b"\xa1")
+        handle.truncate(2 * MMB_STANDARD_BYTES)
+    with pytest.raises(UnsupportedImageError, match="Extended MMB"):
+        resolve_image(extended)
+
+
+def test_mmb_slot_statuses_select_only_formatted_entries(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+    with image_path.open("r+b") as handle:
+        handle.seek((42 + 1) * 16 + 15)
+        handle.write(b"\x00")  # locked, but still formatted and readable
+        handle.seek((10 + 1) * 16 + 15)
+        handle.write(b"\xff")  # invalid and hidden
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.mmb_layout is not None
+    assert [(slot.index, slot.status) for slot in resolved.mmb_layout.slots] == [
+        (0, 0x0F),
+        (42, 0x00),
+    ]
+
+
+def test_zero_filled_file_of_mmb_length_is_not_accepted_as_a_container(tmp_path: Path) -> None:
+    image_path = tmp_path / "not-an-image.mmb"
+    with image_path.open("wb") as handle:
+        handle.truncate(MMB_STANDARD_BYTES)
+
+    with pytest.raises(UnsupportedImageError, match="does not contain recognisable DFS"):
+        resolve_image(image_path)
 
 
 def test_complete_beebscsi_pair_has_precedence_over_standalone_content(tmp_path: Path) -> None:

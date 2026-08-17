@@ -9,7 +9,12 @@ from oaknut.file import AcornMeta
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.recovery import recover_image
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
+from tests.image_fixture import (
+    create_adfs_floppy,
+    create_beebscsi_image,
+    create_dfs_floppy,
+    create_mmb_image,
+)
 
 
 def test_indexes_nested_image_and_reads_files(tmp_path: Path) -> None:
@@ -100,6 +105,62 @@ def test_indexes_both_dsd_sides_as_drive_directories(tmp_path: Path) -> None:
         assert image.read(other.inode, 0, 1024) == b"Hello from DFS drive 2\r"
         assert image.total_bytes == image_path.stat().st_size
         assert 0 < image.free_bytes < image.total_bytes
+
+
+def test_indexes_mmb_slots_as_directories_and_reads_their_dfs_files(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+
+    with ReadOnlyImage.open(image_path) as image:
+        root_names = [image.nodes[inode].name for inode in image.children[ROOT_INODE]]
+        assert root_names == [b"000 - WELCOME", b"042 - UTILITIES"]
+        slot_zero = image.lookup(ROOT_INODE, b"000 - WELCOME")
+        slot_42 = image.lookup(ROOT_INODE, b"042 - UTILITIES")
+        assert slot_zero is not None
+        assert slot_42 is not None
+        default_zero = image.lookup(slot_zero.inode, b"$")
+        default_42 = image.lookup(slot_42.inode, b"$")
+        assert default_zero is not None
+        assert default_42 is not None
+        hello_zero = image.lookup(default_zero.inode, b"HELLO")
+        hello_42 = image.lookup(default_42.inode, b"HELLO")
+        assert hello_zero is not None
+        assert hello_42 is not None
+        assert image.read(hello_zero.inode, 0, 1024) == b"Slot zero\r"
+        assert image.read(hello_42.inode, 0, 1024) == b"Slot forty-two\r"
+        assert image.acorn_metadata(hello_42.inode).load_address == 0
+        assert image.total_bytes == image_path.stat().st_size
+        assert image.free_bytes == 0
+
+    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
+        ReadOnlyImage.open(image_path, writable=True)
+
+
+def test_empty_mmb_mounts_with_an_empty_root(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+    with image_path.open("r+b") as handle:
+        for index in (0, 42):
+            handle.seek((index + 1) * 16 + 15)
+            handle.write(b"\xf0")
+
+    with ReadOnlyImage.open(image_path) as image:
+        assert image.children[ROOT_INODE] == ()
+
+
+def test_mmb_slot_mount_cache_stays_bounded(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path, slot_indexes=tuple(range(10)))
+
+    with ReadOnlyImage.open(image_path) as image:
+        mounts = image._mount._mounts  # type: ignore[attr-defined]
+        assert len(mounts) == 8
+        first_slot = image.lookup(ROOT_INODE, b"000 - SLOT 0")
+        assert first_slot is not None
+        default = image.lookup(first_slot.inode, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Slot 0\r"
+        assert len(mounts) == 8
+        assert 0 in mounts
 
 
 def test_adfs_lookup_is_case_insensitive_and_case_collisions_are_refused(

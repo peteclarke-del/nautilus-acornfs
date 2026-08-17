@@ -6,7 +6,12 @@ import pytest
 from acornfs.core import read_image_properties
 from acornfs.errors import AcornFSError
 from acornfs_nautilus.logic import image_property_rows
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
+from tests.image_fixture import (
+    create_adfs_floppy,
+    create_beebscsi_image,
+    create_dfs_floppy,
+    create_mmb_image,
+)
 
 
 def test_image_properties_report_format_geometry_and_validation(tmp_path: Path) -> None:
@@ -91,6 +96,29 @@ def test_watford_dfs_properties_report_the_detected_variant(tmp_path: Path) -> N
     properties = read_image_properties(image_path)
 
     assert properties.filesystem_format == "Watford DFS"
+
+
+def test_mmb_properties_report_slots_without_opening_every_payload(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+
+    properties = read_image_properties(image_path)
+
+    assert properties.image_type == "Standard MMB container"
+    assert properties.filesystem_format == "MMB with Acorn DFS slots"
+    assert properties.slot_count == 511
+    assert properties.formatted_slots == 2
+    assert properties.used_bytes == 2 * 200 * 1024
+    assert properties.free_bytes == 509 * 200 * 1024
+    assert properties.reserved_bytes == 8192
+    rows = dict(image_property_rows(properties))
+    assert rows["Boot slots"] == "0, 1, 2, 3"
+    assert rows["Geometry"] == "511 × 200 KiB SSD slots"
+    assert rows["Formatted slots"] == "2 / 511"
+    assert rows["Slot payload"] == "99.8 MiB"
+    assert rows["Container catalogue"] == "8.0 KiB"
+    assert "Disc name" not in rows
+    assert "Disc cycle ID" not in rows
+    assert rows["Validation"] == "Supported read-only"
 
 
 @pytest.mark.parametrize(("cylinders", "heads"), [(40, 1), (160, 2), (80, 4)])

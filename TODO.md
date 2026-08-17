@@ -182,8 +182,10 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Add ADFS floppy images.
 - [x] Add DFS SSD and DSD images, presenting DFS catalogue prefixes coherently.
 - [x] Decide how DFS pseudo-directories should map to POSIX directories without changing on-disk semantics.
-- [ ] Add MMB read-only mounting with slots represented as directories.
-- [ ] Design safe MMB slot replacement, insertion, ejection and access-mode semantics.
+- [x] Add standard MMB read-only mounting with formatted slots represented as directories.
+- [x] Design safe MMB slot replacement, insertion, ejection and access-mode semantics.
+- [ ] Add extended MMB read-only mounting after independently testing its repeated extents.
+- [ ] Implement the documented transactional MMB slot mutations after hardware evidence.
 - [ ] Add ROMFS images.
 - [ ] Consider read-only UEF and archive traversal after disk filesystems are stable.
 - [x] Keep unsupported operations disabled and return accurate errors for each format.
@@ -228,6 +230,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Truncated, oversized, sparse and corrupt DAT files.
 - [x] Old ADFS S, M and L floppy directory formats used by BBC, Master and Electron hardware.
 - [x] Acorn and Watford DFS SSD/DSD flat catalogues, including both DSD sides.
+- [x] Standard MMB containers with empty, locked, read-write and invalid slots.
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.
