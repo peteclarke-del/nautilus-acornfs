@@ -7,6 +7,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Added
 
+- Privileged live-FUSE acceptance for selecting either BeebSCSI pair member,
+  terminal traversal and post-remount writable data/metadata preservation.
 - Deterministic amd64 Debian staging for separate core, FUSE and Nautilus
   package roots, with disjoint ownership, dependency and desktop-asset checks.
 - Read-only mounting and properties for ADFS D/E/E+/F/F+/G/G+ floppies and
