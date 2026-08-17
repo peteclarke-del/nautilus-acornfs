@@ -101,6 +101,13 @@ def _mime_package() -> str:
     <glob pattern="*.dsc" weight="70"/>
     <glob pattern="*.DSC" weight="70"/>
   </mime-type>
+  <mime-type type="application/x-acorn-dfs">
+    <comment>Acorn DFS disk image</comment>
+    <glob pattern="*.ssd" weight="70"/>
+    <glob pattern="*.SSD" weight="70"/>
+    <glob pattern="*.dsd" weight="70"/>
+    <glob pattern="*.DSD" weight="70"/>
+  </mime-type>
 </mime-info>
 """
 
@@ -117,7 +124,7 @@ Icon=drive-harddisk
 Terminal=false
 NoDisplay=true
 StartupNotify=true
-MimeType=application/x-acorn-adfs;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
+MimeType=application/x-acorn-adfs;application/x-acorn-dfs;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
 Categories=System;FileTools;
 """
 

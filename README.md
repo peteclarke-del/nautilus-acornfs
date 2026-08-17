@@ -1,10 +1,10 @@
 # Nautilus AcornFS
 
 Nautilus AcornFS is an in-progress, user-space filesystem for Acorn disk
-images. Paired BeebSCSI `DAT`/`DSC` hard discs and standalone ADFS S, M and L
-floppy images are mounted through FUSE 3 and exposed to Nautilus through a
-small extension, while the filesystem engine remains usable from any Linux
-application.
+images. Paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S/M/L floppies,
+and DFS `SSD`/`DSD` images are mounted through FUSE 3 and exposed to Nautilus
+through a small extension, while the filesystem engine remains usable from any
+Linux application.
 
 Read-only mounting remains the default. Opt-in writable mounts use exclusive
 pair locks, persistent pre-write checkpoints, external-change detection and
@@ -26,6 +26,8 @@ the remaining lifecycle and format work. Release history and policy are in
 
 - Discover a matching BeebSCSI `DAT`/`DSC` pair from either member.
 - Detect standalone ADFS S, M and L floppy images from content and mount them read-only.
+- Mount content-detected Acorn and Watford DFS SSD/DSD images read-only, exposing
+  catalogue prefixes and both DSD sides coherently.
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
@@ -93,7 +95,7 @@ Install the per-user Nautilus extension, MIME types and desktop handler, then re
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair or a supported ADFS floppy and open **Acorn FS
+Right-click either member of a valid pair or a supported ADFS/DFS floppy and open **Acorn FS
 Support**. BeebSCSI pairs offer
 **Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
 **Open in Acorn File Forge…**. Floppies offer only **Open read-only**, because
@@ -259,5 +261,9 @@ arm/v7 container builds remain on the roadmap.
 The writable format is a BeebSCSI DAT/DSC hard-disc pair containing
 old-map ADFS with old (Hugo) directories. The image metadata is compatible with
 BBC Master BeebSCSI and RISC OS old-map ADFS access; the pair alone cannot prove
-which physical host will be used. Standalone ADFS S, M and L floppies are
-read-only. Other maps and image types remain unsupported rather than being guessed.
+which physical host will be used. Standalone ADFS S/M/L floppies and DFS
+SSD/DSD images are read-only. On an SSD, DFS catalogue prefixes (`$`, `A`-`Z`)
+appear as directories. On a DSD, drive directories `0` and `2` contain each
+side's catalogue-prefix directories. These are presentation-only namespaces;
+AcornFS does not create directory records that DFS cannot represent. Other maps
+and image types remain unsupported rather than being guessed.

@@ -11,8 +11,11 @@ Image selection resolves to a canonical source, Oaknut filesystem and geometry,
 plus an explicit operation-capability profile. A complete DAT/DSC pair takes
 precedence because its descriptor supplies hard-disc geometry that content
 cannot recover. Otherwise Oaknut ranks content evidence; suffixes only break
-equal-confidence ties. AcornFS currently accepts detected ADFS S/M/L floppy
-geometry and rejects recognised-but-unsupported filesystems explicitly.
+equal-confidence ties. AcornFS accepts detected ADFS S/M/L and DFS SSD/DSD
+floppy images as read-only profiles. DFS catalogue prefixes use Oaknut's virtual
+directory model; DSD mounts add a presentation-only drive level (`0` and `2`)
+over the two independently catalogued surfaces. Other recognised-but-unsupported
+filesystems are rejected explicitly.
 Read-only indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
 metadata, filetype, size and free-space capabilities. Private old-ADFS access is
 confined to the separately capability-gated BeebSCSI write and ranged-read paths.

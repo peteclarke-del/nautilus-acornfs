@@ -86,9 +86,12 @@ Both modes carry `nodev`, `nosuid`, and `noexec`. A writable mount creates a
 persistent pre-write checkpoint before appearing in Files, so a large non-reflink
 image can take longer to mount.
 
-Standalone ADFS S/M/L floppies expose only **Open read-only** and image
-properties. Unsupported write, validation, repair, recovery and File Forge
-actions are omitted rather than being allowed to fail after selection.
+Standalone ADFS S/M/L and DFS SSD/DSD floppies expose only **Open read-only**
+and image properties. In DFS SSD mounts, catalogue prefixes appear as
+directories. DSD mounts add drive `0` and `2` directories above the prefixes so
+both sides remain visible in one Files window. Unsupported write, validation,
+repair, recovery and File Forge actions are omitted rather than being allowed
+to fail after selection.
 
 ## Create a BeebSCSI image
 

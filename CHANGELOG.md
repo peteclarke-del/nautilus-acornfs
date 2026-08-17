@@ -17,6 +17,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Versioned validation JSON with a stable BeebSCSI old-map compatibility profile.
 - amd64 memory stress budgets for 100,000 indexed nodes and an 8 MiB write buffer.
 - Content-detected read-only mounting of standalone ADFS S, M and L floppy images.
+- Content-detected read-only Acorn and Watford DFS SSD/DSD mounting, with
+  catalogue-prefix directories and both DSD sides exposed in one namespace.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
 - Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
 
