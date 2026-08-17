@@ -45,6 +45,7 @@ class ResolvedImage:
     companion_path: Path | None = None
     pair: BeebSCSIPair | None = None
     mmb_layout: MMBLayout | None = None
+    case_sensitive_names: bool = False
 
     @property
     def identity_paths(self) -> tuple[Path, ...]:
@@ -59,6 +60,7 @@ _BEEBSCSI_CAPABILITIES = ImageCapabilities(True, True, True, True, True, True, T
 _ADFS_FLOPPY_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 _DFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 _MMB_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
+_ROMFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
 
 
 def resolve_image(selected: str | Path) -> ResolvedImage:
@@ -131,6 +133,15 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
         ) from exc
     if candidates:
         candidate = candidates[0]
+        if candidate.filesystem == "acorn-romfs" and candidate.geometry is not None:
+            return ResolvedImage(
+                primary_path=selected_path.resolve(),
+                filesystem="acorn-romfs",
+                geometry=candidate.geometry,
+                kind="romfs-image",
+                capabilities=_ROMFS_CAPABILITIES,
+                case_sensitive_names=True,
+            )
         if candidate.filesystem in {"acorn-dfs", "watford-dfs"} and candidate.geometry is not None:
             return ResolvedImage(
                 primary_path=selected_path.resolve(),

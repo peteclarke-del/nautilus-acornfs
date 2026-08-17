@@ -12,7 +12,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from oaknut.adfs.exceptions import ADFSDiscFullError, ADFSError
-from oaknut.file import AcornMeta
+from oaknut.file import Access, AcornMeta
 from oaknut.filesystem import (
     AcornMetadata,
     Filetyped,
@@ -69,6 +69,7 @@ class ImageNode:
     is_dir: bool
     size: int
     locked: bool = False
+    run_only: bool = False
 
 
 def _display_name(name: str) -> bytes:
@@ -269,7 +270,7 @@ class ReadOnlyImage:
                         maximum=self._max_depth
                     )
                 )
-            path_key = path.casefold()
+            path_key = path if self.source.case_sensitive_names else path.casefold()
             if path_key in active_paths:
                 raise AcornFSError(
                     _("The Acorn filesystem tree contains a cycle at {path}.").format(path=path)
@@ -296,6 +297,11 @@ class ReadOnlyImage:
                             )
                         )
                     inode = len(self.nodes) + 1
+                    metadata = (
+                        cast(AcornMetadata, self._mount).acorn_meta(entry.path)
+                        if self.has_acorn_metadata
+                        else None
+                    )
                     node = ImageNode(
                         inode=inode,
                         parent_inode=parent_inode,
@@ -303,11 +309,8 @@ class ReadOnlyImage:
                         acorn_path=entry.path,
                         is_dir=entry.is_dir,
                         size=entry.length,
-                        locked=(
-                            bool(cast(AcornMetadata, self._mount).acorn_meta(entry.path).access & 8)
-                            if self.has_acorn_metadata
-                            else False
-                        ),
+                        locked=bool(metadata and metadata.access & int(Access.L)),
+                        run_only=bool(metadata and metadata.access & int(Access.X)),
                     )
                     self.nodes[inode] = node
                     child_inodes.append(inode)
@@ -324,7 +327,7 @@ class ReadOnlyImage:
     def lookup(self, parent_inode: int, name: bytes) -> ImageNode | None:
         names = self.children_by_name.get(parent_inode, {})
         inode = names.get(name)
-        if inode is None:
+        if inode is None and not self.source.case_sensitive_names:
             try:
                 wanted = name.decode("utf-8").casefold()
                 inode = next(
@@ -340,11 +343,14 @@ class ReadOnlyImage:
         return None if inode is None else self.nodes[inode]
 
     def node_at_path(self, path: str) -> ImageNode:
-        """Resolve one indexed Acorn path case-insensitively."""
+        """Resolve one indexed Acorn path using the source filesystem's name rules."""
 
-        wanted = path.casefold()
+        wanted = path if self.source.case_sensitive_names else path.casefold()
         for node in self.nodes.values():
-            if node.acorn_path.casefold() == wanted:
+            candidate = (
+                node.acorn_path if self.source.case_sensitive_names else node.acorn_path.casefold()
+            )
+            if candidate == wanted:
                 return node
         raise FileNotFoundError(path)
 

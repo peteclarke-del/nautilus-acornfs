@@ -11,6 +11,7 @@ from tests.image_fixture import (
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
+    create_romfs_image,
 )
 
 
@@ -119,6 +120,28 @@ def test_mmb_properties_report_slots_without_opening_every_payload(tmp_path: Pat
     assert "Disc name" not in rows
     assert "Disc cycle ID" not in rows
     assert rows["Validation"] == "Supported read-only"
+
+
+def test_romfs_properties_report_title_capacity_and_file_payload(tmp_path: Path) -> None:
+    image_path = create_romfs_image(tmp_path)
+
+    properties = read_image_properties(image_path)
+
+    assert properties.image_type == "Acorn ROMFS image"
+    assert properties.filesystem_format == "Acorn ROMFS"
+    assert properties.directory_format == "Flat ROM catalogue"
+    assert properties.title == "ACORNFS"
+    assert properties.capacity_bytes == 8192
+    assert properties.adfs_bytes == 63
+    assert not properties.write_supported
+    rows = dict(image_property_rows(properties))
+    assert rows["Geometry"] == "8 KiB linear paged ROM"
+    assert rows["File payload"] == "63 bytes"
+    assert rows["Validation"] == "Supported read-only"
+    assert "Boot option" not in rows
+    assert "Used" not in rows
+    assert "Free" not in rows
+    assert "Disc name" not in rows
 
 
 @pytest.mark.parametrize(("cylinders", "heads"), [(40, 1), (160, 2), (80, 4)])

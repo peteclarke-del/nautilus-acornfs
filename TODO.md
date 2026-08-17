@@ -186,7 +186,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Design safe MMB slot replacement, insertion, ejection and access-mode semantics.
 - [ ] Add extended MMB read-only mounting after independently testing its repeated extents.
 - [ ] Implement the documented transactional MMB slot mutations after hardware evidence.
-- [ ] Add ROMFS images.
+- [x] Add content-detected ROMFS images read-only with case-sensitive names,
+  Acorn metadata, run-only state, properties and hostile-CRC coverage.
 - [ ] Consider read-only UEF and archive traversal after disk filesystems are stable.
 - [x] Keep unsupported operations disabled and return accurate errors for each format.
 - [x] Define format detection precedence when one extension or container can hold multiple filesystems.
@@ -247,6 +248,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Old ADFS S, M and L floppy directory formats used by BBC, Master and Electron hardware.
 - [x] Acorn and Watford DFS SSD/DSD flat catalogues, including both DSD sides.
 - [x] Standard MMB containers with empty, locked, read-write and invalid slots.
+- [x] Generated 8 KiB ROMFS images with case-colliding and non-POSIX names,
+  run-only metadata and corrupt block CRCs.
 - [ ] Newer ADFS formats where supported by the underlying library.
 - [x] Deep trees, maximum old-directory entries and boundary-length names.
 - [x] Locked files and every supported metadata combination.

@@ -14,6 +14,7 @@ from tests.image_fixture import (
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
+    create_romfs_image,
 )
 
 
@@ -129,6 +130,35 @@ def test_indexes_mmb_slots_as_directories_and_reads_their_dfs_files(tmp_path: Pa
         assert image.read(hello_42.inode, 0, 1024) == b"Slot forty-two\r"
         assert image.acorn_metadata(hello_42.inode).load_address == 0
         assert image.total_bytes == image_path.stat().st_size
+        assert image.free_bytes == 0
+
+    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
+        ReadOnlyImage.open(image_path, writable=True)
+
+
+def test_indexes_romfs_with_case_sensitive_names_and_acorn_metadata(tmp_path: Path) -> None:
+    image_path = create_romfs_image(tmp_path)
+
+    with ReadOnlyImage.open(image_path) as image:
+        upper = image.lookup(ROOT_INODE, b"Case")
+        lower = image.lookup(ROOT_INODE, b"case")
+        hello = image.lookup(ROOT_INODE, b"HELLO")
+        slash = image.lookup(ROOT_INODE, "A∕B".encode())
+        assert upper is not None
+        assert lower is not None
+        assert hello is not None
+        assert slash is not None
+        assert image.lookup(ROOT_INODE, b"CASE") is None
+        assert image.node_at_path("Case") == upper
+        with pytest.raises(FileNotFoundError):
+            image.node_at_path("CASE")
+        assert image.read(upper.inode, 0, 1024) == b"upper case name\r"
+        assert image.read(lower.inode, 0, 1024) == b"lower case name\r"
+        assert image.read(slash.inode, 0, 1024) == b"slash in name\r"
+        assert image.acorn_metadata(hello.inode).load_address == 0xFFFF8000
+        assert hello.run_only
+        assert not hello.locked
+        assert image.total_bytes == 8192
         assert image.free_bytes == 0
 
     with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
