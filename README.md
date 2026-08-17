@@ -268,6 +268,12 @@ either DAT or DSC is supported. The mountpoint must already exist and be empty.
 The initial development and CI container target is amd64. Native arm64 and
 arm/v7 container builds remain on the roadmap.
 
+Images and desktop references are treated as untrusted input. See the
+[security policy](SECURITY.md) and [threat model](docs/threat-model.md) for the
+supported boundary, mitigations and remaining release gates. Maintainers can
+run short amd64 coverage-guided parser checks with `make fuzz-smoke` after
+installing the `fuzz` optional dependency.
+
 Debian package boundaries and exact Ubuntu runtime package names are documented
 in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`
 production remains blocked until the project licence is selected and Oaknut has

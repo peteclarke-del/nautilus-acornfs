@@ -29,6 +29,9 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   plus an explicit Debian split-package and dependency contract.
 - A coherent Oaknut 12.13.1 dependency set, preventing pip from combining the
   pinned `oaknut-disc` command package with untested newer filesystem modules.
+- An amd64 threat model and coverage-guided fuzz targets for descriptors,
+  desktop URIs and ADFS map/catalogue validation.
+- amd64 dependency vulnerability auditing and licence-inventory artefacts in CI.
 
 ### Changed
 
@@ -42,6 +45,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Mount identity, properties and Nautilus actions now follow detected format capabilities.
 - The ADFS desktop MIME type now covers both hard-disc data and floppy images.
 - Remaining Acorn File Forge integration is explicitly deferred until the other backlog is complete.
+- Writable pair handling now checkpoints and maps the exact locked inodes,
+  refuses hard-linked members and strips unrelated secrets from detached mount environments.
 
 ### Fixed
 

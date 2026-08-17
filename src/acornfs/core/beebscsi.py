@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import fcntl
 import mmap
+import os
+import stat
 from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -48,7 +50,7 @@ class BeebSCSIPair:
 
 def open_locked_reader(
     pair: BeebSCSIPair, *, writable: bool
-) -> tuple[ImageReader, tuple[Any, ...]]:
+) -> tuple[ImageReader, tuple[Any, ...], bytes]:
     """Lock both pair members and map the DAT for the requested access mode."""
 
     mode = "r+b" if writable else "rb"
@@ -57,9 +59,32 @@ def open_locked_reader(
     try:
         dat_lock = stack.enter_context(pair.dat_path.open(mode))
         dsc_lock = stack.enter_context(pair.dsc_path.open(mode))
-        mapping_handle = stack.enter_context(pair.dat_path.open(mode))
-        fcntl.flock(dat_lock, lock_mode | fcntl.LOCK_NB)
-        fcntl.flock(dsc_lock, lock_mode | fcntl.LOCK_NB)
+        try:
+            fcntl.flock(dat_lock, lock_mode | fcntl.LOCK_NB)
+            fcntl.flock(dsc_lock, lock_mode | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise PairDiscoveryError(
+                _("The image is already open with an incompatible AcornFS lock.")
+            ) from exc
+        _verify_locked_member(pair.dat_path, dat_lock, writable=writable)
+        _verify_locked_member(pair.dsc_path, dsc_lock, writable=writable)
+        descriptor = os.pread(dsc_lock.fileno(), DESCRIPTOR_SIZE + 1, 0)
+        # Reopen the already-verified inode rather than its pathname.  mmap(2)
+        # keeps its file description alive, so mapping the flocked descriptor
+        # would also keep the advisory lock alive after our handle was closed.
+        proc_path = Path("/proc/self/fd") / str(dat_lock.fileno())
+        try:
+            mapping_handle = stack.enter_context(proc_path.open(mode))
+        except OSError as exc:
+            raise PairDiscoveryError(
+                _(
+                    "Cannot safely map the locked image member through /proc/self/fd: {error}"
+                ).format(error=exc)
+            ) from exc
+        locked = os.fstat(dat_lock.fileno())
+        mapped = os.fstat(mapping_handle.fileno())
+        if (locked.st_dev, locked.st_ino) != (mapped.st_dev, mapped.st_ino):
+            raise PairDiscoveryError(_("The locked image member changed while it was mapped."))
         access = mmap.ACCESS_WRITE if writable else mmap.ACCESS_COPY
         mapping = mmap.mmap(mapping_handle.fileno(), 0, access=access)
         stack.callback(mapping.close)
@@ -68,7 +93,33 @@ def open_locked_reader(
         stack.close()
         raise
     stack.pop_all()
-    return reader, (mapping, mapping_handle, dat_lock, dsc_lock)
+    return reader, (mapping, mapping_handle, dat_lock, dsc_lock), descriptor
+
+
+def _verify_locked_member(path: Path, handle: Any, *, writable: bool) -> None:
+    """Prove a locked handle still names the canonical regular file at its path."""
+
+    opened = os.fstat(handle.fileno())
+    try:
+        current = path.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise PairDiscoveryError(
+            _("An image member changed while AcornFS was opening it: {path}").format(path=path)
+        ) from exc
+    if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+        current.st_dev,
+        current.st_ino,
+    ):
+        raise PairDiscoveryError(
+            _("An image member changed while AcornFS was opening it: {path}").format(path=path)
+        )
+    if writable and opened.st_nlink != 1:
+        raise PairDiscoveryError(
+            _(
+                "Writable mounting refuses an image member with hard links: {path}. "
+                "Copy the pair to uniquely owned files first."
+            ).format(path=path)
+        )
 
 
 def _matching_files(directory: Path, expected_name: str) -> list[Path]:
