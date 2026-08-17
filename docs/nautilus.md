@@ -91,7 +91,9 @@ and image properties. In DFS SSD mounts, catalogue prefixes appear as
 directories. DSD mounts add drive `0` and `2` directories above the prefixes so
 both sides remain visible in one Files window. Unsupported write, validation,
 repair, recovery and File Forge actions are omitted rather than being allowed
-to fail after selection.
+to fail after selection. Standard MMB containers use the same read-only action
+and expose each formatted slot as a labelled directory; extended MMBs are not
+offered because mounting only their first extent would be incomplete.
 
 ## Create a BeebSCSI image
 

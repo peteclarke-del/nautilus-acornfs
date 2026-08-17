@@ -32,6 +32,7 @@ from acornfs.core.beebscsi import (
 )
 from acornfs.core.dfs import DoubleSidedDFSMount
 from acornfs.core.formats import ResolvedImage, resolve_image
+from acornfs.core.mmb import MMBMount
 from acornfs.core.transaction import SectorTransaction
 from acornfs.errors import AcornFSError, FilenameTooLongError
 from acornfs.i18n import _, ngettext
@@ -171,11 +172,14 @@ class ReadOnlyImage:
             else:
                 geometry = source.geometry
                 reader = reader_for(source.primary_path, writable=False)
-            filesystem = create_filesystem(source.filesystem)
-            mount = filesystem.open(reader, geometry)
-            if source.kind == "dfs-floppy" and len(geometry.surface_specs) > 1:
-                side_two = filesystem.open(reader, geometry, surface=1)
-                mount = cast(Mount, DoubleSidedDFSMount(mount, side_two))
+            if source.mmb_layout is not None:
+                mount = cast(Mount, MMBMount(reader, source.mmb_layout))
+            else:
+                filesystem = create_filesystem(source.filesystem)
+                mount = filesystem.open(reader, geometry)
+                if source.kind == "dfs-floppy" and len(geometry.surface_specs) > 1:
+                    side_two = filesystem.open(reader, geometry, surface=1)
+                    mount = cast(Mount, DoubleSidedDFSMount(mount, side_two))
             if writable:
                 from acornfs.core.validation import require_safe_for_write, validate_open_mount
 
