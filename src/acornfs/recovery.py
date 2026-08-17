@@ -11,7 +11,7 @@ import shutil
 import stat
 import uuid
 from collections.abc import Callable
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,6 +21,7 @@ from acornfs.core.beebscsi import BeebSCSIPair, discover_pair
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 from acornfs.operations import CancellationCheck, cancellation_point
+from acornfs.safe_paths import ensure_private_directory
 
 FICLONE = 0x40049409
 
@@ -56,23 +57,7 @@ def _ensure_checkpoint_directory(directory: Path) -> None:
     """Create AcornFS-owned state without following symlinked descendants."""
 
     root = state_root()
-    anchor = root.parent.parent
-    anchor.mkdir(mode=0o700, parents=True, exist_ok=True)
-    try:
-        descendants = directory.relative_to(anchor).parts
-    except ValueError as exc:
-        raise AcornFSError(_("The recovery directory is outside the user state root.")) from exc
-    current = anchor
-    for part in descendants:
-        current /= part
-        with suppress(FileExistsError):
-            current.mkdir(mode=0o700)
-        metadata = current.lstat()
-        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.getuid():
-            raise AcornFSError(
-                _("Refusing an unsafe recovery state path: {path}").format(path=current)
-            )
-        os.chmod(current, 0o700, follow_symlinks=False)
+    ensure_private_directory(directory, anchor=root.parent.parent)
 
 
 def _write_manifest(path: Path, info: RecoveryInfo) -> None:

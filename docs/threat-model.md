@@ -20,12 +20,12 @@ compromised kernel or desktop session are outside the supported boundary.
 
 | Threat | Impact | Current controls |
 | --- | --- | --- |
-| Malformed geometry, maps, catalogues or extents | crash, excessive work, out-of-image access or corruption | exact DSC parsing, content-driven format selection, bounded node/depth/cache sizes, complete pre-write validation and fuzz targets |
-| Symlink, hard-link, rename or replacement races | validate one file and mutate another, or redirect state writes | canonical pair discovery, both members opened once and locked, device/inode revalidation, descriptor reads and checkpoints from locked handles, writable hard-link refusal and external-change signatures |
+| Malformed geometry, maps, catalogues or extents | crash, excessive work, out-of-image access or corruption | exact DSC parsing, content-driven format selection, 100,000-item/256-level/five-minute inspection budgets, complete pre-write validation and fuzz targets |
+| Symlink, hard-link, rename or replacement races | validate one file and mutate another, or redirect state writes | canonical pair discovery, both members opened once and locked, device/inode revalidation, descriptor reads and checkpoints from locked handles, writable hard-link refusal, no-follow descriptor-relative directory creation and external-change signatures |
 | Concurrent or interrupted writers | lost updates or partially written images | non-blocking exclusive pair locks, one writer, recovery checkpoint, sector transactions, fsync boundaries, rollback and post-write validation |
 | Malicious FUSE caller input | namespace escape, invalid metadata or memory growth | inode-based operations, strict filename encoding/length rules, bounded buffers, kernel mount options `nodev,nosuid,noexec` and accurate unsupported-operation errors |
 | Desktop URI or command injection | remote-file access or command execution | local `file:`/`acornfs:` schemes only, rejected authorities/query/fragment/NUL, argv-only subprocesses, escaped generated desktop fields and an allowlisted detached-child environment |
-| Disclosure through diagnostics or UI | leak image data, unrelated paths or credentials | diagnostics use format/state summaries rather than image contents or absolute paths; detached children do not inherit unrelated environment secrets |
+| Disclosure through diagnostics or UI | leak image data, unrelated paths or credentials | diagnostics export bounded basenames and allowlisted mount flags; desktop errors, notifications and log excerpts redact absolute paths/control characters and are length-bounded; detached children do not inherit unrelated environment secrets |
 | Recovery/state tampering | rollback to attacker-controlled data or overwrite unrelated files | private per-user state roots, hashed image identities, create-only checkpoint files, atomic manifests and exact known-file cleanup |
 
 Read-only mounting is the default. A writable mount is allowed only for the
@@ -34,10 +34,6 @@ repair operations are separately allowlisted and always checkpointed.
 
 ## Residual risks and release gates
 
-- AcornFS state-directory symlink and mount-root replacement tests remain a
-  release gate; path ownership and containment must continue to be reviewed.
-- Validation and repair are cooperatively cancellable and structurally bounded,
-  but explicit wall-clock budgets for adversarial images remain to be defined.
 - Native hardware interoperability, shutdown during active writes and desktop
   drag/drop/accessibility scenarios require manual acceptance testing.
 - Oaknut is in-process and shares AcornFS privileges. Dependency pinning,

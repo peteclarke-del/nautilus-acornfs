@@ -80,10 +80,142 @@ def test_checkpoint_refuses_symlinked_identity_directory(tmp_path: Path) -> None
     redirected.mkdir()
     (recovery_root / identity).symlink_to(redirected, target_is_directory=True)
 
-    with pytest.raises(AcornFSError, match="unsafe recovery state path"):
+    with pytest.raises(AcornFSError, match="unsafe private AcornFS directory"):
         RecoveryCheckpoint.create(pair)
 
     assert list(redirected.iterdir()) == []
+
+
+def test_mount_registry_refuses_symlinked_private_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from acornfs.mounts import register_mount
+
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    redirected = tmp_path / "redirected"
+    redirected.mkdir()
+    (runtime / "acornfs").symlink_to(redirected, target_is_directory=True)
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+
+    with pytest.raises(AcornFSError, match="unsafe private AcornFS directory"):
+        register_mount(dat_path, mountpoint, read_write=False)
+
+    assert list(redirected.iterdir()) == []
+
+
+def test_preferences_refuse_symlinked_private_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from acornfs.preferences import set_mount_location
+
+    config = tmp_path / "config"
+    config.mkdir()
+    redirected = tmp_path / "redirected"
+    redirected.mkdir()
+    (config / "acornfs").symlink_to(redirected, target_is_directory=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
+
+    with pytest.raises(AcornFSError, match="unsafe private AcornFS directory"):
+        set_mount_location("sidebar")
+
+    assert list(redirected.iterdir()) == []
+
+
+def test_custom_mount_root_refuses_symbolic_link(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from acornfs.preferences import ensure_mount_root
+
+    redirected = tmp_path / "redirected"
+    redirected.mkdir()
+    mount_root = tmp_path / "mounts"
+    mount_root.symlink_to(redirected, target_is_directory=True)
+    monkeypatch.setenv("ACORNFS_MOUNT_ROOT", str(mount_root))
+
+    with pytest.raises(AcornFSError, match="symbolic link"):
+        ensure_mount_root()
+
+    assert list(redirected.iterdir()) == []
+
+
+def test_private_directory_creation_rejects_component_swap(
+    tmp_path: Path,
+) -> None:
+    from acornfs.safe_paths import ensure_private_directory
+
+    anchor = tmp_path / "anchor"
+    anchor.mkdir()
+    redirected = tmp_path / "redirected"
+    redirected.mkdir()
+    real_mkdir = os.mkdir
+
+    def swap_after_create(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> None:
+        real_mkdir(path, mode, dir_fd=dir_fd)
+        if path == "private" and dir_fd is not None:
+            os.rename("private", "moved", src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+            os.symlink(redirected, "private", target_is_directory=True, dir_fd=dir_fd)
+
+    with (
+        patch("acornfs.safe_paths.os.mkdir", side_effect=swap_after_create),
+        pytest.raises(AcornFSError, match="unsafe private AcornFS directory"),
+    ):
+        ensure_private_directory(anchor / "private" / "child", anchor=anchor)
+
+    assert list(redirected.iterdir()) == []
+
+
+def test_repair_audit_refuses_symlinked_private_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from acornfs.core.repair import _write_audit
+
+    state = tmp_path / "state"
+    audit_parent = state / "acornfs"
+    audit_parent.mkdir(parents=True)
+    redirected = tmp_path / "redirected"
+    redirected.mkdir()
+    (audit_parent / "repair-audits").symlink_to(redirected, target_is_directory=True)
+    monkeypatch.setenv("XDG_STATE_HOME", str(state))
+
+    with pytest.raises(AcornFSError, match="unsafe private AcornFS directory"):
+        _write_audit(audit_parent / "repair-audits" / "audit.json", {"status": "test"})
+
+    assert list(redirected.iterdir()) == []
+
+
+def test_repair_audit_does_not_follow_predictable_temporary_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from acornfs.core.repair import _write_audit
+
+    state = tmp_path / "state"
+    audit = state / "acornfs" / "repair-audits" / "audit.json"
+    redirected = tmp_path / "redirected"
+    redirected.write_text("unchanged", encoding="utf-8")
+    monkeypatch.setenv("XDG_STATE_HOME", str(state))
+    audit.parent.mkdir(parents=True)
+    temporary = audit.with_name(f".{audit.name}.{'a' * 32}.tmp")
+    temporary.symlink_to(redirected)
+
+    with (
+        patch("acornfs.core.repair.uuid.uuid4") as uuid4,
+        pytest.raises(FileExistsError),
+    ):
+        uuid4.return_value.hex = "a" * 32
+        _write_audit(audit, {"status": "test"})
+
+    assert redirected.read_text(encoding="utf-8") == "unchanged"
+    assert temporary.is_symlink()
+    assert not audit.exists()
 
 
 def test_desktop_child_environment_does_not_inherit_unrelated_secrets(
@@ -123,3 +255,14 @@ def test_nul_image_reference_is_rejected_safely(reference: str) -> None:
 
     with pytest.raises(AcornFSError, match="invalid path.*NUL"):
         local_image_reference(reference)
+
+
+def test_user_visible_untrusted_detail_is_bounded_and_redacted() -> None:
+    from acornfs.privacy import MAX_USER_MESSAGE_CHARS, safe_user_message
+
+    rendered = safe_user_message("failed at /home/alice/Private Images/image.dat\0: " + "x" * 2000)
+
+    assert "/home/alice" not in rendered
+    assert "Private Images/image.dat" not in rendered
+    assert "\0" not in rendered
+    assert len(rendered) == MAX_USER_MESSAGE_CHARS
