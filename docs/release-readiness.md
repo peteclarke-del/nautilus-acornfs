@@ -9,10 +9,10 @@ claim into a completed item.
 - GNOME/Nautilus 46 or later using the Nautilus 4 extension API.
 - FUSE 3 with unprivileged mounts owned by the current user.
 - Read-write only for validated paired BeebSCSI DAT/DSC old-map ADFS images.
-- Read-only for ADFS S/M/L, DFS SSD/DSD and standard MMB images.
+- Read-only for ADFS S/M/L, DFS SSD/DSD, standard MMB and Acorn ROMFS images.
 - Local regular image files. Network filesystems, removable/read-only media and
   unusual reflink behaviour remain outside the verified matrix.
-- No claim yet for physical BeebSCSI hardware, ARM, extended MMB, ROMFS, UEF or
+- No claim yet for physical BeebSCSI hardware, ARM, extended MMB, UEF or
   Acorn File Forge hand-off.
 
 ## Candidate gate

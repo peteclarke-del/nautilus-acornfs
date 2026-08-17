@@ -13,7 +13,12 @@ from oaknut.file import AcornMeta
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.operations import ReadOnlyOperations
-from tests.image_fixture import create_beebscsi_image, create_dfs_floppy, create_mmb_image
+from tests.image_fixture import (
+    create_beebscsi_image,
+    create_dfs_floppy,
+    create_mmb_image,
+    create_romfs_image,
+)
 
 
 def run_async(function: Any, *args: Any) -> Any:
@@ -77,6 +82,27 @@ def test_mmb_slot_namespace_reaches_fuse_operations(tmp_path: Path) -> None:
             run_async(operations.getxattr, hello.st_ino, b"user.acorn.path", context)
             == b"@42:$.HELLO"
         )
+
+
+def test_romfs_names_contents_and_run_only_metadata_reach_fuse_operations(
+    tmp_path: Path,
+) -> None:
+    image_path = create_romfs_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(image_path) as image:
+        operations = ReadOnlyOperations(image)
+        hello = run_async(operations.lookup, ROOT_INODE, b"HELLO", context)
+        handle = run_async(operations.open, hello.st_ino, os.O_RDONLY, context)
+        assert run_async(operations.read, handle.fh, 0, 1024) == b"Hello from ROMFS\r"
+        assert (
+            run_async(operations.getxattr, hello.st_ino, b"user.acorn.source", context)
+            == b"acorn-romfs"
+        )
+        assert run_async(operations.getxattr, hello.st_ino, b"user.acorn.run_only", context) == b"1"
+        assert b"user.acorn.run_only" in run_async(operations.listxattr, hello.st_ino, context)
+        with pytest.raises(pyfuse3.FUSEError) as missing:
+            run_async(operations.lookup, ROOT_INODE, b"hello", context)
+        assert missing.value.errno == errno.ENOENT
 
 
 def test_large_sequential_reads_use_bounded_read_ahead(tmp_path: Path) -> None:
