@@ -27,6 +27,7 @@ messages:
 		src/acornfs/core/beebscsi.py src/acornfs/core/create.py src/acornfs/core/formats.py \
 		src/acornfs/core/image.py \
 		src/acornfs/core/properties.py src/acornfs/core/repair.py \
+		src/acornfs/core/storage.py \
 		src/acornfs/core/validation.py src/acornfs/desktop.py src/acornfs/file_forge.py \
 		src/acornfs/greaseweazle.py \
 		src/acornfs/fuse_adapter/operations.py src/acornfs/fuse_adapter/runner.py \

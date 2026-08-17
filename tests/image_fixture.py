@@ -203,7 +203,7 @@ def create_adfs_new_map_pair(
     cylinders: int = 160,
     heads: int = 3,
 ) -> tuple[Path, Path]:
-    """Create a New Map DAT/DSC pair that must remain read-only."""
+    """Create a populated New Map DAT/DSC pair."""
 
     capacity = cylinders * heads * 33 * 256
     dat_path = create_adfs_hard_disc(

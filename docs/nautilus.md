@@ -21,7 +21,7 @@ ADFS DAT files are recognised by their on-disc old-directory signature; AcornFS
 does not register a generic `*.dat` glob. ADFS `.ads`, `.adm`, `.adl`, ambiguous
 `.adf` floppy names and FileCore `.hdf`/`.hd4` names are registered for
 discovery, but core content and geometry detection remains authoritative. DSC
-files use their specific extension, and the handler still validates the complete
+files use their specific extension, and the handler still validates the full
 pair and descriptor before opening anything. Double-click a supported image to
 mount it read-only. Applications may also open a local URI such as
 `acornfs:///path/to/scsi0.dat`; remote hosts and other URI schemes are refused.
@@ -32,7 +32,8 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 
 1. Right-click either file.
 2. Open **Acorn FS Support** and select **Open read-only**, or choose **Open
-   read-write** for a validated BeebSCSI pair when changes should be possible.
+   read-write** for any supported ADFS, DFS or MMB image when changes should be
+   possible. ROMFS remains read-only.
 3. Wait for the completion notification; the mounted root opens automatically.
 4. Browse directories and open files normally. The image appears in the Files
    sidebar while it remains mounted.
@@ -40,43 +41,43 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
    same submenu from the background menu at the mounted root.
 
 All applicable AcornFS actions are kept in that single submenu. Select
-**Validate image** to run a read-only ADFS structural check without
-mounting or modifying the pair. A clean result is reported as a desktop
+**Validate image** to run the format's read-only structural check without
+mounting or modifying the image. A clean result is reported as a desktop
 notification. When problems are found, a finite details dialog lists every
-finding. Non-repairable reports have one **Close** button. When the complete
+finding. Non-repairable reports have one **Close** button. When the full
 plan is eligible for low-risk repair, the dialog instead offers **Cancel** and
 **Repair…**; Repair continues to the typed-filename confirmation without
 running the initial validation again. The report window sizes itself to its
 content, and repair completion or failure is shown in a separate compact dialog
 with the audit or recovery detail. `acornfs validate IMAGE` prints the same
-complete report. Validation summaries, severity labels, finding explanations,
+report. Validation summaries, severity labels, finding explanations,
 repair plans and progress text use the active AcornFS gettext catalogue; stable
 finding codes and image paths remain unchanged for support and automation.
 
-Select **Repair image…** to review a complete eligible low-risk plan. AcornFS
+Select **Repair image…** to review an eligible low-risk plan. AcornFS
 requires the exact DAT filename in the confirmation dialog, creates a recovery
-checkpoint, verifies the complete result and retains an audit. This can safely
+checkpoint, verifies the result and retains an audit. This can safely
 restore a DAT that ends exactly at its ADFS boundary but omits a DSC-declared
 reserved tail. Other geometry and allocation problems remain refused.
 
 After confirmation, a determinate progress dialog remains visible throughout
-planning, byte-counted recovery-checkpoint creation, repair application, complete
+planning, byte-counted recovery-checkpoint creation, repair application, full
 image verification and checkpoint finalisation. The progress dialog cannot be
 cancelled once the transactional repair begins; interrupting it at an arbitrary
 point could be misleading or unsafe. Completion and failure are still reported
 in a separate result dialog with the audit or retained-checkpoint details.
 
-Open **Properties** on either image member to see the detected old-map ADFS and
-directory formats, compatibility profile, title, disc cycle ID, boot option,
-DSC geometry, capacity, ADFS used/free space, reserved tail and current validation
-state. Open **Properties** on an entry inside a mounted image to see its original
-ADFS pathname and, for files, load address, execute address, RISC OS filetype and
-locked state. Image properties perform complete read-only validation and may take
-longer to appear for a very large or deeply populated image.
+Open **Properties** on an image to see its detected format, geometry, capacity,
+space usage and validation state. Format-specific details include ADFS map and
+directory formats, DFS sides, MMB slot counts and ROMFS capacity. Open
+**Properties** on an entry inside a mounted image to see its original Acorn
+pathname and available load, execute, filetype, lock and run-only metadata.
+Image properties perform read-only validation and may take longer to appear for
+a large or deeply populated image.
 
-The same complete check runs before a read-write mount. Fatal geometry,
-directory, map, or sector-allocation findings prevent the mount before its
-checkpoint is created. Warnings and compatibility advice do not prevent access.
+The same format-specific check runs before a read-write mount. Fatal findings
+prevent the mount before its checkpoint is created. Warnings and compatibility
+advice do not prevent access.
 
 Desktop unmount detaches the sidebar entry immediately so an open Files window
 cannot keep it busy. Existing handles finish in the background; the daemon then
@@ -86,19 +87,18 @@ Both modes carry `nodev`, `nosuid`, and `noexec`. A writable mount creates a
 persistent pre-write checkpoint before appearing in Files, so a large non-reflink
 image can take longer to mount.
 
-Standalone ADFS S through G+ and DFS SSD/DSD floppies expose only **Open
-read-only** and image properties. D/E/F/G images retain New directories and the
-`+` variants retain Big-directory long filenames. In DFS SSD mounts, catalogue
-prefixes appear as directories. DSD mounts add drive `0` and `2` directories
-above the prefixes so both sides remain visible in one Files window. Unsupported
-write, validation, repair, recovery and File Forge actions are omitted rather
-than being allowed to fail after selection. Standard and extended MMB containers
-use the same read-only action and expose each formatted slot as a globally
-numbered labelled directory. Every declared extent contributes to the image properties.
-CRC-validated ROMFS images also expose only **Open read-only** and image
-properties. Their flat, case-sensitive catalogue is shown at the mount root.
-Standalone FileCore and unpaired raw ADFS hard discs follow the same read-only
-policy and report unavailable physical CHS explicitly.
+Standalone ADFS S through G+, FileCore hard discs, DFS SSD/DSD images and MMB
+containers expose **Open read-only**, **Open read-write**, **Validate image** and
+recovery when a checkpoint is pending. D/E/F/G images retain New directories and
+the `+` variants retain Big-directory long filenames. DFS SSD catalogue prefixes
+appear as directories. DSD mounts add drive `0` and `2` directories so both
+sides remain visible; cross-side moves are refused. MMB containers expose each
+formatted slot as a globally numbered directory. Only slots marked read-write
+accept changes, and cross-slot moves are refused. Repair and File Forge actions
+remain limited to formats that implement those capabilities.
+
+CRC-validated ROMFS images expose only **Open read-only** and image properties.
+Their flat, case-sensitive catalogue is shown at the mount root.
 
 ## Create a BeebSCSI image
 
@@ -108,27 +108,27 @@ accepts a pair basename, an ADFS title of up to 12 printable ASCII characters,
 and a capacity such as `20MB`. Leaving fields blank uses `scsi0`, `BLANK` and
 `20MB`.
 
-A determinate progress dialog covers filesystem creation, complete validation
+A determinate progress dialog covers filesystem creation, full validation
 and publication. AcornFS refuses case-insensitive DAT or DSC name collisions and
 does not expose either final file until the newly created pair has passed
 validation. If publishing the second member fails, the first is rolled back.
 Creation is intentionally absent inside a mounted ADFS image.
 
-**Open in Acorn File Forge…** now dispatches the canonical DAT/DSC pair through
+**Open in Acorn File Forge…** dispatches the canonical DAT/DSC pair through
 the native application's argv-only launcher contract. The action is absent
 unless `acorn-file-forge` is executable through `PATH` or at the native
 installer's stable `~/.local/bin` location. An `ACORN_FILE_FORGE_COMMAND`
 override is accepted only when its executable can also be resolved; optional
-complete `{image}`, `{dat}`, and `{dsc}` argument placeholders remain supported.
+whole-argument `{image}`, `{dat}`, and `{dsc}` placeholders remain supported.
 No command is passed to a shell. The native app treats the source pair as
 read-only input and copies it into its private working session.
 
 ## Interrupted writes and recovery
 
-A clean unmount flushes pending data, validates the ADFS structure, and removes
+A clean unmount flushes pending data, validates the filesystem, and removes
 the checkpoint. If the mount process crashes or validation fails, AcornFS keeps
 the checkpoint and refuses another writable mount. First unmount any stale
-sidebar entry, then right-click the DAT/DSC and select **Acorn FS Support →
+sidebar entry, then right-click the image and select **Acorn FS Support →
 Resolve interrupted read-write mount…**. Choose either:
 
 - **Restore image to the pre-mount checkpoint** to undo the interrupted session.
@@ -142,12 +142,12 @@ Validation and checkpoint restoration display a pulsing progress dialog. **Cance
 safely** stops validation between structural checks. During restoration it stops
 while replacement files are still being staged, removes those temporary files,
 and retains both the current image and checkpoint. After staging completes, the
-short DAT/DSC commit boundary is deliberately non-cancellable so the pair cannot
-be abandoned half-replaced. A separate result confirms whether cancellation or
-recovery completed.
+short replacement commit boundary cannot be cancelled because the image must
+not be abandoned half-replaced. A separate result confirms whether cancellation
+or recovery completed.
 
 Each image receives a stable location under `~/AcornFS Mounts/IMAGE-HASH`.
-GNOME deliberately exposes user FUSE mounts below the home directory in the
+GNOME exposes user FUSE mounts below the home directory in the
 Files sidebar. Runtime locks and logs remain under `$XDG_RUNTIME_DIR/acornfs`.
 The extension normally starts each mount as a collected transient systemd user
 service. This keeps the daemon independent of Nautilus, records output in the
@@ -176,8 +176,8 @@ The grouped **Acorn FS Support → Mount location…** action exposes the same
 setting without requiring a terminal and applies it to future mounts.
 
 The opt-in live-FUSE suite exercises this exact transient-service path and also
-kills a writable daemon deliberately to prove that its pre-mount checkpoint can
-restore and completely revalidate the original image. It also exercises the
+terminates a writable daemon to verify that its pre-mount checkpoint can
+restore and revalidate the full original image. It also exercises the
 copy-in, copy-out, move, permanent-delete and temporary-file replacement
 patterns used beneath common Files and editor workflows. Drag-and-drop, trash,
 visual layout, keyboard-only use and screen-reader behaviour still require the
@@ -186,8 +186,9 @@ supported GNOME session matrix in
 
 ## Troubleshooting
 
-Only local files with an unambiguous matching partner receive the menu. If the
-action is missing, check the pair with:
+Only local files whose content resolves to a supported format receive the menu.
+DAT and DSC images additionally require an unambiguous matching partner. If the
+action is missing, inspect the image with:
 
 ```shell
 acornfs inspect /path/to/image.dat

@@ -14,6 +14,8 @@ from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.operations import ReadOnlyOperations
 from tests.image_fixture import (
+    create_adfs_floppy,
+    create_adfs_hard_disc,
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
@@ -356,6 +358,43 @@ def test_writable_fuse_namespace_lifecycle(tmp_path: Path) -> None:
         with pytest.raises(pyfuse3.FUSEError) as missing:
             run_async(operations.lookup, ROOT_INODE, b"RENAMED", context)
         assert missing.value.errno == errno.ENOENT
+
+
+@pytest.mark.parametrize("format_name", ["adfs-s", "adfs-g+", "filecore", "ssd", "dsd", "mmb"])
+def test_writable_fuse_file_lifecycle_for_mutable_formats(tmp_path: Path, format_name: str) -> None:
+    if format_name == "adfs-s":
+        image_path = create_adfs_floppy(tmp_path, format_name="s")
+    elif format_name == "adfs-g+":
+        image_path = create_adfs_floppy(tmp_path, format_name="g+")
+    elif format_name == "filecore":
+        image_path = create_adfs_hard_disc(tmp_path)
+    elif format_name == "ssd":
+        image_path = create_dfs_floppy(tmp_path)
+    elif format_name == "dsd":
+        image_path = create_dfs_floppy(tmp_path, double_sided=True)
+    else:
+        image_path = create_mmb_image(tmp_path)
+
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(image_path, writable=True) as image:
+        operations = ReadOnlyOperations(image)
+        parent = ROOT_INODE
+        parent_components = {
+            "dsd": (b"0", b"$"),
+            "mmb": (b"000 - WELCOME", b"$"),
+            "ssd": (b"$",),
+        }.get(format_name, ())
+        for component in parent_components:
+            parent = run_async(operations.lookup, parent, component, context).st_ino
+        info, created = run_async(
+            operations.create, parent, b"NEWFILE", 0o644, os.O_WRONLY, context
+        )
+        run_async(operations.write, info.fh, 0, b"created through FUSE")
+        run_async(operations.release, info.fh)
+        run_async(operations.rename, parent, b"NEWFILE", parent, b"RENAMED", 0, context)
+        renamed = run_async(operations.lookup, parent, b"RENAMED", context)
+        assert renamed.st_ino == created.st_ino
+        run_async(operations.unlink, parent, b"RENAMED", context)
 
 
 def test_writable_fuse_rejects_overlong_adfs_name(tmp_path: Path) -> None:

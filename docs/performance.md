@@ -7,7 +7,7 @@ from every measurement. The open measurement includes DSC discovery, ADFS
 mounting and eager directory indexing; other measurements use that open image.
 The workload does not purge the host page cache, so it measures repeatable
 application/index costs and warm read paths rather than claiming cold-disk I/O.
-The memory stress additionally allocates the exact immutable node and index
+The memory stress additionally allocates the same immutable node and index
 container types for the supported 100,000-node ceiling together with one 8 MiB
 open-write buffer.
 
@@ -20,7 +20,7 @@ make benchmark
 The command writes `build/performance/amd64.json` and fails if a budget is
 missed. CI uploads that report as the `performance-amd64` artefact on every
 pull request and main-branch build. Reports include the source revision,
-platform, complete fixture definition, sample summaries and each applied
+platform, fixture definition, sample summaries and each applied
 budget, making changes comparable without parsing console output.
 
 ## First-RC amd64 budgets
@@ -40,3 +40,12 @@ about all host storage. They are intentionally conservative for the first RC
 and should be tightened from retained CI history. Raspberry Pi 4/5 measurements
 and live-FUSE latency remain separate work rather than being inferred from amd64
 results.
+
+Protected writes add storage-dependent work that the read baseline does not
+measure. Old-map ADFS mutations capture only affected sectors. New Map ADFS,
+DFS and MMB mutations create a private whole-image before-image for each logical
+operation. Reflinks make that step effectively metadata-only on compatible
+filesystems. The bounded-copy fallback reads and writes the complete image, so
+large images and MMB containers should be placed on reflink-capable local
+storage when write latency matters. The persistent session checkpoint has the
+same reflink-first policy.

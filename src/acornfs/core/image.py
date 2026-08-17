@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 from collections import OrderedDict
 from collections.abc import Callable, Iterator
@@ -17,10 +18,10 @@ from oaknut.filesystem import (
     AcornMetadata,
     Filetyped,
     FreeSpace,
+    HierarchicalDirectories,
     Sized,
     create_filesystem,
     geometry_from_dsc,
-    reader_for,
 )
 from oaknut.filesystem.capabilities import Mount
 from oaknut.filesystem.reader import ImageReader
@@ -33,14 +34,15 @@ from acornfs.core.beebscsi import (
 from acornfs.core.dfs import DoubleSidedDFSMount
 from acornfs.core.formats import ResolvedImage, resolve_image
 from acornfs.core.mmb import MMBMount
-from acornfs.core.transaction import SectorTransaction
+from acornfs.core.storage import open_locked_image
+from acornfs.core.transaction import FileTransaction, SectorTransaction
 from acornfs.errors import AcornFSError, FilenameTooLongError
 from acornfs.i18n import _, ngettext
 
 if TYPE_CHECKING:
     from acornfs.core.validation import IntegrityReport
     from acornfs.operations import OperationBudget
-    from acornfs.recovery import RecoveryCheckpoint
+    from acornfs.recovery import RecoveryCheckpoint, SingleImageCheckpoint
 
 ROOT_INODE = 1
 DEFAULT_CACHE_BYTES = 64 * 1024 * 1024
@@ -108,7 +110,7 @@ class ReadOnlyImage:
         max_depth: int = DEFAULT_MAX_DEPTH,
         writable: bool = False,
         closeables: tuple[Any, ...] = (),
-        checkpoint: RecoveryCheckpoint | None = None,
+        checkpoint: RecoveryCheckpoint | SingleImageCheckpoint | None = None,
         descriptor_geometry: BeebSCSIGeometry | None = None,
         fault_injector: Callable[[str], None] | None = None,
     ) -> None:
@@ -172,8 +174,12 @@ class ReadOnlyImage:
                 descriptor_geometry = parse_descriptor(descriptor)
                 geometry = geometry_from_dsc(descriptor)
             else:
+                reader, closeables = open_locked_image(
+                    source.primary_path,
+                    writable=writable,
+                    companion=source.companion_path,
+                )
                 geometry = source.geometry
-                reader = reader_for(source.primary_path, writable=False)
             if source.mmb_layout is not None:
                 mount = cast(Mount, MMBMount(reader, source.mmb_layout))
             else:
@@ -183,24 +189,26 @@ class ReadOnlyImage:
                     side_two = filesystem.open(reader, geometry, surface=1)
                     mount = cast(Mount, DoubleSidedDFSMount(mount, side_two))
             if writable:
+                cls._install_oaknut_write_compatibility(mount)
                 from acornfs.core.validation import require_safe_for_write, validate_open_mount
 
-                if pair is None or descriptor_geometry is None:
-                    raise AcornFSError(_("This image has no supported writable profile."))
-                report = validate_open_mount(
-                    pair, mount, descriptor_geometry, budget=operation_budget
-                )
-                require_safe_for_write(report)
-                if not repair_mode and any(
-                    finding.code == "geometry.dat_missing_reserved_tail"
-                    for finding in report.findings
-                ):
-                    raise AcornFSError(
-                        _(
-                            "Writable mount refused: the DAT omits a repairable reserved tail. "
-                            "Run the low-risk repair first."
-                        )
+                if pair is not None and descriptor_geometry is not None:
+                    report = validate_open_mount(
+                        pair, mount, descriptor_geometry, budget=operation_budget
                     )
+                    require_safe_for_write(report)
+                    if not repair_mode and any(
+                        finding.code == "geometry.dat_missing_reserved_tail"
+                        for finding in report.findings
+                    ):
+                        raise AcornFSError(
+                            _(
+                                "Writable mount refused: the DAT omits a repairable reserved "
+                                "tail. Run the low-risk repair first."
+                            )
+                        )
+                else:
+                    cls._require_generic_integrity(mount)
             image = cls(
                 source=source,
                 reader=reader,
@@ -221,15 +229,20 @@ class ReadOnlyImage:
             closeables = ()
             if writable:
                 try:
-                    from acornfs.recovery import RecoveryCheckpoint
+                    from acornfs.recovery import RecoveryCheckpoint, SingleImageCheckpoint
 
-                    if pair is None:
-                        raise AcornFSError(_("This image has no supported recovery profile."))
-                    image._checkpoint = RecoveryCheckpoint.create(
-                        pair,
-                        progress=checkpoint_progress,
-                        source_handles=(image._closeables[1], image._closeables[3]),
-                    )
+                    if pair is not None:
+                        image._checkpoint = RecoveryCheckpoint.create(
+                            pair,
+                            progress=checkpoint_progress,
+                            source_handles=(image._closeables[1], image._closeables[3]),
+                        )
+                    else:
+                        image._checkpoint = SingleImageCheckpoint.create(
+                            source.primary_path,
+                            progress=checkpoint_progress,
+                            source_handle=image._closeables[1],
+                        )
                     image._prepare_mutation()
                 except Exception:
                     image.close(clean=False)
@@ -248,6 +261,42 @@ class ReadOnlyImage:
             raise AcornFSError(
                 _("The Acorn image could not be opened safely: {error}").format(error=exc)
             ) from exc
+
+    @staticmethod
+    def _require_generic_integrity(mount: Mount) -> None:
+        validator = getattr(mount, "validate", None)
+        if not callable(validator):
+            raise AcornFSError(_("This image format has no structural validator."))
+        problems = tuple(validator())
+        if problems:
+            raise AcornFSError(
+                _("Writable mount refused because validation found: {error}").format(
+                    error=problems[0]
+                )
+            )
+
+    @staticmethod
+    def _install_oaknut_write_compatibility(mount: Mount) -> None:
+        """Bridge pinned Oaknut write edge cases until its public API covers them."""
+
+        adfs = getattr(mount, "_adfs", None)
+        if adfs is None or not getattr(adfs, "is_new_map", False):
+            return
+        allocate = adfs._allocate_file_space
+        release = adfs._release_object
+
+        def allocate_file_space(parent: Any, parent_address: int, data: bytes) -> int:
+            if not data:
+                return 0
+            return cast(int, allocate(parent, parent_address, data))
+
+        def release_object(parent: Any, parent_address: int, entry: Any) -> None:
+            if int(entry.length) == 0:
+                return
+            release(parent, parent_address, entry)
+
+        adfs._allocate_file_space = allocate_file_space
+        adfs._release_object = release_object
 
     def _index_tree(self) -> None:
         root_path = self._mount.path_root()
@@ -375,7 +424,9 @@ class ReadOnlyImage:
         if offset < 0 or size <= 0 or offset >= node.size:
             return b""
         end = min(node.size, offset + size)
-        adfs = cast(Any, self._mount)._adfs
+        adfs = getattr(self._mount, "_adfs", None)
+        if adfs is None or getattr(adfs, "is_new_map", False):
+            return bytes(self._mount.read_bytes(node.acorn_path))[offset:end]
         _parent, entry = adfs.path(node.acorn_path)._resolve()
         first_sector = offset // ADFS_SECTOR_BYTES
         final_sector = (end + ADFS_SECTOR_BYTES - 1) // ADFS_SECTOR_BYTES
@@ -473,8 +524,21 @@ class ReadOnlyImage:
         required = (new_size + ADFS_SECTOR_BYTES - 1) // ADFS_SECTOR_BYTES
         if required == 0:
             return
+        adfs = getattr(self._mount, "_adfs", None)
+        if adfs is None or getattr(adfs, "_fsm", None) is None:
+            available_for_path = getattr(self._mount, "available_bytes", None)
+            free_bytes = (
+                int(available_for_path(node.acorn_path))
+                if callable(available_for_path)
+                else self.free_bytes
+            )
+            available = free_bytes + node.size
+            if new_size > available:
+                raise ADFSDiscFullError(
+                    f"Image has {available} bytes available; {new_size} bytes were requested"
+                )
+            return
         try:
-            adfs = cast(Any, self._mount)._adfs
             _parent, entry = adfs.path(node.acorn_path)._resolve()
             extents = [
                 (start // ADFS_SECTOR_BYTES, length // ADFS_SECTOR_BYTES)
@@ -566,12 +630,11 @@ class ReadOnlyImage:
             return None
         return cast(int | None, cast(Filetyped, self._mount).filetype(node.acorn_path))
 
-    @staticmethod
-    def _new_name(name: bytes) -> str:
+    def _new_name(self, name: bytes) -> str:
         try:
             displayed = name.decode("utf-8")
         except (UnicodeDecodeError, UnicodeEncodeError) as exc:
-            raise ValueError(_("ADFS filenames must use 7-bit ASCII")) from exc
+            raise ValueError(_("Acorn filenames must use 7-bit ASCII")) from exc
         decoded = "".join(
             "/"
             if character == "∕"
@@ -585,13 +648,27 @@ class ReadOnlyImage:
         try:
             encoded = decoded.encode("ascii")
         except UnicodeEncodeError as exc:
-            raise ValueError(_("ADFS filenames must use 7-bit ASCII")) from exc
+            raise ValueError(_("Acorn filenames must use 7-bit ASCII")) from exc
+        if self.source.filesystem in {"acorn-dfs", "watford-dfs"}:
+            maximum = 7
+        else:
+            adfs = getattr(self._mount, "_adfs", None)
+            directory_format = type(adfs._dir_format).__name__ if adfs is not None else ""
+            maximum = 255 if directory_format == "BigDirectoryFormat" else 10
         if not encoded:
-            raise ValueError(_("ADFS filenames must contain between 1 and 10 bytes"))
-        if len(encoded) > 10:
-            raise FilenameTooLongError(_("ADFS filenames must contain between 1 and 10 bytes"))
+            raise ValueError(
+                _("Acorn filenames must contain between 1 and {maximum} bytes").format(
+                    maximum=maximum
+                )
+            )
+        if len(encoded) > maximum:
+            raise FilenameTooLongError(
+                _("Acorn filenames must contain between 1 and {maximum} bytes").format(
+                    maximum=maximum
+                )
+            )
         if any(character in decoded for character in "\0.:\r"):
-            raise ValueError(_("ADFS filenames cannot contain NUL, '.', ':' or carriage return"))
+            raise ValueError(_("The filename contains a character unavailable in this format"))
         return decoded
 
     def _child_path(self, parent_inode: int, name: str) -> str:
@@ -637,7 +714,9 @@ class ReadOnlyImage:
         if self.lookup(parent_inode, name) is not None:
             raise FileExistsError(decoded)
         path = self._child_path(parent_inode, decoded)
-        maker = cast(Any, self._mount).make_directory
+        if not isinstance(self._mount, HierarchicalDirectories):
+            raise PermissionError(_("This filesystem does not store directories."))
+        maker = cast(HierarchicalDirectories, self._mount).make_directory
         return self._run_atomic(
             "mkdir",
             prepare=lambda transaction: transaction.capture_parent(path),
@@ -653,6 +732,8 @@ class ReadOnlyImage:
             if node.is_dir:
                 raise IsADirectoryError(node.acorn_path)
             raise NotADirectoryError(node.acorn_path)
+        if directory and not isinstance(self._mount, HierarchicalDirectories):
+            raise PermissionError(_("This filesystem does not store directories."))
         self._run_atomic(
             "rmdir" if directory else "unlink",
             prepare=lambda transaction: transaction.capture_parent(node.acorn_path),
@@ -680,6 +761,8 @@ class ReadOnlyImage:
             raise FileNotFoundError(old_name)
         if node.locked:
             raise PermissionError(_("{path} is locked").format(path=node.acorn_path))
+        if node.is_dir and not isinstance(self._mount, HierarchicalDirectories):
+            raise PermissionError(_("This filesystem does not store directories."))
         if node.is_dir and self._is_descendant_or_self(new_parent, node.inode):
             raise ValueError(_("a directory cannot be moved inside itself"))
         decoded = self._new_name(new_name)
@@ -702,7 +785,7 @@ class ReadOnlyImage:
             nonlocal destination_parent_sector
             transaction.capture_parent(old_path)
             destination_parent_sector = transaction.capture_parent(new_path)
-            if node.is_dir:
+            if node.is_dir and self._uses_old_adfs_transactions:
                 transaction.capture_directory(old_path)
 
         def mutate() -> None:
@@ -710,7 +793,7 @@ class ReadOnlyImage:
                 self._mount.remove(destination.acorn_path)
                 self._fault("rename.destination_removed")
             self._mount.rename(old_path, new_path)
-            if node.is_dir:
+            if node.is_dir and self._uses_old_adfs_transactions:
                 self._set_directory_identity(
                     new_path,
                     name=decoded,
@@ -919,37 +1002,53 @@ class ReadOnlyImage:
             raise AcornFSError(_("This image has no writable identity signature."))
         if self._current_signature() != self._expected_signature:
             self._failed = True
-            raise AcornFSError(
-                _("The DAT image changed outside AcornFS; further writes are blocked.")
-            )
+            raise AcornFSError(_("The image changed outside AcornFS; further writes are blocked."))
 
     def _fault(self, stage: str) -> None:
         if self._fault_injector is not None:
             self._fault_injector(stage)
 
+    @property
+    def _uses_old_adfs_transactions(self) -> bool:
+        adfs = getattr(self._mount, "_adfs", None)
+        return adfs is not None and not adfs.is_new_map
+
     def _run_atomic(
         self,
         operation: str,
         *,
-        prepare: Callable[[SectorTransaction], object],
+        prepare: Callable[[Any], object],
         mutate: Callable[[], object],
         commit: Callable[[], T],
     ) -> T:
-        """Run one mutation with a compact sector before-image and rollback."""
+        """Run one mutation with a durable before-image and verified rollback."""
 
         with self._mutation():
-            transaction = SectorTransaction(self._mount, self._closeables[0])
-            prepare(transaction)
+            transaction: SectorTransaction | FileTransaction
+            if self._uses_old_adfs_transactions:
+                transaction = SectorTransaction(self._mount, self._closeables[0])
+            else:
+                if self._checkpoint is None:
+                    raise AcornFSError(_("The writable recovery checkpoint is unavailable."))
+                transaction = FileTransaction(
+                    self.source.primary_path,
+                    self._closeables[0],
+                    self._closeables[1],
+                    backup_directory=self._checkpoint.directory,
+                )
             try:
+                prepare(transaction)
                 self._fault(f"{operation}.before")
                 mutate()
                 transaction.advance_disc_id()
                 self._fault(f"{operation}.after")
                 self._finish_mutation()
+                transaction.complete()
             except Exception as exc:
                 try:
                     transaction.restore()
                     self._finish_rollback()
+                    transaction.complete()
                 except Exception as rollback_exc:
                     self._failed = True
                     raise AcornFSError(
@@ -987,15 +1086,18 @@ class ReadOnlyImage:
         self.free_bytes = self._reported_free_space()
 
     def _finish_rollback(self) -> None:
-        report = self.integrity_report()
-        if report.fatal_findings:
-            count = len(report.fatal_findings)
-            problem = ngettext("fatal ADFS problem", "fatal ADFS problems", count)
-            raise AcornFSError(
-                _("Rollback validation found {count} {problem}; recovery is required.").format(
-                    count=count, problem=problem
+        if self.pair is not None:
+            report = self.integrity_report()
+            if report.fatal_findings:
+                count = len(report.fatal_findings)
+                problem = ngettext("fatal ADFS problem", "fatal ADFS problems", count)
+                raise AcornFSError(
+                    _("Rollback validation found {count} {problem}; recovery is required.").format(
+                        count=count, problem=problem
+                    )
                 )
-            )
+        else:
+            self._require_generic_integrity(self._mount)
         self.sync()
         self.free_bytes = self._reported_free_space()
 
@@ -1072,18 +1174,21 @@ class ReadOnlyImage:
         if self.writable:
             try:
                 self.sync()
-                report = self.integrity_report() if clean else None
-                fatal = report.fatal_findings if report is not None else ()
-                if fatal:
-                    self._failed = True
-                    count = len(fatal)
-                    problem = ngettext("fatal problem", "fatal problems", count)
-                    close_error = AcornFSError(
-                        _(
-                            "Post-write ADFS validation found {count} {problem}; "
-                            "the recovery checkpoint was retained."
-                        ).format(count=count, problem=problem)
-                    )
+                if clean:
+                    if self.pair is not None:
+                        report = self.integrity_report()
+                        fatal = report.fatal_findings
+                        if fatal:
+                            count = len(fatal)
+                            problem = ngettext("fatal problem", "fatal problems", count)
+                            raise AcornFSError(
+                                _(
+                                    "Post-write validation found {count} {problem}; "
+                                    "the recovery checkpoint was retained."
+                                ).format(count=count, problem=problem)
+                            )
+                    else:
+                        self._require_generic_integrity(self._mount)
             except Exception as exc:
                 self._failed = True
                 close_error = AcornFSError(
@@ -1091,7 +1196,11 @@ class ReadOnlyImage:
                 )
         self._cache.clear()
         self._cache_size = 0
-        self._close_oaknut_mount(self._mount)
+        mount = self._mount
+        self._close_oaknut_mount(mount)
+        self._mount = cast(Mount, None)
+        del mount
+        gc.collect()
         self._reader.close()
         for closeable in self._closeables:
             with suppress(Exception):

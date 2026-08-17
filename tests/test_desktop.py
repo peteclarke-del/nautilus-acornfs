@@ -373,7 +373,7 @@ def test_desktop_validation_reports_clean_image(tmp_path: Path) -> None:
         assert desktop_validate(dat_path) == 0
     notify.assert_called_once_with(
         "AcornFS validation passed",
-        "scsi0.dat has no reported ADFS problems.",
+        "scsi0.dat has no reported filesystem problems.",
     )
 
 

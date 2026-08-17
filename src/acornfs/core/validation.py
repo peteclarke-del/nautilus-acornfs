@@ -1,4 +1,4 @@
-"""Read-only integrity reporting for paired BeebSCSI old-format ADFS images."""
+"""Read-only integrity reporting for every supported disk image format."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from oaknut.filesystem import create_filesystem, geometry_from_dsc
-from oaknut.filesystem.capabilities import Mount
+from oaknut.filesystem.capabilities import FreeSpace, Mount, Sized
 from oaknut.filesystem.reader import ImageReader
 
 from acornfs.core.beebscsi import (
@@ -21,6 +21,10 @@ from acornfs.core.beebscsi import (
     open_locked_reader,
     parse_descriptor,
 )
+from acornfs.core.dfs import DoubleSidedDFSMount
+from acornfs.core.formats import resolve_image
+from acornfs.core.mmb import MMBMount
+from acornfs.core.storage import open_locked_image
 from acornfs.errors import AcornFSError, OperationCancelled, OperationLimitExceeded
 from acornfs.i18n import _, ngettext
 from acornfs.operations import CancellationCheck, OperationBudget
@@ -67,6 +71,8 @@ class IntegrityReport:
     used_sectors: int | None
     free_sectors: int | None
     findings: tuple[IntegrityFinding, ...]
+    compatibility_profile_id: str = COMPATIBILITY_PROFILE_ID
+    compatibility_profile_version: int = COMPATIBILITY_PROFILE_VERSION
 
     @property
     def fatal_findings(self) -> tuple[IntegrityFinding, ...]:
@@ -88,8 +94,8 @@ class IntegrityReport:
         return {
             "schema_version": VALIDATION_REPORT_SCHEMA_VERSION,
             "compatibility_profile": {
-                "id": COMPATIBILITY_PROFILE_ID,
-                "version": COMPATIBILITY_PROFILE_VERSION,
+                "id": self.compatibility_profile_id,
+                "version": self.compatibility_profile_version,
             },
             "dat": self.dat_path,
             "dsc": self.dsc_path,
@@ -111,7 +117,9 @@ class IntegrityReport:
         """Return the same complete, readable report for CLI and desktop UIs."""
 
         if not self.findings:
-            return _("ADFS validation passed with no problems.")
+            if self.compatibility_profile_id == COMPATIBILITY_PROFILE_ID:
+                return _("ADFS validation passed with no problems.")
+            return _("Filesystem validation passed with no problems.")
         finding_label = ngettext("finding", "findings", len(self.findings))
         lines = [
             _(
@@ -545,10 +553,76 @@ def validate_image_report(
     cancelled: CancellationCheck | None = None,
     budget: OperationBudget | None = None,
 ) -> IntegrityReport:
-    """Open and validate one pair read-only, returning fatal findings where possible."""
+    """Open and validate one image read-only, returning classified findings."""
 
     operation = budget or OperationBudget.create()
     operation.checkpoint(cancelled)
+    try:
+        source = resolve_image(selected)
+    except Exception:
+        if Path(selected).suffix.casefold() not in {".dat", ".dsc"}:
+            raise
+        source = None
+    if source is not None and source.pair is None:
+        generic_reader: ImageReader | None = None
+        generic_mount: Mount | None = None
+        generic_closeables: tuple[Any, ...] = ()
+        try:
+            generic_reader, generic_closeables = open_locked_image(
+                source.primary_path,
+                writable=False,
+                companion=source.companion_path,
+            )
+            if source.mmb_layout is not None:
+                generic_mount = cast(Mount, MMBMount(generic_reader, source.mmb_layout))
+            else:
+                filesystem = create_filesystem(source.filesystem)
+                generic_mount = filesystem.open(generic_reader, source.geometry)
+                if source.kind == "dfs-floppy" and len(source.geometry.surface_specs) > 1:
+                    side_two = filesystem.open(generic_reader, source.geometry, surface=1)
+                    generic_mount = cast(Mount, DoubleSidedDFSMount(generic_mount, side_two))
+            validator = getattr(generic_mount, "validate", None)
+            problems = tuple(validator()) if callable(validator) else ("validator unavailable",)
+            generic_findings = tuple(
+                _finding(
+                    FindingSeverity.FATAL,
+                    f"{source.kind}.structure",
+                    _("Filesystem structure error: {error}").format(error=problem),
+                )
+                for problem in problems
+            )
+            size = (
+                int(cast(Sized, generic_mount).size_bytes())
+                if isinstance(generic_mount, Sized)
+                else generic_reader.size
+            )
+            free = (
+                int(cast(FreeSpace, generic_mount).free_bytes())
+                if isinstance(generic_mount, FreeSpace)
+                else None
+            )
+            return IntegrityReport(
+                dat_path=str(source.primary_path),
+                dsc_path=str(source.companion_path or ""),
+                dat_bytes=source.primary_path.stat().st_size,
+                geometry_sectors=source.geometry.num_sectors,
+                adfs_sectors=size // SECTOR_SIZE,
+                used_sectors=None if free is None else (size - free) // SECTOR_SIZE,
+                free_sectors=None if free is None else free // SECTOR_SIZE,
+                findings=generic_findings,
+                compatibility_profile_id=f"acornfs-{source.kind}",
+            )
+        finally:
+            if generic_mount is not None:
+                close = getattr(generic_mount, "close", None)
+                if callable(close):
+                    close()
+            if generic_reader is not None:
+                generic_reader.close()
+            for closeable in generic_closeables:
+                with suppress(Exception):
+                    if closeable is not None:
+                        closeable.close()
     pair = discover_pair(selected)
     dat_bytes = pair.dat_path.stat().st_size
     reader: ImageReader | None = None

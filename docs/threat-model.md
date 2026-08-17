@@ -8,8 +8,8 @@ operation, IPC mechanism or privilege boundary is added.
 
 AcornFS protects the host user's files, the integrity and confidentiality of
 disk images, recovery checkpoints, mount records and preferences. DAT, DSC,
-floppy, MMB and ROMFS contents, filenames, desktop URIs, FUSE requests and paths below
-user-selected image directories are untrusted.
+floppy, MMB and ROMFS contents, filenames, desktop URIs, FUSE requests and paths
+below user-selected image directories are untrusted.
 
 The logged-in user, the installed AcornFS/Oaknut code, the kernel FUSE driver
 and the user's local systemd/Nautilus session are trusted. Root execution,
@@ -20,18 +20,20 @@ compromised kernel or desktop session are outside the supported boundary.
 
 | Threat | Impact | Current controls |
 | --- | --- | --- |
-| Malformed geometry, maps, catalogues or extents | crash, excessive work, out-of-image access or corruption | exact DSC parsing, content-driven format selection, 100,000-item/256-level/five-minute inspection budgets, complete pre-write validation and fuzz targets |
-| Symlink, hard-link, rename or replacement races | validate one file and mutate another, or redirect state writes | canonical pair discovery, both members opened once and locked, device/inode revalidation, descriptor reads and checkpoints from locked handles, writable hard-link refusal, no-follow descriptor-relative directory creation and external-change signatures |
-| Concurrent or interrupted writers | lost updates or partially written images | non-blocking exclusive pair locks, one writer, recovery checkpoint, sector transactions, fsync boundaries, rollback and post-write validation |
+| Malformed geometry, maps, catalogues or extents | crash, excessive work, out-of-image access or corruption | exact DSC parsing, content-driven format selection, 100,000-item/256-level/five-minute inspection budgets, full pre-write validation and fuzz targets |
+| Symlink, hard-link, rename or replacement races | validate one file and mutate another, or redirect state writes | canonical source discovery, all members opened once and locked, device/inode revalidation, descriptor reads and checkpoints from locked handles, writable hard-link refusal, no-follow descriptor-relative state creation and external-change signatures |
+| Concurrent or interrupted writers | lost updates or partially written images | shared reader and exclusive writer locks, one writer, persistent recovery checkpoints, sector or private whole-image transactions, fsync boundaries, rollback and post-write validation |
 | Malicious FUSE caller input | namespace escape, invalid metadata or memory growth | inode-based operations, strict filename encoding/length rules, bounded buffers, kernel mount options `nodev,nosuid,noexec` and accurate unsupported-operation errors |
 | Desktop URI or command injection | remote-file access or command execution | local `file:`/`acornfs:` schemes only, rejected authorities/query/fragment/NUL, argv-only subprocesses, escaped generated desktop fields and an allowlisted detached-child environment |
 | Physical-floppy overwrite | accidental data loss, changing source, command injection or falsely reported success | responsive-device probe, suffix and drive allowlists, explicit overwrite confirmation, private stable snapshot, argv-only execution with a restricted environment, bounded error text and mandatory Greaseweazle verification |
 | Disclosure through diagnostics or UI | leak image data, unrelated paths or credentials | diagnostics export bounded basenames and allowlisted mount flags; desktop errors, notifications and log excerpts redact absolute paths/control characters and are length-bounded; detached children do not inherit unrelated environment secrets |
 | Recovery/state tampering or resource exhaustion | rollback to attacker-controlled data, overwrite unrelated files or publish partial state | private per-user roots, hashed identities, descriptor-relative create-only temporary files, full-write and fsync boundaries, atomic replacement, last-good-state preservation and exact partial-checkpoint cleanup |
 
-Read-only mounting is the default. A writable mount is allowed only for the
-narrow BeebSCSI old-map ADFS profile and only after validation succeeds. Safe
-repair operations are separately allowlisted and always checkpointed.
+Read-only mounting is the default. ADFS, DFS and MMB writable mounts are allowed
+only after format-specific validation succeeds. ROMFS remains read-only. MMB
+slot status is enforced independently, so a locked slot remains protected on a
+writable container mount. Safe repair operations are separately allowlisted and
+always checkpointed.
 
 ## Residual risks and release gates
 

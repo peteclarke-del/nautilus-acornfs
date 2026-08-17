@@ -8,7 +8,7 @@ from acornfs.core import discover_pair
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import OperationCancelled
 from acornfs.recovery import RecoveryCheckpoint, pending_recovery, recover_image
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_adfs_new_map_pair, create_beebscsi_image, create_dfs_floppy
 
 
 def test_recovery_module_imports_cleanly_in_fresh_process() -> None:
@@ -93,6 +93,53 @@ def test_interrupted_session_can_restore_checkpoint(tmp_path: Path) -> None:
         readme = restored.lookup(ROOT_INODE, b"README")
         assert readme is not None
         assert restored.read(readme.inode, 0, 1024) == b"Hello from AcornFS\r"
+
+
+def test_interrupted_standalone_session_can_restore_checkpoint(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path)
+    image = ReadOnlyImage.open(image_path, writable=True)
+    default = image.lookup(ROOT_INODE, b"$")
+    assert default is not None
+    hello = image.lookup(default.inode, b"HELLO")
+    assert hello is not None
+    image.replace_file(hello.inode, b"Uncommitted DFS change\r")
+    image.close(clean=False)
+
+    info = pending_recovery(image_path)
+    assert info is not None
+    assert info.dsc_path is None
+    assert recover_image(image_path, restore=True) == "Recovery checkpoint restored."
+    assert pending_recovery(image_path) is None
+
+    with ReadOnlyImage.open(image_path) as restored:
+        default = restored.lookup(ROOT_INODE, b"$")
+        assert default is not None
+        hello = restored.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        assert restored.read(hello.inode, 0, 1024) == b"Hello from DFS drive 0\r"
+
+
+def test_interrupted_new_map_pair_restores_dat_without_changing_descriptor(
+    tmp_path: Path,
+) -> None:
+    dat_path, dsc_path = create_adfs_new_map_pair(tmp_path)
+    descriptor = dsc_path.read_bytes()
+    image = ReadOnlyImage.open(dsc_path, writable=True)
+    hello = image.lookup(ROOT_INODE, b"HELLO")
+    assert hello is not None
+    image.replace_file(hello.inode, b"Uncommitted New Map change\r")
+    image.close(clean=False)
+
+    info = pending_recovery(dsc_path)
+    assert info is not None
+    assert info.dsc_path is None
+    assert recover_image(dsc_path, restore=True) == "Recovery checkpoint restored."
+    assert dsc_path.read_bytes() == descriptor
+
+    with ReadOnlyImage.open(dat_path) as restored:
+        hello = restored.lookup(ROOT_INODE, b"HELLO")
+        assert hello is not None
+        assert restored.read(hello.inode, 0, 1024) == b"Hello from FileCore\r"
 
 
 def test_crashed_writer_leaves_a_restorable_checkpoint(tmp_path: Path) -> None:
