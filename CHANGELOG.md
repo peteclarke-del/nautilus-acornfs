@@ -46,6 +46,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Changed
 
+- The File Forge menu action is offered only when the native or explicitly
+  configured launcher executable is detected as installed.
 - The complete Oaknut family is aligned with Acorn File Forge at 12.15.1,
   including the ROMFS content-detection and traversal plugin.
 - The initial supported host architecture is explicitly limited to amd64.
