@@ -120,8 +120,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Add file properties for load address, execute address, RISC OS filetype and lock state.
 - [x] Make mounted images appear in Nautilus Places or the sidebar with a recognisable disk icon.
 - [x] Provide desktop notifications for completed mounts, failed validation and recovery requirements.
-- [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
+- [x] Keep actions in native model-based Nautilus menus and give every action
+  and dialog an explicit accessible name, description and safe button contract.
+- [ ] Exercise every action keyboard-only and meet WCAG expectations on supported GNOME.
 - [ ] Test light mode, dark mode, narrow windows and 200 percent scaling.
+- [x] Exercise copy-in/out, move, delete and atomic-save syscall patterns through live FUSE.
 - [ ] Test drag-and-drop, clipboard copy/move, trash/delete and atomic-save workflows in Nautilus.
 - [x] Make all user-facing desktop strings translatable.
 - [x] Add the gettext foundation, catalogue template and localisation guidance for desktop UI chrome.
@@ -189,7 +192,9 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Implement the documented transactional MMB slot mutations after hardware evidence.
 - [x] Add content-detected ROMFS images read-only with case-sensitive names,
   Acorn metadata, run-only state, properties and hostile-CRC coverage.
-- [ ] Consider read-only UEF and archive traversal after disk filesystems are stable.
+- [x] Consider read-only UEF and archive traversal; defer both beyond the initial
+  disk-filesystem release because they require separate sequential-media and
+  bounded nested-container models.
 - [x] Keep unsupported operations disabled and return accurate errors for each format.
 - [x] Define format detection precedence when one extension or container can hold multiple filesystems.
 - [x] Add capability-driven menu actions so unsupported formats never offer write or repair commands.
@@ -263,6 +268,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] External modification while mounted.
 - [x] Files larger than available image space.
 - [ ] Nautilus drag and drop, rename, delete, copy and properties workflows.
+- [x] Kernel FUSE copy-in/out, move, delete and atomic editor-save workflows.
 - [x] Terminal and non-GNOME application access through the same mount.
 - [ ] Ubuntu on amd64, arm64 and 32-bit arm/v7.
 - [ ] Raspberry Pi 4 and Pi 5 native builds.

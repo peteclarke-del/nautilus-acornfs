@@ -146,7 +146,7 @@ def test_desktop_floppy_write_selects_confirms_writes_and_reports_success() -> N
                 SimpleNamespace(returncode=0, stdout="B\n"),
                 SimpleNamespace(returncode=0),
             ],
-        ),
+        ) as run,
         patch(
             "acornfs.desktop.write_floppy",
             return_value=SimpleNamespace(drive="B", verified=True),
@@ -156,6 +156,10 @@ def test_desktop_floppy_write_selects_confirms_writes_and_reports_success() -> N
         assert desktop_write_floppy("/images/private-name.ssd") == 0
 
     write.assert_called_once_with(Path("/images/private-name.ssd"), "B", progress=ANY)
+    confirmation_arguments = run.call_args_list[1].args[0]
+    assert "--no-markup" in confirmation_arguments
+    assert "--ok-label=Overwrite and verify" in confirmation_arguments
+    assert "--cancel-label=Cancel" in confirmation_arguments
     show.assert_called_once_with(
         "Physical floppy complete",
         "Greaseweazle wrote and verified private-name.ssd in drive B.",
@@ -277,6 +281,9 @@ def test_desktop_recovery_requires_explicit_dialog_choice() -> None:
     ):
         assert desktop_recover("/image.dat") == 0
     recover.assert_called_once_with("/image.dat", restore=True, cancelled=ANY)
+    choice_arguments = run.call_args_list[0].args[0]
+    assert "--ok-label=Continue" in choice_arguments
+    assert "--cancel-label=Cancel" in choice_arguments
     assert run.call_args_list[1].args[0][:2] == ["/usr/bin/zenity", "--info"]
 
 
@@ -319,7 +326,10 @@ def test_desktop_repair_requires_typed_filename_and_repairs_safe_tail(
     ):
         assert desktop_repair(dat_path) == 0
 
-    assert run.call_args_list[0].args[0][:2] == ["/usr/bin/zenity", "--entry"]
+    repair_arguments = run.call_args_list[0].args[0]
+    assert repair_arguments[:2] == ["/usr/bin/zenity", "--entry"]
+    assert "--ok-label=Apply repair" in repair_arguments
+    assert "--cancel-label=Cancel" in repair_arguments
     assert run.call_args_list[1].args[0][:2] == ["/usr/bin/zenity", "--info"]
     assert dat_path.stat().st_size == capacity
     notify.assert_not_called()

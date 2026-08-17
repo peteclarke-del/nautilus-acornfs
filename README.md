@@ -23,7 +23,9 @@ and original paths are available as extended attributes. See [TODO.md](TODO.md) 
 the remaining lifecycle and format work. Release history and policy are in
 [CHANGELOG.md](CHANGELOG.md) and [docs/releases.md](docs/releases.md).
 The complete desktop walkthrough is in [docs/user-guide.md](docs/user-guide.md),
-with deployment and retained-state guidance in
+with the release acceptance matrix in
+[docs/desktop-acceptance.md](docs/desktop-acceptance.md) and deployment and
+retained-state guidance in
 [docs/admin-guide.md](docs/admin-guide.md).
 
 ## Current functionality

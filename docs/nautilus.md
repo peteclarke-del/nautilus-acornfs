@@ -174,7 +174,12 @@ setting without requiring a terminal and applies it to future mounts.
 
 The opt-in live-FUSE suite exercises this exact transient-service path and also
 kills a writable daemon deliberately to prove that its pre-mount checkpoint can
-restore and completely revalidate the original image.
+restore and completely revalidate the original image. It also exercises the
+copy-in, copy-out, move, permanent-delete and temporary-file replacement
+patterns used beneath common Files and editor workflows. Drag-and-drop, trash,
+visual layout, keyboard-only use and screen-reader behaviour still require the
+supported GNOME session matrix in
+[desktop-acceptance.md](desktop-acceptance.md).
 
 ## Troubleshooting
 
