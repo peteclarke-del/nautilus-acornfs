@@ -37,3 +37,6 @@ The supported boundary does not include hostile multi-user access to another
 user's mount, remote image URIs, arbitrary desktop IPC endpoints, or running
 AcornFS/Nautilus as root. These are not valid workarounds for a refused image or
 host configuration.
+
+The reviewed assets, attacker inputs, mitigations and remaining release gates
+are documented in [docs/threat-model.md](docs/threat-model.md).

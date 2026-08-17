@@ -165,10 +165,9 @@ class ReadOnlyImage:
             descriptor_geometry: BeebSCSIGeometry | None = None
             closeables: tuple[Any, ...] = ()
             if pair is not None:
-                descriptor = pair.dsc_path.read_bytes()
+                reader, closeables, descriptor = open_locked_reader(pair, writable=writable)
                 descriptor_geometry = parse_descriptor(descriptor)
                 geometry = geometry_from_dsc(descriptor)
-                reader, closeables = open_locked_reader(pair, writable=writable)
             else:
                 geometry = source.geometry
                 reader = reader_for(source.primary_path, writable=False)
@@ -222,8 +221,11 @@ class ReadOnlyImage:
                     if pair is None:
                         raise AcornFSError(_("This image has no supported recovery profile."))
                     image._checkpoint = RecoveryCheckpoint.create(
-                        pair, progress=checkpoint_progress
+                        pair,
+                        progress=checkpoint_progress,
+                        source_handles=(image._closeables[1], image._closeables[3]),
                     )
+                    image._prepare_mutation()
                 except Exception:
                     image.close(clean=False)
                     raise
@@ -879,16 +881,24 @@ class ReadOnlyImage:
                 return False
             cursor = node.parent_inode
 
-    def _current_signature(self) -> tuple[int, int, int, int, int]:
-        open_stat = os.fstat(self._closeables[1].fileno())
-        path_stat = self.source.primary_path.stat()
-        return (
-            path_stat.st_dev,
-            path_stat.st_ino,
-            open_stat.st_size,
-            open_stat.st_mtime_ns,
-            open_stat.st_ctime_ns,
-        )
+    def _current_signature(self) -> tuple[int, ...]:
+        signatures: list[int] = []
+        members = [(self.source.primary_path, self._closeables[1])]
+        if self.source.companion_path is not None:
+            members.append((self.source.companion_path, self._closeables[3]))
+        for path, handle in members:
+            open_stat = os.fstat(handle.fileno())
+            path_stat = path.stat(follow_symlinks=False)
+            signatures.extend(
+                (
+                    path_stat.st_dev,
+                    path_stat.st_ino,
+                    open_stat.st_size,
+                    open_stat.st_mtime_ns,
+                    open_stat.st_ctime_ns,
+                )
+            )
+        return tuple(signatures)
 
     def _prepare_mutation(self) -> None:
         if not self.writable:

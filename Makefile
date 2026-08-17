@@ -1,4 +1,4 @@
-.PHONY: benchmark check format lint messages package-smoke test test-live typecheck
+.PHONY: benchmark check format fuzz-smoke lint messages package-smoke test test-live typecheck
 
 check: lint typecheck test
 
@@ -7,6 +7,12 @@ benchmark:
 
 format:
 	python -m ruff format .
+
+fuzz-smoke:
+	mkdir -p build/fuzz/dsc build/fuzz/uri
+	python fuzz/fuzz_dsc.py build/fuzz/dsc fuzz/corpus/dsc -atheris_runs=1000 -max_len=64
+	python fuzz/fuzz_uri.py build/fuzz/uri fuzz/corpus/uri -atheris_runs=1000 -max_len=4096
+	python fuzz/fuzz_adfs.py -atheris_runs=250 -max_len=8448
 
 lint:
 	python -m ruff check .

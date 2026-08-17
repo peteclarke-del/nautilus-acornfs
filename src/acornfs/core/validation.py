@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from enum import StrEnum
@@ -543,10 +544,19 @@ def validate_image_report(
     cancellation_point(cancelled)
     pair = discover_pair(selected)
     dat_bytes = pair.dat_path.stat().st_size
+    reader: ImageReader | None = None
+    mount: Mount | None = None
+    closeables: tuple[Any, ...] = ()
     try:
-        descriptor = pair.dsc_path.read_bytes()
+        reader, closeables, descriptor = open_locked_reader(pair, writable=False)
+        dat_bytes = os.fstat(closeables[1].fileno()).st_size
         descriptor_geometry = parse_descriptor(descriptor)
     except Exception as exc:
+        if reader is not None:
+            reader.close()
+        for closeable in closeables:
+            with suppress(Exception):
+                closeable.close()
         return IntegrityReport(
             dat_path=str(pair.dat_path),
             dsc_path=str(pair.dsc_path),
@@ -564,12 +574,8 @@ def validate_image_report(
             ),
         )
 
-    reader: ImageReader | None = None
-    mount: Mount | None = None
-    closeables: tuple[Any, ...] = ()
     try:
         geometry = geometry_from_dsc(descriptor)
-        reader, closeables = open_locked_reader(pair, writable=False)
         mount = create_filesystem("adfs").open(reader, geometry)
         return validate_open_mount(pair, mount, descriptor_geometry, cancelled=cancelled)
     except OperationCancelled:

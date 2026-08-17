@@ -34,6 +34,9 @@ fuse = [
     "pyfuse3>=3.5,<4",
     "trio>=0.22,<1",
 ]
+fuzz = [
+    "atheris>=3,<4; platform_system == 'Linux' and platform_machine == 'x86_64'",
+]
 
 [project.scripts]
 acornfs = "acornfs.cli:main"
