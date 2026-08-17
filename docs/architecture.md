@@ -19,11 +19,12 @@ over the two independently catalogued surfaces. Other recognised-but-unsupported
 filesystems are rejected explicitly. ROMFS retains its case-sensitive flat
 namespace and distinct run-only access bit through the POSIX presentation.
 
-Standard MMB support is a container adapter, not another filesystem parser. It
-validates the fixed 8 KiB catalogue, exposes formatted slots as a virtual root,
-and delegates each 200 KiB payload to an Oaknut DFS mount. An eight-slot LRU
-bounds copied read-only payload buffers. Extended MMB layout and mutations fail
-closed; the lock/checkpoint/commit design is recorded in [mmb.md](mmb.md).
+MMB support is a container adapter, not another filesystem parser. It validates
+all 1–16 repeated catalogue/payload extents, exposes formatted slots through one
+globally numbered virtual root, and delegates each 200 KiB payload to an Oaknut
+DFS mount. An eight-slot LRU bounds copied read-only payload buffers. MMB
+mutations still fail closed; the lock/checkpoint/commit design is recorded in
+[mmb.md](mmb.md).
 Read-only indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
 metadata, filetype, size and free-space capabilities. Private old-ADFS access is
 confined to the separately capability-gated BeebSCSI write and ranged-read paths.

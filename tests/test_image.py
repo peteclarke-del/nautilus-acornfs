@@ -137,6 +137,32 @@ def test_indexes_mmb_slots_as_directories_and_reads_their_dfs_files(tmp_path: Pa
         ReadOnlyImage.open(image_path, writable=True)
 
 
+def test_indexes_extended_mmb_slots_across_extent_boundaries(tmp_path: Path) -> None:
+    image_path = create_mmb_image(
+        tmp_path,
+        extent_count=2,
+        slot_indexes=(510, 511, 1021),
+    )
+
+    with ReadOnlyImage.open(image_path) as image:
+        root_names = [image.nodes[inode].name for inode in image.children[ROOT_INODE]]
+        assert root_names == [
+            b"0510 - SLOT 510",
+            b"0511 - SLOT 511",
+            b"1021 - SLOT 1021",
+        ]
+        slot = image.lookup(ROOT_INODE, b"0511 - SLOT 511")
+        assert slot is not None
+        default = image.lookup(slot.inode, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Slot 511\r"
+        assert image.acorn_metadata(hello.inode).load_address == 0
+        assert image.total_bytes == image_path.stat().st_size
+        assert len(image._mount._mounts) <= 8  # type: ignore[attr-defined]
+
+
 def test_indexes_romfs_with_case_sensitive_names_and_acorn_metadata(tmp_path: Path) -> None:
     image_path = create_romfs_image(tmp_path)
 

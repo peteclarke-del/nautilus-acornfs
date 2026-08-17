@@ -140,10 +140,36 @@ def test_live_read_only_dsd_mount_exposes_both_drives(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not FUSE_AVAILABLE, reason=FUSE_SKIP_REASON)
-def test_live_read_only_mmb_mount_exposes_formatted_slots(tmp_path: Path) -> None:
-    """Traverse formatted MMB slots through the real kernel FUSE path."""
+@pytest.mark.parametrize(
+    ("extent_count", "slot_indexes", "expected_names", "selected", "contents"),
+    [
+        (
+            1,
+            None,
+            ["000 - WELCOME", "042 - UTILITIES"],
+            "042 - UTILITIES",
+            b"Slot forty-two\r",
+        ),
+        (
+            2,
+            (510, 511),
+            ["0510 - SLOT 510", "0511 - SLOT 511"],
+            "0511 - SLOT 511",
+            b"Slot 511\r",
+        ),
+    ],
+)
+def test_live_read_only_mmb_mount_exposes_formatted_slots(
+    tmp_path: Path,
+    extent_count: int,
+    slot_indexes: tuple[int, ...] | None,
+    expected_names: list[str],
+    selected: str,
+    contents: bytes,
+) -> None:
+    """Traverse standard and extended MMB slots through real kernel FUSE."""
 
-    image_path = create_mmb_image(tmp_path)
+    image_path = create_mmb_image(tmp_path, extent_count=extent_count, slot_indexes=slot_indexes)
     before = image_path.stat()
     mountpoint = tmp_path / "mmb-mount"
     mountpoint.mkdir()
@@ -163,13 +189,10 @@ def test_live_read_only_mmb_mount_exposes_formatted_slots(tmp_path: Path) -> Non
                 pytest.fail("FUSE MMB mount did not become ready within 15 seconds")
             time.sleep(0.05)
 
-        assert sorted(path.name for path in mountpoint.iterdir()) == [
-            "000 - WELCOME",
-            "042 - UTILITIES",
-        ]
-        assert (mountpoint / "042 - UTILITIES" / "$" / "HELLO").read_bytes() == b"Slot forty-two\r"
+        assert sorted(path.name for path in mountpoint.iterdir()) == expected_names
+        assert (mountpoint / selected / "$" / "HELLO").read_bytes() == contents
         with pytest.raises(OSError) as denied:
-            (mountpoint / "000 - WELCOME" / "$" / "NEW").write_bytes(b"no writes")
+            (mountpoint / expected_names[0] / "$" / "NEW").write_bytes(b"no writes")
         assert denied.value.errno in {errno.EACCES, errno.EROFS}
 
         unmount = subprocess.run(

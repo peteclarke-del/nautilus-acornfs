@@ -21,6 +21,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   catalogue-prefix directories and both DSD sides exposed in one namespace.
 - Content-detected read-only standard MMB mounting, with formatted slots exposed
   as labelled directories through a bounded lazy DFS-mount cache.
+- Read-only extended MMB mounting across up to 16 independently validated
+  extents, with global slot numbering and complete capacity properties.
 - CRC-validated read-only Acorn ROMFS mounting with case-sensitive flat
   catalogues, load/execute metadata, run-only state and image properties.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
