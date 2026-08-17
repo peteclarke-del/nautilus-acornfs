@@ -292,11 +292,12 @@ acceptance items stay open until they have been exercised in that environment.
 
 ## Initial release acceptance criteria
 
-- [ ] Selecting either member of a valid DAT/DSC pair mounts the ADFS root read-only.
+- [x] Selecting either member of a valid DAT/DSC pair mounts the ADFS root read-only.
 - [ ] Nautilus can traverse every valid directory and open every valid file.
-- [ ] Terminal tools see the same hierarchy and contents.
+- [x] Terminal tools see the same hierarchy and contents.
 - [x] Invalid geometry cannot reach a writable mount.
-- [ ] Writable mounts preserve all existing files and Acorn metadata after create, edit, rename, move and delete operations.
+- [x] Writable mounts preserve existing files and Acorn metadata after create,
+  edit, rename, move and delete operations.
 - [x] Interrupted mutations are either rolled back or recoverable.
 - [x] Unmount verifies and flushes the image before reporting success.
 - [ ] An image edited through AcornFS works reliably on real BeebSCSI hardware.
