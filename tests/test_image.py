@@ -9,7 +9,7 @@ from oaknut.file import AcornMeta
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.recovery import recover_image
-from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, create_dfs_floppy
 
 
 def test_indexes_nested_image_and_reads_files(tmp_path: Path) -> None:
@@ -43,6 +43,63 @@ def test_indexes_and_reads_standalone_adfs_floppies(tmp_path: Path, format_name:
 
     with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
         ReadOnlyImage.open(image_path, writable=True)
+
+
+def test_indexes_dfs_catalogue_prefixes_as_directories(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path)
+
+    with ReadOnlyImage.open(image_path) as image:
+        root_names = {image.nodes[inode].name for inode in image.children[ROOT_INODE]}
+        assert root_names == {b"$", b"A"}
+        default = image.lookup(ROOT_INODE, b"$")
+        catalogue_a = image.lookup(ROOT_INODE, b"A")
+        assert default is not None
+        assert catalogue_a is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        notes = image.lookup(catalogue_a.inode, b"NOTES")
+        assert hello is not None
+        assert notes is not None
+        assert image.read(hello.inode, 0, 1024) == b"Hello from DFS drive 0\r"
+        assert image.acorn_metadata(hello.inode).load_address == 0
+        assert image.source.filesystem == "acorn-dfs"
+
+    with pytest.raises(AcornFSError, match="Read-write mounting is not supported"):
+        ReadOnlyImage.open(image_path, writable=True)
+
+
+def test_indexes_and_reads_watford_dfs(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, filesystem_name="watford-dfs")
+
+    with ReadOnlyImage.open(image_path) as image:
+        default = image.lookup(ROOT_INODE, b"$")
+        assert default is not None
+        hello = image.lookup(default.inode, b"HELLO")
+        assert hello is not None
+        assert image.read(hello.inode, 0, 1024) == b"Hello from DFS drive 0\r"
+        assert image.source.filesystem == "watford-dfs"
+
+
+def test_indexes_both_dsd_sides_as_drive_directories(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=True)
+
+    with ReadOnlyImage.open(image_path) as image:
+        assert [image.nodes[inode].name for inode in image.children[ROOT_INODE]] == [b"0", b"2"]
+        drive_zero = image.lookup(ROOT_INODE, b"0")
+        drive_two = image.lookup(ROOT_INODE, b"2")
+        assert drive_zero is not None
+        assert drive_two is not None
+        zero_default = image.lookup(drive_zero.inode, b"$")
+        two_default = image.lookup(drive_two.inode, b"$")
+        assert zero_default is not None
+        assert two_default is not None
+        hello = image.lookup(zero_default.inode, b"HELLO")
+        other = image.lookup(two_default.inode, b"OTHER")
+        assert hello is not None
+        assert other is not None
+        assert image.read(hello.inode, 0, 1024) == b"Hello from DFS drive 0\r"
+        assert image.read(other.inode, 0, 1024) == b"Hello from DFS drive 2\r"
+        assert image.total_bytes == image_path.stat().st_size
+        assert 0 < image.free_bytes < image.total_bytes
 
 
 def test_adfs_lookup_is_case_insensitive_and_case_collisions_are_refused(

@@ -13,7 +13,7 @@ from oaknut.file import AcornMeta
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.operations import ReadOnlyOperations
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_beebscsi_image, create_dfs_floppy
 
 
 def run_async(function: Any, *args: Any) -> Any:
@@ -37,6 +37,26 @@ def test_lookup_and_read_nested_file(operations: ReadOnlyOperations) -> None:
     info = run_async(operations.open, guide.st_ino, 0, context)
     assert run_async(operations.read, info.fh, 0, 1024) == b"Nested file\r"
     assert guide.st_mode & 0o777 == 0o444
+
+
+def test_dsd_namespace_and_metadata_reach_fuse_operations(tmp_path: Path) -> None:
+    image_path = create_dfs_floppy(tmp_path, double_sided=True)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(image_path) as image:
+        operations = ReadOnlyOperations(image)
+        drive_two = run_async(operations.lookup, ROOT_INODE, b"2", context)
+        default = run_async(operations.lookup, drive_two.st_ino, b"$", context)
+        other = run_async(operations.lookup, default.st_ino, b"OTHER", context)
+        handle = run_async(operations.open, other.st_ino, os.O_RDONLY, context)
+        assert run_async(operations.read, handle.fh, 0, 1024) == b"Hello from DFS drive 2\r"
+        assert (
+            run_async(operations.getxattr, other.st_ino, b"user.acorn.source", context)
+            == b"acorn-dfs"
+        )
+        assert (
+            run_async(operations.getxattr, other.st_ino, b"user.acorn.path", context)
+            == b":2:$.OTHER"
+        )
 
 
 def test_large_sequential_reads_use_bounded_read_ahead(tmp_path: Path) -> None:

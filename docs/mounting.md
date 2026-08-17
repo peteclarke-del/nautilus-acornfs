@@ -3,8 +3,8 @@
 ## Requirements
 
 The current implementation supports Linux on amd64 with Python 3.11 or later,
-FUSE 3, and either a valid paired BeebSCSI DAT/DSC image or a standalone ADFS
-S, M or L floppy image. The latter is currently read-only.
+FUSE 3, and either a valid paired BeebSCSI DAT/DSC image, a standalone ADFS
+S/M/L floppy, or an Acorn/Watford DFS SSD/DSD image. Floppies are read-only.
 On Ubuntu 24.04 or later, install the host packages with:
 
 ```shell
@@ -68,6 +68,18 @@ acornfs mount /path/to/disc.adl "$HOME/AcornFS/floppy"
 ```
 
 Requesting `--read-write` for a floppy is rejected before FUSE initialisation.
+
+DFS images use the same command:
+
+```shell
+acornfs mount /path/to/disc.ssd "$HOME/AcornFS/dfs"
+```
+
+DFS has catalogue-letter prefixes, not nested on-disc directories. AcornFS
+presents each populated prefix (`$`, `A`-`Z`) as a directory. A double-sided
+DSD adds top-level `0` and `2` directories, matching the BBC drive designations;
+each contains that side's independent prefix directories. This mapping is
+read-only and does not alter or imply extra structures in the image.
 
 ## Writable mount
 
