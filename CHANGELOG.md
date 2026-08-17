@@ -19,6 +19,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Content-detected read-only mounting of standalone ADFS S, M and L floppy images.
 - Content-detected read-only Acorn and Watford DFS SSD/DSD mounting, with
   catalogue-prefix directories and both DSD sides exposed in one namespace.
+- Content-detected read-only standard MMB mounting, with formatted slots exposed
+  as labelled directories through a bounded lazy DFS-mount cache.
 - The AcornFS-side shell-free Nautilus hand-off contract for future Acorn File Forge desktop launchers.
 - Gettext foundations and translator guidance for Nautilus properties, menus, notifications and dialogs.
 

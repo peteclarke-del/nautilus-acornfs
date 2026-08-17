@@ -7,6 +7,8 @@ from pathlib import Path
 
 from oaknut.filesystem import create_filesystem, geometry_from_dsc, reader_for, winchester_geometry
 
+from acornfs.core.mmb import MMB_HEADER_BYTES, MMB_SLOT_BYTES, MMB_STANDARD_BYTES
+
 
 def _old_map_checksum(data: bytearray, start: int) -> int:
     total = 0
@@ -164,4 +166,53 @@ def create_dfs_floppy(
                 side_two.close()  # type: ignore[attr-defined]
     finally:
         reader.close()
+    return image_path
+
+
+def create_mmb_image(
+    directory: Path, *, filename: str = "BEEB.MMB", slot_indexes: tuple[int, ...] | None = None
+) -> Path:
+    """Create a sparse standard MMB with two populated DFS slots."""
+
+    image_path = directory / filename
+    header = bytearray(MMB_HEADER_BYTES)
+    header[:8] = bytes((0, 1, 2, 3, 0, 0, 0, 0))
+    for index in range(511):
+        entry_offset = (index + 1) * 16
+        header[entry_offset + 15] = 0xF0
+
+    slots = (
+        ((0, "WELCOME", b"Slot zero\r"), (42, "UTILITIES", b"Slot forty-two\r"))
+        if slot_indexes is None
+        else tuple(
+            (index, f"SLOT {index}", f"Slot {index}\r".encode("ascii")) for index in slot_indexes
+        )
+    )
+    with image_path.open("wb") as container:
+        container.write(header)
+        container.truncate(MMB_STANDARD_BYTES)
+
+    filesystem = create_filesystem("acorn-dfs")
+    geometry = filesystem.default_geometry(".ssd")
+    assert geometry is not None
+    for index, label, contents in slots:
+        ssd_path = directory / f"slot-{index}.ssd"
+        filesystem.create(ssd_path, geometry, title=label)
+        reader = reader_for(ssd_path, writable=True)
+        mount = filesystem.open(reader, geometry)
+        try:
+            mount.write_bytes("$.HELLO", contents)
+            mount.write_bytes("A.INFO", f"Information for {index}\r".encode("ascii"))
+        finally:
+            mount.close()  # type: ignore[attr-defined]
+            reader.close()
+        payload = ssd_path.read_bytes()
+        assert len(payload) == MMB_SLOT_BYTES
+        with image_path.open("r+b") as container:
+            entry_offset = (index + 1) * 16
+            container.seek(entry_offset)
+            container.write(label.encode("acorn").ljust(12, b" ") + b"\x00\x00\x00\x0f")
+            container.seek(MMB_HEADER_BYTES + index * MMB_SLOT_BYTES)
+            container.write(payload)
+        ssd_path.unlink()
     return image_path

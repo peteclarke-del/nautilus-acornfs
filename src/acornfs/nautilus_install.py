@@ -108,6 +108,11 @@ def _mime_package() -> str:
     <glob pattern="*.dsd" weight="70"/>
     <glob pattern="*.DSD" weight="70"/>
   </mime-type>
+  <mime-type type="application/x-acorn-mmb">
+    <comment>BBC Micro MMB disk container</comment>
+    <glob pattern="*.mmb" weight="70"/>
+    <glob pattern="*.MMB" weight="70"/>
+  </mime-type>
 </mime-info>
 """
 
@@ -124,7 +129,7 @@ Icon=drive-harddisk
 Terminal=false
 NoDisplay=true
 StartupNotify=true
-MimeType=application/x-acorn-adfs;application/x-acorn-dfs;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
+MimeType=application/x-acorn-adfs;application/x-acorn-dfs;application/x-acorn-mmb;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
 Categories=System;FileTools;
 """
 

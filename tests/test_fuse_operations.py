@@ -13,7 +13,7 @@ from oaknut.file import AcornMeta
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.operations import ReadOnlyOperations
-from tests.image_fixture import create_beebscsi_image, create_dfs_floppy
+from tests.image_fixture import create_beebscsi_image, create_dfs_floppy, create_mmb_image
 
 
 def run_async(function: Any, *args: Any) -> Any:
@@ -56,6 +56,26 @@ def test_dsd_namespace_and_metadata_reach_fuse_operations(tmp_path: Path) -> Non
         assert (
             run_async(operations.getxattr, other.st_ino, b"user.acorn.path", context)
             == b":2:$.OTHER"
+        )
+
+
+def test_mmb_slot_namespace_reaches_fuse_operations(tmp_path: Path) -> None:
+    image_path = create_mmb_image(tmp_path)
+    context = SimpleNamespace(uid=1000, gid=1000, pid=1, umask=0)
+    with ReadOnlyImage.open(image_path) as image:
+        operations = ReadOnlyOperations(image)
+        slot = run_async(operations.lookup, ROOT_INODE, b"042 - UTILITIES", context)
+        default = run_async(operations.lookup, slot.st_ino, b"$", context)
+        hello = run_async(operations.lookup, default.st_ino, b"HELLO", context)
+        handle = run_async(operations.open, hello.st_ino, os.O_RDONLY, context)
+        assert run_async(operations.read, handle.fh, 0, 1024) == b"Slot forty-two\r"
+        assert (
+            run_async(operations.getxattr, hello.st_ino, b"user.acorn.source", context)
+            == b"acorn-dfs"
+        )
+        assert (
+            run_async(operations.getxattr, hello.st_ino, b"user.acorn.path", context)
+            == b"@42:$.HELLO"
         )
 
 

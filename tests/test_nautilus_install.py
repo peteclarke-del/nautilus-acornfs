@@ -39,11 +39,14 @@ def test_installs_and_removes_complete_desktop_integration(
     assert 'type="application/x-acorn-dfs"' in mime_content
     assert 'pattern="*.ssd"' in mime_content
     assert 'pattern="*.dsd"' in mime_content
+    assert 'type="application/x-acorn-mmb"' in mime_content
+    assert 'pattern="*.mmb"' in mime_content
     desktop_content = desktop_file_path().read_text(encoding="utf-8")
     assert desktop_file_path() == tmp_path / "applications" / DESKTOP_FILE_NAME
     assert "desktop-open %U" in desktop_content
     assert "x-scheme-handler/acornfs" in desktop_content
     assert "application/x-acorn-dfs" in desktop_content
+    assert "application/x-acorn-mmb" in desktop_content
     assert "NoDisplay=true" in desktop_content
     assert uninstall_extension() == target
     assert not target.exists()
