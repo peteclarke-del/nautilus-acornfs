@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-17 13:08+0100\n"
+"POT-Creation-Date: 2026-08-17 14:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,14 +18,14 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/acornfs/desktop.py:660
+#: src/acornfs/desktop.py:737
 msgid ""
 "\n"
 "\n"
 "ACORNFS_MOUNT_ROOT still overrides this preference for the current environment."
 msgstr ""
 
-#: src/acornfs/desktop.py:627
+#: src/acornfs/desktop.py:704
 msgid ""
 "\n"
 "The saved preference is invalid; saving will replace it."
@@ -41,7 +41,7 @@ msgstr ""
 msgid "   Paths: {paths}"
 msgstr ""
 
-#: src/acornfs/desktop.py:796
+#: src/acornfs/desktop.py:873
 #, python-brace-format
 msgid " (+{count} more)"
 msgstr ""
@@ -148,7 +148,7 @@ msgstr ""
 msgid "Acorn DFS"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:64
+#: src/acornfs_nautilus/extension.py:65
 msgid "Acorn FS Support"
 msgstr ""
 
@@ -157,108 +157,120 @@ msgstr ""
 msgid "Acorn File Forge has no desktop launcher installed. Install an '{executable}' command, or set {variable} to its safe argv command. The browser-only service cannot securely receive a local image without a desktop hand-off helper."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:280
+#: src/acornfs_nautilus/extension.py:303
 msgid "Acorn disk image"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:282
+#: src/acornfs_nautilus/extension.py:305
 msgid "Acorn metadata"
 msgstr ""
 
-#: src/acornfs/desktop.py:880
+#: src/acornfs/desktop.py:957
 msgid "AcornFS automatic repair refused"
 msgstr ""
 
-#: src/acornfs/desktop.py:526
+#: src/acornfs/desktop.py:527
 msgid "AcornFS can open only local image URIs."
 msgstr ""
 
-#: src/acornfs/desktop.py:720
+#: src/acornfs/desktop.py:797
 msgid "AcornFS final validation failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:606
+#: src/acornfs/desktop.py:683
 msgid "AcornFS image creation failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:733
+#: src/acornfs/desktop.py:810
 msgid "AcornFS image detached"
 msgstr ""
 
-#: src/acornfs/desktop.py:478
+#: src/acornfs/desktop.py:479
 msgid "AcornFS image mounted"
 msgstr ""
 
-#: src/acornfs/desktop.py:680 src/acornfs/desktop.py:728
+#: src/acornfs/desktop.py:757 src/acornfs/desktop.py:805
 msgid "AcornFS image unmounted"
 msgstr ""
 
-#: src/acornfs/desktop.py:498 src/acornfs/desktop.py:951
+#: src/acornfs/desktop.py:499 src/acornfs/desktop.py:1028
 msgid "AcornFS mount failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:665
+#: src/acornfs/desktop.py:742
 msgid "AcornFS mount location saved"
 msgstr ""
 
-#: src/acornfs/desktop.py:656
+#: src/acornfs/desktop.py:733
 msgid "AcornFS mount location was not changed"
 msgstr ""
 
-#: src/acornfs/desktop.py:540
+#: src/acornfs/desktop.py:541
 msgid "AcornFS open failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:934
+#: src/acornfs/desktop.py:1011
 msgid "AcornFS recovery cancelled"
 msgstr ""
 
-#: src/acornfs/desktop.py:944
+#: src/acornfs/desktop.py:1021
 msgid "AcornFS recovery complete"
 msgstr ""
 
-#: src/acornfs/desktop.py:942
+#: src/acornfs/desktop.py:1019
 msgid "AcornFS recovery failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:873
+#: src/acornfs/desktop.py:950
 msgid "AcornFS repair"
 msgstr ""
 
-#: src/acornfs/desktop.py:858
+#: src/acornfs/desktop.py:935
 msgid "AcornFS repair completed"
 msgstr ""
 
-#: src/acornfs/desktop.py:855
+#: src/acornfs/desktop.py:932
 msgid "AcornFS repair failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:703
+#: src/acornfs/desktop.py:780
 msgid "AcornFS unmount failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:713
+#: src/acornfs/desktop.py:790
 msgid "AcornFS unmount not confirmed"
 msgstr ""
 
-#: src/acornfs/desktop.py:689
+#: src/acornfs/desktop.py:766
 msgid "AcornFS unmount refused"
 msgstr ""
 
-#: src/acornfs/desktop.py:781
+#: src/acornfs/desktop.py:858
 msgid "AcornFS validation cancelled"
 msgstr ""
 
-#: src/acornfs/desktop.py:784
+#: src/acornfs/desktop.py:861
 msgid "AcornFS validation failed"
 msgstr ""
 
-#: src/acornfs/desktop.py:798
+#: src/acornfs/desktop.py:875
 msgid "AcornFS validation found problems"
 msgstr ""
 
-#: src/acornfs/desktop.py:810
+#: src/acornfs/desktop.py:887
 msgid "AcornFS validation passed"
+msgstr ""
+
+#: src/acornfs/desktop.py:594
+#, python-brace-format
+msgid ""
+"All existing data on the floppy in drive {drive} will be overwritten.\n"
+"\n"
+"Write and verify {image}?"
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:199
+msgid "All tracks written and verified."
 msgstr ""
 
 #: src/acornfs/core/validation.py:507
@@ -301,7 +313,7 @@ msgstr ""
 msgid "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
 msgstr ""
 
-#: src/acornfs/desktop.py:609
+#: src/acornfs/desktop.py:686
 msgid "BeebSCSI image created"
 msgstr ""
 
@@ -350,16 +362,16 @@ msgstr ""
 msgid "Capacity"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:128
+#: src/acornfs_nautilus/extension.py:132
 #, python-brace-format
 msgid "Check {image} without modifying it"
 msgstr ""
 
-#: src/acornfs/desktop.py:777
+#: src/acornfs/desktop.py:854
 msgid "Checking geometry, directories and allocation…"
 msgstr ""
 
-#: src/acornfs/core/create.py:75 src/acornfs/desktop.py:596
+#: src/acornfs/core/create.py:75 src/acornfs/desktop.py:673
 msgid "Checking image settings…"
 msgstr ""
 
@@ -367,7 +379,7 @@ msgstr ""
 msgid "Choose either --restore or --discard, not both."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:102
+#: src/acornfs_nautilus/extension.py:106
 msgid "Choose where future AcornFS desktop mounts appear"
 msgstr ""
 
@@ -383,7 +395,7 @@ msgstr ""
 msgid "Container catalogue"
 msgstr ""
 
-#: src/acornfs/desktop.py:763
+#: src/acornfs/desktop.py:840
 #, python-brace-format
 msgid "Could not clean up stale mount {mountpoint}: {detail}"
 msgstr ""
@@ -418,7 +430,7 @@ msgstr ""
 msgid "Could not inspect image {path}: {error}"
 msgstr ""
 
-#: src/acornfs/desktop.py:750
+#: src/acornfs/desktop.py:827
 #, python-brace-format
 msgid "Could not inspect mounted image {mountpoint}: {error}"
 msgstr ""
@@ -428,7 +440,7 @@ msgstr ""
 msgid "Could not inspect the destination directory: {error}"
 msgstr ""
 
-#: src/acornfs/desktop.py:552
+#: src/acornfs/desktop.py:553
 msgid "Could not open Acorn File Forge"
 msgstr ""
 
@@ -436,9 +448,19 @@ msgstr ""
 msgid "Could not open the checkpoint source."
 msgstr ""
 
+#: src/acornfs/greaseweazle.py:121
+#, python-brace-format
+msgid "Could not open the floppy image: {detail}"
+msgstr ""
+
 #: src/acornfs/core/image.py:483
 #, python-brace-format
 msgid "Could not preflight the ADFS allocation safely: {error}"
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:138
+#, python-brace-format
+msgid "Could not prepare the floppy image: {detail}"
 msgstr ""
 
 #: src/acornfs/core/create.py:150
@@ -481,26 +503,31 @@ msgstr ""
 msgid "Could not start Acorn File Forge: {error}"
 msgstr ""
 
-#: src/acornfs/desktop.py:431
+#: src/acornfs/greaseweazle.py:155
+#, python-brace-format
+msgid "Could not start Greaseweazle: {detail}"
+msgstr ""
+
+#: src/acornfs/desktop.py:432
 #, python-brace-format
 msgid "Could not start the AcornFS user service: {detail}"
 msgstr ""
 
-#: src/acornfs/desktop.py:705
+#: src/acornfs/desktop.py:782
 #, python-brace-format
 msgid "Could not unmount {mountpoint}: {detail}"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:111
+#: src/acornfs_nautilus/extension.py:115
 msgid "Create BeebSCSI image…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:112
+#: src/acornfs_nautilus/extension.py:116
 #, python-brace-format
 msgid "Create an empty ADFS DAT/DSC pair in {directory}"
 msgstr ""
 
-#: src/acornfs/desktop.py:611
+#: src/acornfs/desktop.py:688
 #, python-brace-format
 msgid ""
 "Created and verified {dat} and {dsc}.\n"
@@ -513,7 +540,7 @@ msgstr ""
 msgid "Created image failed validation: {code}: {message}"
 msgstr ""
 
-#: src/acornfs/desktop.py:595
+#: src/acornfs/desktop.py:672
 msgid "Creating BeebSCSI image"
 msgstr ""
 
@@ -601,7 +628,7 @@ msgstr ""
 msgid "Empty file records non-zero start sector {sector}."
 msgstr ""
 
-#: src/acornfs/desktop.py:632
+#: src/acornfs/desktop.py:709
 msgid "Enter sidebar, runtime, or an absolute directory path.\n"
 msgstr ""
 
@@ -672,6 +699,28 @@ msgstr ""
 msgid "GiB"
 msgstr ""
 
+#: src/acornfs/greaseweazle.py:195
+msgid "Greaseweazle completed the write but did not confirm verification. The physical floppy may be incomplete; do not rely on its contents."
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:188
+#, python-brace-format
+msgid "Greaseweazle could not complete the write: {detail}. The physical floppy may be incomplete; do not rely on its contents."
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:124
+msgid "Greaseweazle does not support this floppy-image filename."
+msgstr ""
+
+#: src/acornfs/desktop.py:565
+msgid "Greaseweazle unavailable"
+msgstr ""
+
+#: src/acornfs/desktop.py:627
+#, python-brace-format
+msgid "Greaseweazle wrote and verified {image} in drive {drive}."
+msgstr ""
+
 #: src/acornfs_nautilus/logic.py:122
 msgid "Hardware profile"
 msgstr ""
@@ -700,7 +749,7 @@ msgstr ""
 msgid "Invalid BeebSCSI capacity: {error}"
 msgstr ""
 
-#: src/acornfs/desktop.py:897
+#: src/acornfs/desktop.py:974
 msgid "Keep the current image and discard the checkpoint"
 msgstr ""
 
@@ -728,30 +777,30 @@ msgstr ""
 msgid "MiB"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:101
+#: src/acornfs_nautilus/extension.py:105
 msgid "Mount location…"
 msgstr ""
 
-#: src/acornfs/desktop.py:454
+#: src/acornfs/desktop.py:455
 #, python-brace-format
 msgid "Mount process exited with status {status}."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:277
+#: src/acornfs_nautilus/extension.py:300
 msgid "Mount state"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:228
+#: src/acornfs_nautilus/extension.py:249
 #, python-brace-format
 msgid "Mount {image} read-write with a recovery checkpoint"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:138
+#: src/acornfs_nautilus/extension.py:142
 #, python-brace-format
 msgid "Mount {image} without allowing changes"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:275
+#: src/acornfs_nautilus/extension.py:298
 msgid "Mounted"
 msgstr ""
 
@@ -781,11 +830,19 @@ msgstr ""
 msgid "No repair actions are needed; validation found no problems."
 msgstr ""
 
+#: src/acornfs/desktop.py:564
+msgid "No responsive Greaseweazle device is currently connected."
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:128
+msgid "No responsive Greaseweazle device was detected; reconnect it and try again."
+msgstr ""
+
 #: src/acornfs/core/repair.py:198
 msgid "Normalise directory entry lengths"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:275
+#: src/acornfs_nautilus/extension.py:298
 msgid "Not mounted"
 msgstr ""
 
@@ -797,29 +854,37 @@ msgstr ""
 msgid "Old directory (Hugo)"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:65
+#: src/acornfs_nautilus/extension.py:66
 msgid "Open AcornFS image and filesystem actions"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:167
+#: src/acornfs_nautilus/extension.py:171
 msgid "Open in Acorn File Forge…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:137
+#: src/acornfs_nautilus/extension.py:141
 msgid "Open read-only"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:227
+#: src/acornfs_nautilus/extension.py:248
 msgid "Open read-write"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:168
+#: src/acornfs_nautilus/extension.py:172
 #, python-brace-format
 msgid "Open {image} in Acorn File Forge"
 msgstr ""
 
 #: src/acornfs_nautilus/logic.py:165
 msgid "Original pathname"
+msgstr ""
+
+#: src/acornfs/desktop.py:626
+msgid "Physical floppy complete"
+msgstr ""
+
+#: src/acornfs/desktop.py:623
+msgid "Physical floppy write failed"
 msgstr ""
 
 #: src/acornfs/core/repair.py:304
@@ -836,8 +901,17 @@ msgstr ""
 msgid "Post-write ADFS validation found {count} {problem}; the recovery checkpoint was retained."
 msgstr ""
 
-#: src/acornfs/desktop.py:847
+#: src/acornfs/greaseweazle.py:131
+msgid "Preparing a stable image snapshot…"
+msgstr ""
+
+#: src/acornfs/desktop.py:924
 msgid "Preparing the repair…"
+msgstr ""
+
+#: src/acornfs/desktop.py:616
+#, python-brace-format
+msgid "Preparing {image}…"
 msgstr ""
 
 #: src/acornfs/core/create.py:138
@@ -848,7 +922,7 @@ msgstr ""
 msgid "RISC OS filetype"
 msgstr ""
 
-#: src/acornfs/core/image.py:162 src/acornfs/desktop.py:385
+#: src/acornfs/core/image.py:162 src/acornfs/desktop.py:386
 msgid "Read-write mounting is not supported for this image format."
 msgstr ""
 
@@ -877,11 +951,11 @@ msgstr ""
 msgid "Recovery checkpoint restored."
 msgstr ""
 
-#: src/acornfs/desktop.py:894
+#: src/acornfs/desktop.py:971
 msgid "Recovery needs a choice. Run 'acornfs recover IMAGE --restore' or '--discard'."
 msgstr ""
 
-#: src/acornfs/desktop.py:936
+#: src/acornfs/desktop.py:1013
 msgid "Recovery stopped before the commit boundary. The image was not replaced and the checkpoint is still available."
 msgstr ""
 
@@ -923,7 +997,7 @@ msgstr ""
 msgid "Repair failed; the checkpoint was retained. Audit: {audit}: {error}"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:147
+#: src/acornfs_nautilus/extension.py:151
 msgid "Repair image…"
 msgstr ""
 
@@ -950,7 +1024,7 @@ msgstr ""
 msgid "Repair verified; finalising checkpoint…"
 msgstr ""
 
-#: src/acornfs/desktop.py:846
+#: src/acornfs/desktop.py:923
 msgid "Repairing AcornFS image"
 msgstr ""
 
@@ -978,11 +1052,11 @@ msgstr ""
 msgid "Resolve conflicting catalogue extents"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:207
+#: src/acornfs_nautilus/extension.py:226
 msgid "Resolve interrupted read-write mount…"
 msgstr ""
 
-#: src/acornfs/desktop.py:896
+#: src/acornfs/desktop.py:973
 msgid "Restore image to the pre-mount checkpoint"
 msgstr ""
 
@@ -994,7 +1068,7 @@ msgstr ""
 msgid "Restore the correct pair or explicitly choose which trusted geometry and capacity is valid."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:208
+#: src/acornfs_nautilus/extension.py:227
 msgid "Restore the pre-mount checkpoint or keep the current image"
 msgstr ""
 
@@ -1002,15 +1076,19 @@ msgstr ""
 msgid "Restore unreadable ADFS structures"
 msgstr ""
 
-#: src/acornfs/desktop.py:924
+#: src/acornfs/desktop.py:1001
 msgid "Restoring AcornFS image"
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:180
+msgid "Retrying track verification…"
 msgstr ""
 
 #: src/acornfs/core/repair.py:352
 msgid "Revalidating image before checkpoint creation…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:148
+#: src/acornfs_nautilus/extension.py:152
 #, python-brace-format
 msgid "Review eligible low-risk repairs for {image}"
 msgstr ""
@@ -1024,16 +1102,16 @@ msgstr ""
 msgid "Run"
 msgstr ""
 
-#: src/acornfs/desktop.py:630
+#: src/acornfs/desktop.py:707
 msgid "Run 'acornfs config-mount-location' to configure mount locations."
 msgstr ""
 
-#: src/acornfs/desktop.py:565
+#: src/acornfs/desktop.py:642
 #, python-brace-format
 msgid "Run 'acornfs create-beebscsi {destination}' to create an image without Zenity."
 msgstr ""
 
-#: src/acornfs/desktop.py:822
+#: src/acornfs/desktop.py:899
 #, python-brace-format
 msgid "Run 'acornfs repair {image} --confirm {name}' to apply the eligible repair."
 msgstr ""
@@ -1042,7 +1120,7 @@ msgstr ""
 msgid "Safe for read-write mounting"
 msgstr ""
 
-#: src/acornfs/desktop.py:666
+#: src/acornfs/desktop.py:743
 #, python-brace-format
 msgid ""
 "Saved mount location:\n"
@@ -1076,7 +1154,7 @@ msgstr ""
 msgid "Source filesystem"
 msgstr ""
 
-#: src/acornfs/desktop.py:925
+#: src/acornfs/desktop.py:1002
 msgid "Staging the checkpoint safely before replacing the image pair…"
 msgstr ""
 
@@ -1088,7 +1166,11 @@ msgstr ""
 msgid "Standard MMB container"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:279
+#: src/acornfs/greaseweazle.py:142
+msgid "Starting Greaseweazle…"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:302
 msgid "Status"
 msgstr ""
 
@@ -1148,7 +1230,7 @@ msgstr ""
 msgid "The AcornFS preferences file is unsafe: {path}"
 msgstr ""
 
-#: src/acornfs/desktop.py:461
+#: src/acornfs/desktop.py:462
 msgid "The AcornFS user service exited before mounting."
 msgstr ""
 
@@ -1205,6 +1287,10 @@ msgstr ""
 msgid "The configured AcornFS mount location is invalid."
 msgstr ""
 
+#: src/acornfs/desktop.py:591
+msgid "The drive-selection dialog returned an invalid response."
+msgstr ""
+
 #: src/acornfs/mounts.py:53
 #, python-brace-format
 msgid "The fallback runtime directory is not private: {path}"
@@ -1223,16 +1309,20 @@ msgstr ""
 msgid "The filesystem root cannot be used as the AcornFS mount location."
 msgstr ""
 
+#: src/acornfs/greaseweazle.py:101
+msgid "The floppy image changed while it was being prepared; no physical write started."
+msgstr ""
+
 #: src/acornfs/core/validation.py:396
 #, python-brace-format
 msgid "The free-space extent list could not be read: {error}"
 msgstr ""
 
-#: src/acornfs/desktop.py:520
+#: src/acornfs/desktop.py:521
 msgid "The image URI is malformed."
 msgstr ""
 
-#: src/acornfs/desktop.py:528
+#: src/acornfs/desktop.py:529
 msgid "The image URI must contain one unambiguous local path."
 msgstr ""
 
@@ -1245,11 +1335,11 @@ msgstr ""
 msgid "The image destination is not a directory: {path}"
 msgstr ""
 
-#: src/acornfs/desktop.py:717
+#: src/acornfs/desktop.py:794
 msgid "The image detached but final validation did not complete safely; resolve its recovery checkpoint before mounting it read-write again."
 msgstr ""
 
-#: src/acornfs/desktop.py:710
+#: src/acornfs/desktop.py:787
 msgid "The image detached but its writable daemon has not confirmed a safe flush. Do not reuse the image until the daemon has exited."
 msgstr ""
 
@@ -1269,23 +1359,23 @@ msgstr ""
 msgid "The image name must contain 1–64 ASCII letters, digits, dots, dashes or underscores."
 msgstr ""
 
-#: src/acornfs/desktop.py:505
+#: src/acornfs/desktop.py:506
 msgid "The image path contains an invalid path character (NUL)."
 msgstr ""
 
-#: src/acornfs/desktop.py:509
+#: src/acornfs/desktop.py:510
 msgid "The image path names an unknown user account."
 msgstr ""
 
-#: src/acornfs/desktop.py:591
+#: src/acornfs/desktop.py:668
 msgid "The image settings dialog returned an invalid response."
 msgstr ""
 
-#: src/acornfs/desktop.py:781
+#: src/acornfs/desktop.py:858
 msgid "The image was not modified."
 msgstr ""
 
-#: src/acornfs/desktop.py:409
+#: src/acornfs/desktop.py:410
 msgid "The image's mount location is occupied by a different file identity. Unmount that location before mounting the replacement image."
 msgstr ""
 
@@ -1331,15 +1421,23 @@ msgstr ""
 msgid "The root directory cannot be traversed: {error}"
 msgstr ""
 
-#: src/acornfs/desktop.py:402
+#: src/acornfs/desktop.py:403
 msgid "The selected AcornFS mount root changed unexpectedly."
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:116
+msgid "The selected Greaseweazle drive is invalid."
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:91
+msgid "The selected floppy image is not a regular file."
 msgstr ""
 
 #: src/acornfs/mounts.py:56
 msgid "The session runtime directory is unavailable."
 msgstr ""
 
-#: src/acornfs/desktop.py:633
+#: src/acornfs/desktop.py:710
 msgid "The setting applies to future mounts; existing mounts are unchanged."
 msgstr ""
 
@@ -1355,7 +1453,7 @@ msgstr ""
 msgid "This complete plan can be applied with 'acornfs repair IMAGE --confirm DAT_FILENAME'."
 msgstr ""
 
-#: src/acornfs/desktop.py:881
+#: src/acornfs/desktop.py:958
 msgid "This image has no complete low-risk automatic repair plan."
 msgstr ""
 
@@ -1371,7 +1469,7 @@ msgstr ""
 msgid "This image has no writable identity signature."
 msgstr ""
 
-#: src/acornfs/desktop.py:686
+#: src/acornfs/desktop.py:763
 msgid "This mount has no lifecycle identity record, so AcornFS cannot prove its write mode or final flush state. Unmount it from a terminal before remounting it."
 msgstr ""
 
@@ -1379,7 +1477,7 @@ msgstr ""
 msgid "This plan cannot be applied automatically; no changes are permitted."
 msgstr ""
 
-#: src/acornfs/desktop.py:470
+#: src/acornfs/desktop.py:471
 #, python-brace-format
 msgid "Timed out mounting {image}."
 msgstr ""
@@ -1393,16 +1491,16 @@ msgstr ""
 msgid "Two entries in {path} map to the same Linux filename."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:279
+#: src/acornfs_nautilus/extension.py:302
 #, python-brace-format
 msgid "Unavailable: {error}"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:157
+#: src/acornfs_nautilus/extension.py:161
 msgid "Unmount"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:158
+#: src/acornfs_nautilus/extension.py:162
 #, python-brace-format
 msgid "Unmount {mountpoint}"
 msgstr ""
@@ -1411,7 +1509,7 @@ msgstr ""
 msgid "Unsafe"
 msgstr ""
 
-#: src/acornfs/desktop.py:524
+#: src/acornfs/desktop.py:525
 #, python-brace-format
 msgid "Unsupported image URI scheme: {scheme}"
 msgstr ""
@@ -1420,11 +1518,11 @@ msgstr ""
 msgid "Used"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:127
+#: src/acornfs_nautilus/extension.py:131
 msgid "Validate image"
 msgstr ""
 
-#: src/acornfs/desktop.py:776
+#: src/acornfs/desktop.py:853
 msgid "Validating AcornFS image"
 msgstr ""
 
@@ -1476,6 +1574,28 @@ msgstr[1] ""
 #: src/acornfs/core/beebscsi.py:119
 #, python-brace-format
 msgid "Writable mounting refuses an image member with hard links: {path}. Copy the pair to uniquely owned files first."
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:182
+#, python-brace-format
+msgid "Write and verify {image} using Greaseweazle"
+msgstr ""
+
+#: src/acornfs_nautilus/extension.py:181
+msgid "Write to physical floppy…"
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:175
+#, python-brace-format
+msgid "Writing and verifying track {track}"
+msgstr ""
+
+#: src/acornfs/desktop.py:615
+msgid "Writing physical floppy"
+msgstr ""
+
+#: src/acornfs/desktop.py:569
+msgid "Zenity is required to confirm a physical floppy write safely."
 msgstr ""
 
 #: src/acornfs/core/image.py:776
@@ -1533,7 +1653,7 @@ msgstr[1] ""
 msgid "free-space entry {index}"
 msgstr ""
 
-#: src/acornfs/desktop.py:702 src/acornfs/desktop.py:761
+#: src/acornfs/desktop.py:779 src/acornfs/desktop.py:838
 msgid "fusermount3 failed"
 msgstr ""
 
@@ -1557,11 +1677,11 @@ msgstr ""
 msgid "medium"
 msgstr ""
 
-#: src/acornfs/desktop.py:476
+#: src/acornfs/desktop.py:477
 msgid "read-only"
 msgstr ""
 
-#: src/acornfs/desktop.py:476
+#: src/acornfs/desktop.py:477
 msgid "read-write"
 msgstr ""
 
@@ -1569,7 +1689,7 @@ msgstr ""
 msgid "ready"
 msgstr ""
 
-#: src/acornfs/desktop.py:429
+#: src/acornfs/desktop.py:430
 msgid "systemd-run failed"
 msgstr ""
 
@@ -1579,6 +1699,10 @@ msgstr ""
 
 #: src/acornfs/core/image.py:509
 msgid "this filesystem does not provide Acorn metadata"
+msgstr ""
+
+#: src/acornfs/greaseweazle.py:185
+msgid "unknown error"
 msgstr ""
 
 #: src/acornfs/core/image.py:774
@@ -1619,27 +1743,35 @@ msgstr[1] ""
 msgid "{cylinders} cylinders × {heads} heads × {sectors} sectors/track"
 msgstr ""
 
+#: src/acornfs/desktop.py:621
+#, python-brace-format
+msgid ""
+"{error}\n"
+"\n"
+"If writing started, the destination floppy may be incomplete."
+msgstr ""
+
 #: src/acornfs/core/repair.py:433
 #, python-brace-format
 msgid "{error} Audit: {audit}"
 msgstr ""
 
-#: src/acornfs/desktop.py:811
+#: src/acornfs/desktop.py:888
 #, python-brace-format
 msgid "{image} has no reported ADFS problems."
 msgstr ""
 
-#: src/acornfs/desktop.py:479
+#: src/acornfs/desktop.py:480
 #, python-brace-format
 msgid "{image} is available in Files ({mode})."
 msgstr ""
 
-#: src/acornfs/desktop.py:874
+#: src/acornfs/desktop.py:951
 #, python-brace-format
 msgid "{image} needs no repair."
 msgstr ""
 
-#: src/acornfs/desktop.py:859
+#: src/acornfs/desktop.py:936
 #, python-brace-format
 msgid ""
 "{image} was repaired and fully verified.\n"
@@ -1648,7 +1780,7 @@ msgid ""
 "{audit}"
 msgstr ""
 
-#: src/acornfs/desktop.py:799
+#: src/acornfs/desktop.py:876
 #, python-brace-format
 msgid "{image}: [{severity}] {code}: {message}{suffix}"
 msgstr ""
@@ -1663,17 +1795,17 @@ msgstr ""
 msgid "{label} extents overlap in sectors {start}..{end}: {first_owner} and {second_owner}."
 msgstr ""
 
-#: src/acornfs/desktop.py:681
+#: src/acornfs/desktop.py:758
 #, python-brace-format
 msgid "{mountpoint} was already detached."
 msgstr ""
 
-#: src/acornfs/desktop.py:734
+#: src/acornfs/desktop.py:811
 #, python-brace-format
 msgid "{mountpoint} was detached read-only."
 msgstr ""
 
-#: src/acornfs/desktop.py:729
+#: src/acornfs/desktop.py:806
 #, python-brace-format
 msgid "{mountpoint} was flushed and validated safely."
 msgstr ""

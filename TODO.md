@@ -192,6 +192,21 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Define format detection precedence when one extension or container can hold multiple filesystems.
 - [x] Add capability-driven menu actions so unsupported formats never offer write or repair commands.
 
+## Phase 9a: physical floppy integration
+
+- [x] Detect both the `gw` executable and a responsive Greaseweazle before exposing an action.
+- [x] Offer physical writing only for Greaseweazle-supported floppy image suffixes.
+- [x] Keep the action inside the single `Acorn FS Support` Nautilus submenu.
+- [x] Add drive selection for PC drives A/B and Shugart units 0-3.
+- [x] Require explicit destructive confirmation before starting a physical write.
+- [x] Snapshot the source image privately so it cannot change during the hardware operation.
+- [x] Show determinate track progress and verification retries without allowing unsafe cancellation.
+- [x] Retain Greaseweazle's default verification and refuse to report success without it.
+- [x] Report disconnects, write failures and verification failures with incomplete-media guidance.
+- [ ] Exercise SSD, DSD and ADFS writes through a real Greaseweazle using expendable media.
+- [ ] Verify written media on representative BBC, Master and RISC OS hardware.
+- [ ] Consider physical-floppy reads only after the write workflow has hardware evidence.
+
 ## Phase 10: packaging and release
 
 - [ ] Produce Debian packages for supported Ubuntu releases.
@@ -237,6 +252,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Locked files and every supported metadata combination.
 - [x] Interrupted writes, daemon crashes and forced termination.
 - [ ] Host shutdown during an active writable mount.
+- [ ] Greaseweazle writes and verifies SSD, DSD and ADFS images on real drives and media.
 - [x] Concurrent readers and conflicting writers.
 - [x] External modification while mounted.
 - [x] Files larger than available image space.

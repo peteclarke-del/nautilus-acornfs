@@ -12,6 +12,7 @@ import gi
 
 from acornfs.core import read_image_properties
 from acornfs.errors import AcornFSError
+from acornfs.greaseweazle import physical_write_available
 from acornfs.i18n import _
 from acornfs.mounts import is_mounted, mount_for_image
 from acornfs.recovery import pending_recovery
@@ -88,6 +89,9 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
 
     def _open_file_forge(self, _menu: Any, image_path: Path) -> None:
         _launch("desktop-open-file-forge", str(image_path))
+
+    def _write_physical_floppy(self, _menu: Any, image_path: Path) -> None:
+        _launch("desktop-write-floppy", str(image_path))
 
     def _create(self, _menu: Any, directory: Path) -> None:
         _launch("desktop-create", str(directory))
@@ -171,6 +175,16 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
         item.connect("activate", self._open_file_forge, path)
         return item
 
+    def _write_floppy_item(self, path: Path) -> Any:
+        item = Nautilus.MenuItem(
+            name="AcornFS::WritePhysicalFloppy",
+            label=_("Write to physical floppy…"),
+            tip=_("Write and verify {image} using Greaseweazle").format(image=path.name),
+            icon="media-floppy-symbolic",
+        )
+        item.connect("activate", self._write_physical_floppy, path)
+        return item
+
     def get_file_items(self, files: list[Any]) -> list[Any]:
         if len(files) != 1:
             return []
@@ -184,8 +198,11 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             if self._can_create_in(path):
                 return [self._support_menu([self._create_item(path), self._configuration_item()])]
             return []
+        offer_physical_write = physical_write_available(path)
         capabilities = image_capabilities(path)
         if capabilities is None:
+            if offer_physical_write:
+                return [self._support_menu([self._write_floppy_item(path)])]
             return []
         try:
             mounted = mount_for_image(path)
@@ -195,6 +212,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             mounted_items = [self._unmount_item(Path(mounted.mountpoint))]
             if capabilities.file_forge:
                 mounted_items.append(self._file_forge_item(path))
+            if offer_physical_write:
+                mounted_items.append(self._write_floppy_item(path))
             mounted_items.append(self._configuration_item())
             return [self._support_menu(mounted_items)]
         recovery = None
@@ -216,6 +235,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                 recovery_items.append(self._validate_item(path))
             if capabilities.file_forge:
                 recovery_items.append(self._file_forge_item(path))
+            if offer_physical_write:
+                recovery_items.append(self._write_floppy_item(path))
             recovery_items.append(self._configuration_item())
             return [self._support_menu(recovery_items)]
         image_items: list[Any] = []
@@ -236,6 +257,8 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             image_items.append(self._validate_item(path))
         if capabilities.repair:
             image_items.append(self._repair_item(path))
+        if offer_physical_write:
+            image_items.append(self._write_floppy_item(path))
         if capabilities.file_forge:
             image_items.append(self._file_forge_item(path))
         image_items.append(self._configuration_item())

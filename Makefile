@@ -25,6 +25,7 @@ messages:
 		src/acornfs/core/image.py \
 		src/acornfs/core/properties.py src/acornfs/core/repair.py \
 		src/acornfs/core/validation.py src/acornfs/desktop.py src/acornfs/file_forge.py \
+		src/acornfs/greaseweazle.py \
 		src/acornfs/fuse_adapter/operations.py src/acornfs/fuse_adapter/runner.py \
 		src/acornfs/mounts.py src/acornfs/operations.py src/acornfs/preferences.py \
 		src/acornfs/recovery.py src/acornfs/safe_paths.py src/acornfs_nautilus/extension.py \
