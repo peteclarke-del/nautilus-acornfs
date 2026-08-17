@@ -11,6 +11,7 @@ from tests.image_fixture import (
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
+    create_romfs_image,
 )
 
 
@@ -54,6 +55,35 @@ def test_detects_dfs_floppies_with_read_only_capabilities(
 def test_dfs_content_detection_does_not_depend_on_extension(tmp_path: Path) -> None:
     image_path = create_dfs_floppy(tmp_path, filename="catalogue.bin")
     assert resolve_image(image_path).kind == "dfs-floppy"
+
+
+def test_detects_romfs_by_crc_validated_content_with_read_only_capabilities(
+    tmp_path: Path,
+) -> None:
+    image_path = create_romfs_image(tmp_path, filename="renamed.bin")
+
+    resolved = resolve_image(image_path)
+
+    assert resolved.kind == "romfs-image"
+    assert resolved.filesystem == "acorn-romfs"
+    assert resolved.geometry.label == "8 KiB ROM"
+    assert resolved.case_sensitive_names
+    assert resolved.capabilities.mount_read_only
+    assert resolved.capabilities.properties
+    assert not resolved.capabilities.mount_read_write
+    assert not resolved.capabilities.validate
+    assert not resolved.capabilities.repair
+
+
+def test_romfs_with_a_broken_block_crc_is_not_accepted(tmp_path: Path) -> None:
+    image_path = create_romfs_image(tmp_path)
+    contents = bytearray(image_path.read_bytes())
+    offset = contents.index(b"Hello from ROMFS")
+    contents[offset] ^= 0x01
+    image_path.write_bytes(contents)
+
+    with pytest.raises(UnsupportedImageError, match="not a supported"):
+        resolve_image(image_path)
 
 
 def test_detects_watford_dfs_as_a_read_only_dfs_profile(tmp_path: Path) -> None:

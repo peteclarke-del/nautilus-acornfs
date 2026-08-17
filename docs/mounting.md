@@ -4,8 +4,8 @@
 
 The current implementation supports Linux on amd64 with Python 3.11 or later,
 FUSE 3, and either a valid paired BeebSCSI DAT/DSC image, a standalone ADFS
-S/M/L floppy, an Acorn/Watford DFS SSD/DSD image, or a standard MMB container.
-Floppies and MMB containers are read-only.
+S/M/L floppy, an Acorn/Watford DFS SSD/DSD image, a standard MMB container, or
+an Acorn ROMFS paged-ROM image. Floppies, MMB and ROMFS images are read-only.
 On Ubuntu 24.04 or later, install the host packages with:
 
 ```shell
@@ -92,6 +92,16 @@ Only formatted slots appear. Each is named with its zero-padded slot number and
 catalogue label, and contains the normal DFS prefix-directory view. Extended
 MMBs are refused rather than partially mounted. See [mmb.md](mmb.md) for the
 format boundary and planned safe slot-mutation semantics.
+
+CRC-valid 8 KiB and 16 KiB ROMFS images also use the same command; recognition
+does not depend on a `.rom` suffix:
+
+```shell
+acornfs mount /path/to/utilities.rom "$HOME/AcornFS/romfs"
+```
+
+The flat catalogue appears at the mount root. Names are case-sensitive and
+on-disc `/` characters are displayed as `∕`. ROMFS remains read-only.
 
 ## Writable mount
 

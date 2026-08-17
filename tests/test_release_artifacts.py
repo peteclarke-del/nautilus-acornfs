@@ -77,13 +77,13 @@ def test_source_archive_extraction_rejects_path_traversal(tmp_path: Path) -> Non
 
 def test_resolved_requirements_exclude_build_tools_and_project() -> None:
     packages = [
-        {"name": "oaknut-adfs", "version": "12.13.1"},
+        {"name": "oaknut-adfs", "version": "12.15.1"},
         {"name": "Nautilus_AcornFS", "version": "0.1.0"},
         {"name": "pip", "version": "26.0"},
         {"name": "trio", "version": "0.31.0"},
     ]
 
-    assert _resolved_requirements(packages) == ["oaknut-adfs==12.13.1", "trio==0.31.0"]
+    assert _resolved_requirements(packages) == ["oaknut-adfs==12.15.1", "trio==0.31.0"]
 
 
 def test_checksum_manifest_is_sorted_and_sha256(tmp_path: Path) -> None:

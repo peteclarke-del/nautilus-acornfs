@@ -8,7 +8,7 @@ operation, IPC mechanism or privilege boundary is added.
 
 AcornFS protects the host user's files, the integrity and confidentiality of
 disk images, recovery checkpoints, mount records and preferences. DAT, DSC,
-floppy and MMB contents, filenames, desktop URIs, FUSE requests and paths below
+floppy, MMB and ROMFS contents, filenames, desktop URIs, FUSE requests and paths below
 user-selected image directories are untrusted.
 
 The logged-in user, the installed AcornFS/Oaknut code, the kernel FUSE driver

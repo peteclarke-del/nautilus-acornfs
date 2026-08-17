@@ -12,10 +12,12 @@ plus an explicit operation-capability profile. A complete DAT/DSC pair takes
 precedence because its descriptor supplies hard-disc geometry that content
 cannot recover. Otherwise Oaknut ranks content evidence; suffixes only break
 equal-confidence ties. AcornFS accepts detected ADFS S/M/L and DFS SSD/DSD
-floppy images as read-only profiles. DFS catalogue prefixes use Oaknut's virtual
+floppy images and CRC-validated 8/16 KiB Acorn ROMFS images as read-only
+profiles. DFS catalogue prefixes use Oaknut's virtual
 directory model; DSD mounts add a presentation-only drive level (`0` and `2`)
 over the two independently catalogued surfaces. Other recognised-but-unsupported
-filesystems are rejected explicitly.
+filesystems are rejected explicitly. ROMFS retains its case-sensitive flat
+namespace and distinct run-only access bit through the POSIX presentation.
 
 Standard MMB support is a container adapter, not another filesystem parser. It
 validates the fixed 8 KiB catalogue, exposes formatted slots as a virtual root,
@@ -32,8 +34,9 @@ Python 3.11 through 3.14.
 
 ## Shared boundary with Acorn File Forge
 
-Acorn File Forge already consumes `oaknut-disc==12.13.1` through
-`oaknut.filesystem`. AcornFS will use the same public package API. Generic ADFS
+Acorn File Forge already consumes `oaknut-disc==12.15.1` and
+`oaknut-romfs==12.15.1` through `oaknut.filesystem`. AcornFS uses the same public
+package API for content detection, ROM catalogue traversal and metadata. Generic ADFS
 parsing, geometry, catalogue and mutation logic belongs upstream in Oaknut;
 AcornFS owns pairing, mount policy, caching, POSIX mapping and FUSE lifecycle.
 No module will import code from the Acorn File Forge application package.

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from oaknut.file import Access, AcornMeta
 from oaknut.filesystem import create_filesystem, geometry_from_dsc, reader_for, winchester_geometry
 
 from acornfs.core.mmb import MMB_HEADER_BYTES, MMB_SLOT_BYTES, MMB_STANDARD_BYTES
@@ -165,6 +166,36 @@ def create_dfs_floppy(
             finally:
                 side_two.close()  # type: ignore[attr-defined]
     finally:
+        reader.close()
+    return image_path
+
+
+def create_romfs_image(directory: Path, *, filename: str = "utilities.rom") -> Path:
+    """Create a populated, CRC-valid 8 KiB ROMFS image."""
+
+    filesystem = create_filesystem("acorn-romfs")
+    geometry = filesystem.geometry_grammar().presets["8k"]
+    image_path = directory / filename
+    filesystem.create(image_path, geometry, title="ACORNFS")
+    reader = reader_for(image_path, writable=True)
+    mount = filesystem.open(reader, geometry)
+    try:
+        mount.write_bytes("HELLO", b"Hello from ROMFS\r")
+        mount.write_bytes("Case", b"upper case name\r")
+        mount.write_bytes("case", b"lower case name\r")
+        mount.write_bytes("A/B", b"slash in name\r")
+        mount.set_acorn_meta(
+            "HELLO",
+            AcornMeta(
+                load_address=0xFFFF8000,
+                exec_address=0xFFFF8000,
+                access=int(Access.X),
+            ),
+        )
+    finally:
+        close = getattr(mount, "close", None)
+        if callable(close):
+            close()
         reader.close()
     return image_path
 

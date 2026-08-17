@@ -94,6 +94,8 @@ repair, recovery and File Forge actions are omitted rather than being allowed
 to fail after selection. Standard MMB containers use the same read-only action
 and expose each formatted slot as a labelled directory; extended MMBs are not
 offered because mounting only their first extent would be incomplete.
+CRC-validated ROMFS images also expose only **Open read-only** and image
+properties. Their flat, case-sensitive catalogue is shown at the mount root.
 
 ## Create a BeebSCSI image
 

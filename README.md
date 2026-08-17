@@ -2,9 +2,10 @@
 
 Nautilus AcornFS is an in-progress, user-space filesystem for Acorn disk
 images. Paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S/M/L floppies,
-DFS `SSD`/`DSD` images, and standard MMB containers are mounted through FUSE 3
-and exposed to Nautilus through a small extension, while the filesystem engine
-remains usable from any Linux application.
+DFS `SSD`/`DSD` images, standard MMB containers, and Acorn ROMFS paged-ROM
+images are mounted through FUSE 3 and exposed to Nautilus through a small
+extension, while the filesystem engine remains usable from any Linux
+application.
 
 Read-only mounting remains the default. Opt-in writable mounts use exclusive
 pair locks, persistent pre-write checkpoints, external-change detection and
@@ -17,8 +18,8 @@ the writable session. A successful logical mutation advances the old-ADFS disc
 cycle ID exactly once and refreshes both map checksums; rollback restores the
 previous ID. Oversized writes are rejected before their FUSE buffers consume the
 unavailable capacity.
-Acorn load/execute addresses, filetypes, lock state, source filesystem and
-original paths are available as extended attributes. See [TODO.md](TODO.md) for
+Acorn load/execute addresses, filetypes, lock/run-only state, source filesystem
+and original paths are available as extended attributes. See [TODO.md](TODO.md) for
 the remaining lifecycle and format work. Release history and policy are in
 [CHANGELOG.md](CHANGELOG.md) and [docs/releases.md](docs/releases.md).
 The complete desktop walkthrough is in [docs/user-guide.md](docs/user-guide.md),
@@ -33,6 +34,8 @@ with deployment and retained-state guidance in
   catalogue prefixes and both DSD sides coherently.
 - Mount standard 511-slot MMB containers read-only with formatted slots exposed
   as labelled directories and a bounded lazy DFS-mount cache.
+- Mount CRC-validated 8 KiB and 16 KiB Acorn ROMFS images read-only, preserving
+  case-sensitive flat-catalogue names and run-only metadata.
 - Reject missing or ambiguous pairs.
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
@@ -127,10 +130,10 @@ Install the per-user Nautilus extension, MIME types and desktop handler, then re
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair, a supported ADFS/DFS floppy, or a
-standard MMB and open **Acorn FS Support**. BeebSCSI pairs offer
+Right-click either member of a valid pair, a supported ADFS/DFS floppy, a
+standard MMB, or a ROMFS image and open **Acorn FS Support**. BeebSCSI pairs offer
 **Open read-only**, **Open read-write**, **Validate image**, **Repair image…**, or
-**Open in Acorn File Forge…**. Floppy-image filesystem editing remains read-only.
+**Open in Acorn File Forge…**. Floppies, MMB and ROMFS images remain read-only.
 When the `gw` command and a connected Greaseweazle both respond, compatible
 `.ssd`, `.dsd`, `.adf`, `.ads`, `.adm` and `.adl` files additionally offer
 **Write to physical floppy…**. The action is completely absent otherwise.
@@ -360,3 +363,8 @@ and catalogue label. Each slot contains the same DFS prefix directories as an
 SSD. Extended MMBs and all MMB mutations are explicitly unsupported; see
 [docs/mmb.md](docs/mmb.md) for the namespace, limits and future transaction
 contract.
+
+Acorn ROMFS images are identified from their CRC-valid block chain rather than
+their filename extension. Their flat catalogue is presented at the mount root;
+names remain case-sensitive, and an on-disc `/` is displayed as `∕`. ROMFS is
+read-only, and its distinct run-only flag is exposed as `user.acorn.run_only`.

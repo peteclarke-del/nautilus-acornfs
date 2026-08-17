@@ -10,6 +10,7 @@ from tests.image_fixture import (
     create_beebscsi_image,
     create_dfs_floppy,
     create_mmb_image,
+    create_romfs_image,
 )
 
 
@@ -50,6 +51,19 @@ def test_dfs_support_exposes_only_safe_actions(tmp_path: Path) -> None:
 
 def test_mmb_support_exposes_only_safe_actions(tmp_path: Path) -> None:
     image_path = create_mmb_image(tmp_path)
+    capabilities = image_capabilities(image_path)
+    assert capabilities is not None
+    assert capabilities.mount_read_only
+    assert capabilities.properties
+    assert not capabilities.mount_read_write
+    assert not capabilities.validate
+    assert not capabilities.repair
+    assert not capabilities.recover
+    assert not capabilities.file_forge
+
+
+def test_romfs_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+    image_path = create_romfs_image(tmp_path)
     capabilities = image_capabilities(image_path)
     assert capabilities is not None
     assert capabilities.mount_read_only
@@ -119,3 +133,31 @@ def test_mounted_dfs_file_properties_use_dfs_source_name(
     assert rows["Source filesystem"] == "Acorn DFS"
     assert rows["Original pathname"] == "$.HELLO"
     assert "RISC OS filetype" not in rows
+
+
+def test_mounted_romfs_file_properties_include_run_only(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    path = tmp_path / "HELLO"
+    path.touch()
+    attributes = {
+        "user.acorn.source": b"acorn-romfs",
+        "user.acorn.path": b"HELLO",
+        "user.acorn.load": b"FFFF8000",
+        "user.acorn.execute": b"FFFF8000",
+        "user.acorn.locked": b"0",
+        "user.acorn.run_only": b"1",
+    }
+
+    def getxattr(_path: str, name: str) -> bytes:
+        try:
+            return attributes[name]
+        except KeyError as exc:
+            raise OSError(name) from exc
+
+    monkeypatch.setattr("os.getxattr", getxattr)  # type: ignore[attr-defined]
+
+    rows = dict(mounted_file_property_rows(path))
+    assert rows["Source filesystem"] == "Acorn ROMFS"
+    assert rows["Original pathname"] == "HELLO"
+    assert rows["Run-only"] == "1"
