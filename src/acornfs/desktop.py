@@ -390,7 +390,7 @@ def background_mount(
                     text=True,
                 )
                 if launch.returncode:
-                    detail = launch.stderr.strip() or "systemd-run failed"
+                    detail = launch.stderr.strip() or _("systemd-run failed")
                     raise AcornFSError(
                         _("Could not start the AcornFS user service: {detail}").format(
                             detail=detail

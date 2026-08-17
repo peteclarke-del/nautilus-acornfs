@@ -29,10 +29,12 @@ the remaining lifecycle and format work. Release history and policy are in
 - Parse and validate the geometry in a 22-byte BeebSCSI descriptor.
 - Report pair metadata through `acornfs inspect`.
 - Validate geometry, maps, directories and used/free sector allocation with typed reports.
+- Publish versioned validation JSON and a stable BeebSCSI old-map compatibility profile.
 - Mount a validated ADFS image read-only or read-write through FUSE 3.
 - Traverse directories and open files from Nautilus and other Linux applications.
 - Create, replace, truncate, rename and delete files and directories on writable mounts.
 - Keep concurrent handles to one writable file coherent and flush dirty open handles on shutdown.
+- Coalesce compatible Acorn metadata changes and notify kernel caches after mutations.
 - Enforce and test deep-tree, 47-entry old-directory, 10-byte name and display-mapping boundaries.
 - Enforce published amd64 latency, throughput and open-memory budgets in CI artefacts.
 - Detect sequential large-file reads and use globally bounded per-handle read-ahead.
@@ -53,7 +55,7 @@ the remaining lifecycle and format work. Release history and policy are in
 - Wait for writable flush and final validation before confirming unmount success.
 - Export privacy-safe support information through `acornfs diagnostics --json`.
 - Import and export individual files with Acorn load, execution and lock metadata sidecars.
-- Translate desktop lifecycle, creation, validation, repair, recovery and property messages through gettext.
+- Translate all desktop UI and desktop-reachable filesystem messages through gettext.
 
 ## Development
 

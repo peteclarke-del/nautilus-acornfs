@@ -123,7 +123,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Ensure all actions are keyboard accessible and meet WCAG expectations.
 - [ ] Test light mode, dark mode, narrow windows and 200 percent scaling.
 - [ ] Test drag-and-drop, clipboard copy/move, trash/delete and atomic-save workflows in Nautilus.
-- [ ] Make all user-facing desktop strings translatable.
+- [x] Make all user-facing desktop strings translatable.
 - [x] Add the gettext foundation, catalogue template and localisation guidance for desktop UI chrome.
 - [x] Localise core validation, repair and image-property values displayed by the desktop UI.
 - [x] Localise remaining lifecycle, creation, recovery and preference errors surfaced by the desktop UI.
@@ -157,7 +157,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Show determinate byte-level progress throughout desktop repair.
 - [x] Show explicit desktop completion or failure details after repair and recovery.
 - [ ] Test images edited by the filesystem on real BeebSCSI hardware.
-- [ ] Add a machine-readable compatibility profile/version to validation reports.
+- [x] Add a machine-readable compatibility profile/version to validation reports.
 - [ ] Add automatic repairs only for further cases with complete rollback and hardware evidence.
 
 ## Phase 8: performance and concurrency
@@ -167,14 +167,14 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Keep one Oaknut mount and one eagerly built directory index for the life of each FUSE mount.
 - [x] Add a bounded whole-file LRU cache and ranged reads for files larger than the cache limit.
 - [x] Add sequential-read detection and bounded read-ahead for large files.
-- [ ] Batch compatible metadata updates.
+- [x] Batch compatible metadata updates.
 - [x] Define and test the concurrency model for simultaneous readers and a single writer.
 - [x] Update or invalidate the userspace inode, directory and file caches after mutations.
-- [ ] Notify the kernel to invalidate cached entries/data after mutations where zero timeouts are insufficient.
+- [x] Notify the kernel to invalidate cached entries/data after mutations where zero timeouts are insufficient.
 - [x] Ensure external image changes are detected rather than overwritten.
 - [x] Record throughput and latency regressions in CI artefacts.
 - [x] Establish amd64 performance budgets before the first release candidate.
-- [ ] Profile memory use for maximum supported node counts and large open-write buffers.
+- [x] Profile memory use for maximum supported node counts and large open-write buffers.
 
 ## Phase 9: additional Acorn formats
 

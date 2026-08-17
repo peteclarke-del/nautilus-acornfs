@@ -23,6 +23,12 @@ truncation and out-of-range structures are rejected when safe traversal cannot
 be established. AcornFS reports classified findings rather than attempting to
 guess missing sectors or ownership.
 
+JSON validation reports include a top-level `schema_version` and a versioned
+`compatibility_profile`. The initial profile is
+`beebscsi-adfs-old-map` version 1. Consumers must use those machine fields rather
+than parsing translated messages; finding codes remain stable within the report
+schema.
+
 ## Repair-plan interpretation
 
 The planner labels actions as automatic candidates or manual decisions and

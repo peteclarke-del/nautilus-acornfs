@@ -7,6 +7,9 @@ catalogue or individual translation is missing.
 The catalogue covers interface chrome, validation summaries and findings,
 repair plans and progress, known image-property values, and the lifecycle,
 creation, recovery and preference messages surfaced by desktop workflows.
+Pair discovery, image indexing/mutation and FUSE lifecycle errors reachable
+through those workflows use the same catalogue, completing desktop string
+coverage.
 Stable finding codes, repair action identifiers, audit and checkpoint state
 values, Acorn paths, disc titles and other image-owned data are deliberately
 unchanged. Low-level details originating in Oaknut or the operating system

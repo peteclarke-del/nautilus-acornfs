@@ -11,6 +11,7 @@ import trio
 from acornfs.core import ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.fuse_adapter.operations import ReadOnlyOperations
+from acornfs.i18n import _
 from acornfs.mounts import register_mount, unregister_mount
 
 
@@ -33,12 +34,16 @@ def mount_image(
 
     target = Path(mountpoint).expanduser().resolve()
     if not target.is_dir():
-        raise AcornFSError(f"Mountpoint does not exist or is not a directory: {target}")
+        raise AcornFSError(
+            _("Mountpoint does not exist or is not a directory: {path}").format(path=target)
+        )
     try:
         if any(target.iterdir()):
-            raise AcornFSError(f"Mountpoint must be empty: {target}")
+            raise AcornFSError(_("Mountpoint must be empty: {path}").format(path=target))
     except OSError as exc:
-        raise AcornFSError(f"Cannot inspect mountpoint {target}: {exc}") from exc
+        raise AcornFSError(
+            _("Cannot inspect mountpoint {path}: {error}").format(path=target, error=exc)
+        ) from exc
 
     registered = False
     try:
