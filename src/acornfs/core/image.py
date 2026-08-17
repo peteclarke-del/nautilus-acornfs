@@ -13,17 +13,24 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from oaknut.adfs.exceptions import ADFSDiscFullError, ADFSError
 from oaknut.file import AcornMeta
-from oaknut.filesystem import create_filesystem, geometry_from_dsc
+from oaknut.filesystem import (
+    AcornMetadata,
+    Filetyped,
+    FreeSpace,
+    Sized,
+    create_filesystem,
+    geometry_from_dsc,
+    reader_for,
+)
 from oaknut.filesystem.capabilities import Mount
 from oaknut.filesystem.reader import ImageReader
 
 from acornfs.core.beebscsi import (
     BeebSCSIGeometry,
-    BeebSCSIPair,
-    discover_pair,
     open_locked_reader,
     parse_descriptor,
 )
+from acornfs.core.formats import ResolvedImage, resolve_image
 from acornfs.core.transaction import SectorTransaction
 from acornfs.errors import AcornFSError, FilenameTooLongError
 from acornfs.i18n import _, ngettext
@@ -89,7 +96,7 @@ class ReadOnlyImage:
     def __init__(
         self,
         *,
-        pair: BeebSCSIPair,
+        source: ResolvedImage,
         reader: ImageReader,
         mount: Mount,
         cache_bytes: int = DEFAULT_CACHE_BYTES,
@@ -98,12 +105,15 @@ class ReadOnlyImage:
         writable: bool = False,
         closeables: tuple[Any, ...] = (),
         checkpoint: RecoveryCheckpoint | None = None,
-        descriptor_geometry: BeebSCSIGeometry,
+        descriptor_geometry: BeebSCSIGeometry | None = None,
         fault_injector: Callable[[str], None] | None = None,
     ) -> None:
-        self.pair = pair
+        self.source = source
+        self.pair = source.pair
         self._reader = reader
         self._mount = mount
+        self.has_acorn_metadata = isinstance(mount, AcornMetadata)
+        self.has_filetypes = isinstance(mount, Filetyped)
         self._cache_limit = cache_bytes
         self._max_nodes = max_nodes
         self.max_nodes = max_nodes
@@ -118,15 +128,15 @@ class ReadOnlyImage:
         self._cache: OrderedDict[int, bytes] = OrderedDict()
         self._cache_size = 0
         self._closed = False
-        self.timestamp_ns = pair.dat_path.stat().st_mtime_ns
+        self.timestamp_ns = source.primary_path.stat().st_mtime_ns
         self.nodes: dict[int, ImageNode] = {}
         self.children: dict[int, tuple[int, ...]] = {}
         self.children_by_name: dict[int, dict[bytes, int]] = {}
         self._index_tree()
         self._next_inode = max(self.nodes) + 1
-        self.total_bytes = self._reported_size(pair.dat_path.stat().st_size)
+        self.total_bytes = self._reported_size(source.primary_path.stat().st_size)
         self.free_bytes = self._reported_free_space()
-        self._expected_signature = self._current_signature()
+        self._expected_signature = self._current_signature() if writable else None
 
     @classmethod
     def open(
@@ -141,20 +151,31 @@ class ReadOnlyImage:
         fault_injector: Callable[[str], None] | None = None,
         checkpoint_progress: Callable[[int, int], None] | None = None,
     ) -> ReadOnlyImage:
-        """Validate and open a DAT/DSC image, read-only unless explicitly writable."""
+        """Detect and open a supported image, read-only unless explicitly writable."""
 
-        pair = discover_pair(selected)
+        source = resolve_image(selected)
+        if writable and not source.capabilities.mount_read_write:
+            raise AcornFSError(_("Read-write mounting is not supported for this image format."))
+        pair = source.pair
         reader: ImageReader | None = None
         mount: Mount | None = None
         try:
-            descriptor = pair.dsc_path.read_bytes()
-            descriptor_geometry = parse_descriptor(descriptor)
-            geometry = geometry_from_dsc(descriptor)
-            reader, closeables = open_locked_reader(pair, writable=writable)
-            mount = create_filesystem("adfs").open(reader, geometry)
+            descriptor_geometry: BeebSCSIGeometry | None = None
+            closeables: tuple[Any, ...] = ()
+            if pair is not None:
+                descriptor = pair.dsc_path.read_bytes()
+                descriptor_geometry = parse_descriptor(descriptor)
+                geometry = geometry_from_dsc(descriptor)
+                reader, closeables = open_locked_reader(pair, writable=writable)
+            else:
+                geometry = source.geometry
+                reader = reader_for(source.primary_path, writable=False)
+            mount = create_filesystem(source.filesystem).open(reader, geometry)
             if writable:
                 from acornfs.core.validation import require_safe_for_write, validate_open_mount
 
+                if pair is None or descriptor_geometry is None:
+                    raise AcornFSError(_("This image has no supported writable profile."))
                 report = validate_open_mount(pair, mount, descriptor_geometry)
                 require_safe_for_write(report)
                 if not repair_mode and any(
@@ -168,7 +189,7 @@ class ReadOnlyImage:
                         )
                     )
             image = cls(
-                pair=pair,
+                source=source,
                 reader=reader,
                 mount=mount,
                 cache_bytes=cache_bytes,
@@ -189,6 +210,8 @@ class ReadOnlyImage:
                 try:
                     from acornfs.recovery import RecoveryCheckpoint
 
+                    if pair is None:
+                        raise AcornFSError(_("This image has no supported recovery profile."))
                     image._checkpoint = RecoveryCheckpoint.create(
                         pair, progress=checkpoint_progress
                     )
@@ -265,7 +288,11 @@ class ReadOnlyImage:
                         acorn_path=entry.path,
                         is_dir=entry.is_dir,
                         size=entry.length,
-                        locked=bool(cast(Any, self._mount).acorn_meta(entry.path).access & 8),
+                        locked=(
+                            bool(cast(AcornMetadata, self._mount).acorn_meta(entry.path).access & 8)
+                            if self.has_acorn_metadata
+                            else False
+                        ),
                     )
                     self.nodes[inode] = node
                     child_inodes.append(inode)
@@ -463,7 +490,9 @@ class ReadOnlyImage:
         node = self.nodes[inode]
         if node.inode == ROOT_INODE:
             raise ValueError(_("the filesystem root has no file metadata"))
-        return cast(AcornMeta, cast(Any, self._mount).acorn_meta(node.acorn_path))
+        if not self.has_acorn_metadata:
+            raise ValueError(_("this filesystem does not provide Acorn metadata"))
+        return cast(AcornMeta, cast(AcornMetadata, self._mount).acorn_meta(node.acorn_path))
 
     def set_acorn_metadata(
         self,
@@ -512,7 +541,9 @@ class ReadOnlyImage:
         node = self.nodes[inode]
         if node.inode == ROOT_INODE:
             return None
-        return cast(int | None, cast(Any, self._mount).filetype(node.acorn_path))
+        if not self.has_filetypes:
+            return None
+        return cast(int | None, cast(Filetyped, self._mount).filetype(node.acorn_path))
 
     @staticmethod
     def _new_name(name: bytes) -> str:
@@ -798,6 +829,8 @@ class ReadOnlyImage:
         with self._mutation():
             mapping_handle = self._closeables[1]
             original_size = os.fstat(mapping_handle.fileno()).st_size
+            if self._descriptor_geometry is None:
+                raise AcornFSError(_("Reserved-tail repair requires BeebSCSI geometry."))
             expected_size = self._descriptor_geometry.capacity
             adfs_size = int(cast(Any, self._mount)._adfs._fsm.total_sectors) * ADFS_SECTOR_BYTES
             if original_size != adfs_size or original_size >= expected_size:
@@ -839,7 +872,7 @@ class ReadOnlyImage:
 
     def _current_signature(self) -> tuple[int, int, int, int, int]:
         open_stat = os.fstat(self._closeables[1].fileno())
-        path_stat = self.pair.dat_path.stat()
+        path_stat = self.source.primary_path.stat()
         return (
             path_stat.st_dev,
             path_stat.st_ino,
@@ -853,6 +886,8 @@ class ReadOnlyImage:
             raise PermissionError(_("image is read-only"))
         if self._failed:
             raise AcornFSError(_("The writable session has failed; unmount and recover the image."))
+        if self._expected_signature is None:
+            raise AcornFSError(_("This image has no writable identity signature."))
         if self._current_signature() != self._expected_signature:
             self._failed = True
             raise AcornFSError(
@@ -968,18 +1003,26 @@ class ReadOnlyImage:
         self._cache_size += len(data)
 
     def _reported_size(self, fallback: int) -> int:
-        reporter = getattr(self._mount, "size_bytes", None)
-        return int(reporter()) if callable(reporter) else fallback
+        return (
+            int(cast(Sized, self._mount).size_bytes())
+            if isinstance(self._mount, Sized)
+            else fallback
+        )
 
     def _reported_free_space(self) -> int:
-        reporter = getattr(self._mount, "free_bytes", None)
-        return int(reporter()) if callable(reporter) else 0
+        return (
+            int(cast(FreeSpace, self._mount).free_bytes())
+            if isinstance(self._mount, FreeSpace)
+            else 0
+        )
 
     def integrity_report(self) -> IntegrityReport:
         """Return a full integrity report for the currently locked image."""
 
         from acornfs.core.validation import validate_open_mount
 
+        if self.pair is None or self._descriptor_geometry is None:
+            raise AcornFSError(_("Full validation is not available for this image format."))
         return validate_open_mount(self.pair, self._mount, self._descriptor_geometry)
 
     @staticmethod

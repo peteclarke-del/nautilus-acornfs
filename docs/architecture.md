@@ -7,6 +7,16 @@ pyfuse3 is a maintained binding for libfuse 3 and supports async request
 handling. Image code must remain independent of pyfuse3 so it can be tested
 without mounting or elevated privileges.
 
+Image selection resolves to a canonical source, Oaknut filesystem and geometry,
+plus an explicit operation-capability profile. A complete DAT/DSC pair takes
+precedence because its descriptor supplies hard-disc geometry that content
+cannot recover. Otherwise Oaknut ranks content evidence; suffixes only break
+equal-confidence ties. AcornFS currently accepts detected ADFS S/M/L floppy
+geometry and rejects recognised-but-unsupported filesystems explicitly.
+Read-only indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
+metadata, filetype, size and free-space capabilities. Private old-ADFS access is
+confined to the separately capability-gated BeebSCSI write and ranged-read paths.
+
 The initial host baseline is Ubuntu 24.04 LTS or later, FUSE 3, and Nautilus 46
 or later using the Nautilus 4 GObject-introspection API. CI also exercises
 Python 3.11 through 3.14.
@@ -82,11 +92,12 @@ particular, NUL is an on-disc terminator rather than a valid creatable character
 - `acornfs.cli`: commands that call the same application services as FUSE.
 - `acornfs_nautilus`: thin Nautilus menu and properties integration.
 
-The per-user desktop installer also registers two narrow MIME types and a hidden
-URI handler. DAT recognition uses old-format ADFS content magic rather than a
-generic filename glob; DSC selection is extension-based but must still pass core
-pair and descriptor validation. MIME, double-click and `acornfs:` URI opens all
-converge on the same read-only desktop-mount path.
+The per-user desktop installer also registers narrow MIME types and a hidden URI
+handler. DAT recognition uses old-format ADFS content magic rather than a generic
+filename glob; ADFS floppy suffixes provide desktop discovery, while the core
+still verifies content and geometry. DSC selection is extension-based but must
+pass pair and descriptor validation. MIME, double-click and `acornfs:` URI opens
+all converge on the same read-only desktop-mount path.
 
 The Nautilus extension communicates with the CLI, which runs desktop mounts as
 collected transient systemd user services when available. It must not hold
@@ -109,8 +120,9 @@ published member and all temporary files.
 ## Mount identity and shutdown
 
 `/proc/self/mountinfo` is authoritative for active FUSE mounts. A private
-per-user runtime record enriches each entry with canonical DAT/DSC paths, both
-device/inode pairs, the daemon PID and access mode. Records use a `0700`
+per-user runtime record enriches each entry with the canonical primary image and
+optional companion paths, their device/inode identities, the daemon PID and
+access mode. Records use a `0700`
 directory and `0600` files and are removed only after the image context has
 completed close-time flush and validation. Dead records are pruned; a live
 post-detach record represents a writable daemon still finalising.

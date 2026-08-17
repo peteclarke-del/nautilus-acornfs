@@ -12,7 +12,7 @@ from acornfs.mounts import (
     unregister_mount,
     wait_for_mount_shutdown,
 )
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
 
 
 def test_parses_only_acornfs_mounts_and_unescapes_paths() -> None:
@@ -83,6 +83,27 @@ def test_replaced_pair_does_not_match_active_image_identity(
     with patch("acornfs.mounts._kernel_mounts", return_value=[kernel]):
         assert mount_for_image(dat_path) is None
         assert active_mounts()[0].image_inode == registered.image_inode
+
+
+def test_registry_tracks_a_standalone_floppy_without_a_descriptor(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))  # type: ignore[attr-defined]
+    image_path = create_adfs_floppy(tmp_path)
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+    registered = register_mount(image_path, mountpoint, read_write=False)
+    kernel = MountRecord(str(mountpoint), image_path.name, "ro,nosuid")
+
+    with patch("acornfs.mounts._kernel_mounts", return_value=[kernel]):
+        resolved = mount_for_image(image_path)
+
+    assert resolved is not None
+    assert resolved.image_path == str(image_path.resolve())
+    assert resolved.descriptor_path is None
+    assert resolved.descriptor_device is None
+    assert resolved.descriptor_inode is None
+    assert registered.image_inode == image_path.stat().st_ino
 
 
 def test_wait_for_shutdown_covers_post_detach_finalisation() -> None:

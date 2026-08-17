@@ -1,7 +1,11 @@
 from pathlib import Path
 
-from acornfs_nautilus.logic import is_supported_image, mounted_file_property_rows
-from tests.image_fixture import create_beebscsi_image
+from acornfs_nautilus.logic import (
+    image_capabilities,
+    is_supported_image,
+    mounted_file_property_rows,
+)
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
 
 
 def test_only_complete_pair_is_supported(tmp_path: Path) -> None:
@@ -11,6 +15,19 @@ def test_only_complete_pair_is_supported(tmp_path: Path) -> None:
     dat_path, dsc_path = create_beebscsi_image(tmp_path, stem="complete")
     assert is_supported_image(dat_path)
     assert is_supported_image(dsc_path)
+
+
+def test_adfs_floppy_support_exposes_only_safe_actions(tmp_path: Path) -> None:
+    image_path = create_adfs_floppy(tmp_path)
+    capabilities = image_capabilities(image_path)
+    assert capabilities is not None
+    assert capabilities.mount_read_only
+    assert capabilities.properties
+    assert not capabilities.mount_read_write
+    assert not capabilities.validate
+    assert not capabilities.repair
+    assert not capabilities.recover
+    assert not capabilities.file_forge
 
 
 def test_mounted_file_properties_are_derived_from_acorn_xattrs(

@@ -61,11 +61,25 @@ def _load_extension(monkeypatch: Any) -> Any:
     return importlib.import_module("acornfs_nautilus.extension")
 
 
+def _capabilities(**overrides: bool) -> Any:
+    values = {
+        "mount_read_only": True,
+        "mount_read_write": True,
+        "validate": True,
+        "repair": True,
+        "recover": True,
+        "properties": True,
+        "file_forge": True,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def test_image_actions_are_collapsed_under_one_support_menu(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "is_supported_image", lambda _path: True)
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
     monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
     monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
 
@@ -133,7 +147,7 @@ def test_mount_location_action_launches_desktop_configuration(
 
 def test_file_forge_action_launches_desktop_handoff(tmp_path: Path, monkeypatch: Any) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "is_supported_image", lambda _path: True)
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
     monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
     monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
     launched: list[tuple[str, ...]] = []
@@ -149,7 +163,7 @@ def test_file_forge_action_launches_desktop_handoff(tmp_path: Path, monkeypatch:
 
 def test_mounted_image_keeps_file_forge_action(tmp_path: Path, monkeypatch: Any) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "is_supported_image", lambda _path: True)
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
     monkeypatch.setattr(
         extension,
         "mount_for_image",
@@ -161,5 +175,28 @@ def test_mounted_image_keeps_file_forge_action(tmp_path: Path, monkeypatch: Any)
     assert [item.label for item in items[0].submenu.items] == [
         "Unmount",
         "Open in Acorn File Forge…",
+        "Mount location…",
+    ]
+
+
+def test_adfs_floppy_menu_offers_only_supported_actions(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(
+        extension,
+        "image_capabilities",
+        lambda _path: _capabilities(
+            mount_read_write=False,
+            validate=False,
+            repair=False,
+            recover=False,
+            file_forge=False,
+        ),
+    )
+    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "disc.adl")])
+
+    assert [item.label for item in items[0].submenu.items] == [
+        "Open read-only",
         "Mount location…",
     ]

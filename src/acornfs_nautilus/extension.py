@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ from acornfs.i18n import _
 from acornfs.mounts import is_mounted, mount_for_image
 from acornfs.recovery import pending_recovery
 from acornfs_nautilus.logic import (
+    image_capabilities,
     image_property_rows,
     is_supported_image,
     mounted_file_property_rows,
@@ -182,26 +184,23 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             if self._can_create_in(path):
                 return [self._support_menu([self._create_item(path), self._configuration_item()])]
             return []
-        if not is_supported_image(path):
+        capabilities = image_capabilities(path)
+        if capabilities is None:
             return []
         try:
             mounted = mount_for_image(path)
         except AcornFSError:
             return []
         if mounted is not None:
-            return [
-                self._support_menu(
-                    [
-                        self._unmount_item(Path(mounted.mountpoint)),
-                        self._file_forge_item(path),
-                        self._configuration_item(),
-                    ]
-                )
-            ]
-        try:
-            recovery = pending_recovery(path)
-        except AcornFSError:
-            recovery = None
+            mounted_items = [self._unmount_item(Path(mounted.mountpoint))]
+            if capabilities.file_forge:
+                mounted_items.append(self._file_forge_item(path))
+            mounted_items.append(self._configuration_item())
+            return [self._support_menu(mounted_items)]
+        recovery = None
+        if capabilities.recover:
+            with suppress(AcornFSError):
+                recovery = pending_recovery(path)
         if recovery is not None:
             recovery_item = Nautilus.MenuItem(
                 name="AcornFS::Recover",
@@ -210,36 +209,37 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                 icon="document-revert-symbolic",
             )
             recovery_item.connect("activate", self._recover, path)
-            return [
-                self._support_menu(
-                    [
-                        recovery_item,
-                        self._read_only_item(path),
-                        self._validate_item(path),
-                        self._file_forge_item(path),
-                        self._configuration_item(),
-                    ]
-                )
-            ]
-        writable_item = Nautilus.MenuItem(
-            name="AcornFS::MountReadWrite",
-            label=_("Open read-write"),
-            tip=_("Mount {image} read-write with a recovery checkpoint").format(image=path.name),
-            icon="drive-harddisk-symbolic",
-        )
-        writable_item.connect("activate", self._mount_read_write, path)
-        return [
-            self._support_menu(
-                [
-                    self._read_only_item(path),
-                    writable_item,
-                    self._validate_item(path),
-                    self._repair_item(path),
-                    self._file_forge_item(path),
-                    self._configuration_item(),
-                ]
+            recovery_items = [recovery_item]
+            if capabilities.mount_read_only:
+                recovery_items.append(self._read_only_item(path))
+            if capabilities.validate:
+                recovery_items.append(self._validate_item(path))
+            if capabilities.file_forge:
+                recovery_items.append(self._file_forge_item(path))
+            recovery_items.append(self._configuration_item())
+            return [self._support_menu(recovery_items)]
+        image_items: list[Any] = []
+        if capabilities.mount_read_only:
+            image_items.append(self._read_only_item(path))
+        if capabilities.mount_read_write:
+            writable_item = Nautilus.MenuItem(
+                name="AcornFS::MountReadWrite",
+                label=_("Open read-write"),
+                tip=_("Mount {image} read-write with a recovery checkpoint").format(
+                    image=path.name
+                ),
+                icon="drive-harddisk-symbolic",
             )
-        ]
+            writable_item.connect("activate", self._mount_read_write, path)
+            image_items.append(writable_item)
+        if capabilities.validate:
+            image_items.append(self._validate_item(path))
+        if capabilities.repair:
+            image_items.append(self._repair_item(path))
+        if capabilities.file_forge:
+            image_items.append(self._file_forge_item(path))
+        image_items.append(self._configuration_item())
+        return [self._support_menu(image_items)]
 
     def get_background_items(self, current_folder: Any) -> list[Any]:
         path = _local_path(current_folder)

@@ -2,6 +2,7 @@
 
 from .beebscsi import BeebSCSIGeometry, BeebSCSIPair, discover_pair, inspect_pair
 from .create import CreatedImage, create_beebscsi_image
+from .formats import ImageCapabilities, ResolvedImage, resolve_image
 from .image import ImageNode, ReadOnlyImage, validate_image
 from .properties import ImageProperties, read_image_properties
 from .repair import (
@@ -31,6 +32,7 @@ __all__ = [
     "COMPATIBILITY_PROFILE_VERSION",
     "CreatedImage",
     "ImageNode",
+    "ImageCapabilities",
     "ImageProperties",
     "FindingSeverity",
     "ExportedFile",
@@ -38,6 +40,7 @@ __all__ = [
     "IntegrityReport",
     "ImportedFile",
     "ReadOnlyImage",
+    "ResolvedImage",
     "RepairAction",
     "RepairPlan",
     "RepairResult",
@@ -50,6 +53,7 @@ __all__ = [
     "inspect_pair",
     "import_file",
     "read_image_properties",
+    "resolve_image",
     "plan_repairs",
     "plan_repairs_from_report",
     "validate_image",

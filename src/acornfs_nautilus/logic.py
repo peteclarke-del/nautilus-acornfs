@@ -5,17 +5,20 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from acornfs.core import ImageProperties, discover_pair
-from acornfs.errors import PairDiscoveryError
+from acornfs.core import ImageCapabilities, ImageProperties, resolve_image
+from acornfs.errors import AcornFSError
 from acornfs.i18n import _, ngettext
 
 
-def is_supported_image(path: str | Path) -> bool:
+def image_capabilities(path: str | Path) -> ImageCapabilities | None:
     try:
-        discover_pair(path)
-    except PairDiscoveryError:
-        return False
-    return True
+        return resolve_image(path).capabilities
+    except AcornFSError:
+        return None
+
+
+def is_supported_image(path: str | Path) -> bool:
+    return image_capabilities(path) is not None
 
 
 def _size(value: int) -> str:
@@ -33,6 +36,7 @@ def _property_value(value: str) -> str:
 
     values = {
         "BeebSCSI DAT/DSC pair": _("BeebSCSI DAT/DSC pair"),
+        "Standalone ADFS floppy image": _("Standalone ADFS floppy image"),
         "ADFS old map": _("ADFS old map"),
         "Old directory (Hugo)": _("Old directory (Hugo)"),
         "New directory (Nick)": _("New directory (Nick)"),
@@ -40,6 +44,7 @@ def _property_value(value: str) -> str:
         "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)": _(
             "BeebSCSI hard disc (BBC Master / RISC OS old-map ADFS)"
         ),
+        "Acorn ADFS floppy": _("Acorn ADFS floppy"),
     }
     return values.get(value, value)
 
@@ -61,7 +66,10 @@ def _boot_option(value: str) -> str:
 def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], ...]:
     """Convert typed core metadata to stable labels for Nautilus."""
 
-    validation = _("Safe for read-write mounting") if properties.safe_for_write else _("Unsafe")
+    if not properties.write_supported:
+        validation = _("Supported read-only")
+    else:
+        validation = _("Safe for read-write mounting") if properties.safe_for_write else _("Unsafe")
     if properties.warning_findings or properties.advice_findings:
         warnings = properties.warning_findings
         advice = properties.advice_findings
@@ -73,6 +81,21 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
             warnings=warning_text,
             advice=advice_text,
         )
+    if properties.geometry_kind == "floppy":
+        sides = ngettext("{count} side", "{count} sides", properties.heads).format(
+            count=properties.heads
+        )
+        geometry = _("{tracks} tracks × {sides} × {sectors} sectors/track").format(
+            tracks=properties.cylinders,
+            sides=sides,
+            sectors=properties.sectors_per_track,
+        )
+    else:
+        geometry = _("{cylinders} cylinders × {heads} heads × {sectors} sectors/track").format(
+            cylinders=properties.cylinders,
+            heads=properties.heads,
+            sectors=properties.sectors_per_track,
+        )
     rows = [
         (_("Image type"), _property_value(properties.image_type)),
         (_("Filesystem"), _property_value(properties.filesystem_format)),
@@ -82,14 +105,7 @@ def image_property_rows(properties: ImageProperties) -> tuple[tuple[str, str], .
         (_("Disc name"), properties.disc_name or "—"),
         (_("Disc cycle ID"), f"&{properties.disc_id:04X}"),
         (_("Boot option"), _boot_option(properties.boot_option)),
-        (
-            _("Geometry"),
-            _("{cylinders} cylinders × {heads} heads × {sectors} sectors/track").format(
-                cylinders=properties.cylinders,
-                heads=properties.heads,
-                sectors=properties.sectors_per_track,
-            ),
-        ),
+        (_("Geometry"), geometry),
         (_("Capacity"), _size(properties.capacity_bytes)),
         (_("ADFS size"), _size(properties.adfs_bytes)),
         (_("Used"), _size(properties.used_bytes)),

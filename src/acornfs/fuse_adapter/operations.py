@@ -569,6 +569,8 @@ class ReadOnlyOperations(pyfuse3.Operations):
         node = self._node(inode)
         if node.inode == ROOT_INODE:
             return (XATTR_SOURCE, XATTR_PATH)
+        if not self.image.has_acorn_metadata:
+            return (XATTR_SOURCE, XATTR_PATH)
         names: tuple[bytes, ...] = XATTR_NAMES
         update = self._metadata_updates.get(inode)
         if (update is not None and update.filetype is not None) or self.image.filetype(
@@ -581,7 +583,7 @@ class ReadOnlyOperations(pyfuse3.Operations):
         del ctx
         node = self._node(inode)
         if name == XATTR_SOURCE:
-            return b"adfs"
+            return self.image.source.filesystem.encode("ascii")
         if name == XATTR_PATH:
             return node.acorn_path.encode("utf-8")
         try:

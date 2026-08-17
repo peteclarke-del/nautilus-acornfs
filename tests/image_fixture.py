@@ -104,3 +104,28 @@ def create_beebscsi_image(
                 close()
             reader.close()
     return dat_path, dsc_path
+
+
+def create_adfs_floppy(
+    directory: Path, *, format_name: str = "l", filename: str | None = None
+) -> Path:
+    """Create a populated standalone ADFS S, M or L floppy image."""
+
+    filesystem = create_filesystem("adfs")
+    geometry = filesystem.geometry_grammar().presets[format_name]
+    suffix = {"s": ".ads", "m": ".adm", "l": ".adl"}[format_name]
+    image_path = directory / (filename or f"floppy-{format_name}{suffix}")
+    filesystem.create(image_path, geometry, title=f"ADFS-{format_name.upper()}")
+    reader = reader_for(image_path, writable=True)
+    mount = filesystem.open(reader, geometry)
+    try:
+        mount.write_bytes("$.HELLO", b"Hello from floppy\r")
+        mount.make_directory("$.DOCS", title="Documents")  # type: ignore[attr-defined]
+        mount.write_bytes("$.DOCS.GUIDE", b"Floppy guide\r")
+    finally:
+        adfs = getattr(mount, "_adfs", None)
+        close = getattr(adfs, "close", None)
+        if callable(close):
+            close()
+        reader.close()
+    return image_path

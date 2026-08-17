@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from acornfs.core import BeebSCSIPair, discover_pair
+from acornfs.core import ResolvedImage, resolve_image
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 
@@ -70,34 +70,39 @@ def _record_path(mountpoint: str | Path, *, create: bool = False) -> Path:
     return _registry_root(create=create) / f"{digest}.json"
 
 
-def _pair_identity(pair: BeebSCSIPair) -> tuple[int, int, int, int]:
+def _image_identity(image: ResolvedImage) -> tuple[int, int, int | None, int | None]:
     try:
-        dat_stat = pair.dat_path.stat()
-        dsc_stat = pair.dsc_path.stat()
+        primary_stat = image.primary_path.stat()
+        companion_stat = image.companion_path.stat() if image.companion_path is not None else None
     except OSError as exc:
         raise AcornFSError(
-            _("Could not identify the BeebSCSI pair: {error}").format(error=exc)
+            _("Could not identify the Acorn image: {error}").format(error=exc)
         ) from exc
-    return dat_stat.st_dev, dat_stat.st_ino, dsc_stat.st_dev, dsc_stat.st_ino
+    return (
+        primary_stat.st_dev,
+        primary_stat.st_ino,
+        companion_stat.st_dev if companion_stat is not None else None,
+        companion_stat.st_ino if companion_stat is not None else None,
+    )
 
 
 def register_mount(
     image_path: str | Path, mountpoint: str | Path, *, read_write: bool
 ) -> MountRecord:
-    """Atomically record the pair identity held by a newly active mount."""
+    """Atomically record the source identity held by a newly active mount."""
 
-    pair = discover_pair(image_path)
-    dat_device, dat_inode, dsc_device, dsc_inode = _pair_identity(pair)
+    image = resolve_image(image_path)
+    image_device, image_inode, companion_device, companion_inode = _image_identity(image)
     record = MountRecord(
         mountpoint=str(Path(mountpoint).expanduser().resolve()),
-        source=pair.dat_path.name,
+        source=image.primary_path.name,
         options="",
-        image_path=str(pair.dat_path),
-        descriptor_path=str(pair.dsc_path),
-        image_device=dat_device,
-        image_inode=dat_inode,
-        descriptor_device=dsc_device,
-        descriptor_inode=dsc_inode,
+        image_path=str(image.primary_path),
+        descriptor_path=str(image.companion_path) if image.companion_path is not None else None,
+        image_device=image_device,
+        image_inode=image_inode,
+        descriptor_device=companion_device,
+        descriptor_inode=companion_inode,
         pid=os.getpid(),
         read_write=read_write,
     )
@@ -247,18 +252,19 @@ def registered_mount_at(mountpoint: str | Path) -> MountRecord | None:
 
 
 def mount_for_image(image_path: str | Path) -> MountRecord | None:
-    """Resolve a pair only when both canonical paths and live inodes still match."""
+    """Resolve an image only when all canonical paths and live inodes still match."""
 
-    pair = discover_pair(image_path)
-    dat_device, dat_inode, dsc_device, dsc_inode = _pair_identity(pair)
+    image = resolve_image(image_path)
+    image_device, image_inode, companion_device, companion_inode = _image_identity(image)
     for record in active_mounts():
         if (
-            record.image_path == str(pair.dat_path)
-            and record.descriptor_path == str(pair.dsc_path)
-            and record.image_device == dat_device
-            and record.image_inode == dat_inode
-            and record.descriptor_device == dsc_device
-            and record.descriptor_inode == dsc_inode
+            record.image_path == str(image.primary_path)
+            and record.descriptor_path
+            == (str(image.companion_path) if image.companion_path is not None else None)
+            and record.image_device == image_device
+            and record.image_inode == image_inode
+            and record.descriptor_device == companion_device
+            and record.descriptor_inode == companion_inode
         ):
             return record
     return None

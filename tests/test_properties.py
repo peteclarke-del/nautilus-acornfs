@@ -4,7 +4,7 @@ import pytest
 
 from acornfs.core import read_image_properties
 from acornfs_nautilus.logic import image_property_rows
-from tests.image_fixture import create_beebscsi_image
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image
 
 
 def test_image_properties_report_format_geometry_and_validation(tmp_path: Path) -> None:
@@ -24,6 +24,29 @@ def test_image_properties_report_format_geometry_and_validation(tmp_path: Path) 
     assert properties.used_bytes + properties.free_bytes == properties.adfs_bytes
     assert properties.safe_for_write
     assert dict(image_property_rows(properties))["Validation"].startswith("Safe")
+
+
+@pytest.mark.parametrize(
+    ("format_name", "tracks", "sides"), [("s", 40, 1), ("m", 80, 1), ("l", 80, 2)]
+)
+def test_adfs_floppy_properties_are_explicitly_read_only(
+    tmp_path: Path, format_name: str, tracks: int, sides: int
+) -> None:
+    image_path = create_adfs_floppy(tmp_path, format_name=format_name)
+
+    properties = read_image_properties(image_path)
+
+    assert properties.image_type == "Standalone ADFS floppy image"
+    assert properties.cylinders == tracks
+    assert properties.heads == sides
+    assert properties.sectors_per_track == 16
+    assert properties.capacity_bytes == tracks * sides * 16 * 256
+    assert not properties.write_supported
+    rows = dict(image_property_rows(properties))
+    assert rows["Validation"] == "Supported read-only"
+    assert rows["Geometry"] == (
+        f"{tracks} tracks × {sides} {'side' if sides == 1 else 'sides'} × 16 sectors/track"
+    )
 
 
 @pytest.mark.parametrize(("cylinders", "heads"), [(40, 1), (160, 2), (80, 4)])
