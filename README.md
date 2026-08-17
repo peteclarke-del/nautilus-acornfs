@@ -283,12 +283,17 @@ AcornFS-owned runtime, configuration, recovery and audit directories are
 created privately without following symbolic links. Desktop-visible external
 errors are bounded and redact unrelated absolute paths; exported diagnostics
 contain only bounded basenames, allowlisted mount flags and hashed identities.
+Private state updates use one durable create-sync-replace-sync implementation:
+short or interrupted writes are retried, while disk or memory exhaustion leaves
+the last complete record intact and removes partial checkpoint data.
 
 Debian package boundaries and exact Ubuntu runtime package names are documented
 in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`
 production remains blocked until the project licence is selected and Oaknut has
 a reviewed Debian packaging or vendoring route; AcornFS will not disguise those
 requirements with a root-time `pip` download.
+The exact Oaknut pin and private-adapter upgrade gate are documented in
+[docs/oaknut-compatibility.md](docs/oaknut-compatibility.md).
 
 The writable format is a BeebSCSI DAT/DSC hard-disc pair containing
 old-map ADFS with old (Hugo) directories. The image metadata is compatible with

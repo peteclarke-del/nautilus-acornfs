@@ -19,7 +19,7 @@ from acornfs.core.validation import IntegrityFinding, IntegrityReport, validate_
 from acornfs.errors import AcornFSError
 from acornfs.i18n import N_, _
 from acornfs.operations import OperationBudget, ProgressCallback, report_progress
-from acornfs.safe_paths import ensure_private_directory
+from acornfs.safe_paths import atomic_write_private_text
 
 SUPPORTED_REPAIR_ACTIONS = frozenset(
     {"normalise_directory_lengths", "clear_empty_file_extents", "pad_reserved_tail"}
@@ -286,35 +286,8 @@ def audit_root() -> Path:
 
 def _write_audit(path: Path, payload: dict[str, Any]) -> None:
     root = audit_root()
-    ensure_private_directory(path.parent, anchor=root.parent.parent)
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    temporary_created = False
-    try:
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
-        temporary_descriptor = os.open(temporary.name, flags, 0o600, dir_fd=descriptor)
-        temporary_created = True
-        try:
-            with os.fdopen(temporary_descriptor, "w", encoding="utf-8", closefd=False) as handle:
-                handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-        finally:
-            os.close(temporary_descriptor)
-        os.replace(
-            temporary.name,
-            path.name,
-            src_dir_fd=descriptor,
-            dst_dir_fd=descriptor,
-        )
-        os.fsync(descriptor)
-    except BaseException:
-        if temporary_created:
-            with suppress(OSError):
-                os.unlink(temporary.name, dir_fd=descriptor)
-        raise
-    finally:
-        os.close(descriptor)
+    content = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    atomic_write_private_text(path, content, anchor=root.parent.parent)
 
 
 def apply_repairs(
@@ -368,7 +341,7 @@ def apply_repairs(
     try:
         _write_audit(audit_path, payload)
         report_progress(progress, 15, _("Repair audit created"))
-    except OSError as exc:
+    except (OSError, MemoryError) as exc:
         raise AcornFSError(
             _("Could not create the mandatory repair audit: {error}").format(error=exc)
         ) from exc
@@ -453,7 +426,7 @@ def apply_repairs(
         payload["checkpoint_retained"] = bool(
             payload["checkpoint_created"] and not checkpoint_completed
         )
-        with suppress(OSError):
+        with suppress(OSError, MemoryError):
             _write_audit(audit_path, payload)
         if isinstance(exc, AcornFSError):
             raise AcornFSError(

@@ -15,7 +15,7 @@ from typing import Any
 from acornfs.core import ResolvedImage, resolve_image
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
-from acornfs.safe_paths import ensure_private_directory
+from acornfs.safe_paths import atomic_write_private_text, ensure_private_directory
 
 REGISTRY_VERSION = 1
 
@@ -108,13 +108,10 @@ def register_mount(
     )
     path = _record_path(record.mountpoint, create=True)
     payload = {"version": REGISTRY_VERSION, **record.as_dict()}
-    temporary = path.with_suffix(".tmp")
     try:
-        temporary.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
-        temporary.chmod(0o600)
-        os.replace(temporary, path)
-    except OSError as exc:
-        temporary.unlink(missing_ok=True)
+        content = json.dumps(payload, sort_keys=True) + "\n"
+        atomic_write_private_text(path, content, anchor=runtime_root().parent)
+    except (OSError, MemoryError) as exc:
         raise AcornFSError(
             _("Could not record the active AcornFS mount: {error}").format(error=exc)
         ) from exc

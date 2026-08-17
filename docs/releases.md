@@ -48,6 +48,9 @@ The on-disc safety boundary has priority over host API compatibility. A release
 must refuse uncertain writes rather than weaken validation to preserve an old
 command outcome. Any unavoidable command, metadata or recovery-format change is
 called out explicitly in the changelog with migration or rollback instructions.
+Oaknut upgrades follow the dedicated exact-family and private-adapter gate in
+[oaknut-compatibility.md](oaknut-compatibility.md); mixed or floating Oaknut
+families are outside the supported boundary.
 
 The complete support boundary, candidate gate and evidence requirements are in
 [release-readiness.md](release-readiness.md). User and administrator procedures

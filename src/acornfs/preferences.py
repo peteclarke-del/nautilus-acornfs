@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import pwd
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,7 +12,7 @@ from typing import Any
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 from acornfs.mounts import runtime_root
-from acornfs.safe_paths import ensure_private_directory
+from acornfs.safe_paths import atomic_write_private_text, ensure_private_directory
 
 CONFIG_VERSION = 1
 MOUNT_ROOT_ENV = "ACORNFS_MOUNT_ROOT"
@@ -128,19 +127,11 @@ def set_mount_location(value: str) -> MountLocation:
         raise AcornFSError(
             _("Refusing to replace a symbolic-link preferences file: {path}").format(path=path)
         )
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     payload = {"version": CONFIG_VERSION, "mount_location": stored}
     try:
-        with temporary.open("x", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2, sort_keys=True)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        temporary.chmod(0o600)
-        os.replace(temporary, path)
-        _sync_directory(path.parent)
-    except OSError as exc:
-        temporary.unlink(missing_ok=True)
+        content = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+        atomic_write_private_text(path, content, anchor=config_home())
+    except (OSError, MemoryError) as exc:
         raise AcornFSError(
             _("Could not save AcornFS preferences: {error}").format(error=exc)
         ) from exc

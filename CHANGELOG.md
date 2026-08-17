@@ -34,6 +34,9 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - amd64 dependency vulnerability auditing and licence-inventory artefacts in CI.
 - Shared five-minute, 100,000-item and 256-level budgets for validation,
   properties and repair of untrusted images.
+- Fault-injection coverage for low-memory, disk-full, interrupted and short
+  private-state and checkpoint writes.
+- A documented exact-family Oaknut private-API compatibility and upgrade gate.
 
 ### Changed
 
@@ -51,11 +54,15 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   refuses hard-linked members and strips unrelated secrets from detached mount environments.
 - Private state and mount directories now use no-follow descriptor-relative
   creation; desktop errors and diagnostics redact unrelated path data.
+- Preferences, mount records, recovery manifests and repair audits now share
+  one durable descriptor-relative atomic writer.
 
 ### Fixed
 
 - Repair workflows now retain visible progress and completion details.
 - Writable shutdown flushes dirty multi-handle buffers before final validation.
+- Failed private-state and checkpoint copies preserve the last complete record
+  and remove partial temporary data.
 
 No public release has been cut yet. The first release will move these entries
 under a dated version heading.

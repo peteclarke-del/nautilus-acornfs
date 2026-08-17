@@ -41,7 +41,8 @@ No module will import code from the Acorn File Forge application package.
 AcornFS pins Oaknut because complete allocation validation and efficient ranged
 I/O currently require a small adapter over its old-ADFS internals. Those private
 calls are isolated in `acornfs.core`; the Nautilus and FUSE layers never depend
-on them directly.
+on them directly. The exact-family upgrade and contract-test requirements are
+defined in [oaknut-compatibility.md](oaknut-compatibility.md).
 
 ## Writable transaction boundary
 
@@ -135,6 +136,14 @@ access mode. Records use a `0700`
 directory and `0600` files and are removed only after the image context has
 completed close-time flush and validation. Dead records are pruned; a live
 post-detach record represents a writable daemon still finalising.
+
+Preferences, runtime records, recovery manifests and repair audits share one
+private-state writer. It creates and traverses directories with no-follow
+descriptor-relative operations, writes a unique create-only `0600` temporary
+file, handles interrupted and short writes, synchronises it, atomically replaces
+the named record and synchronises the containing directory. A pre-replacement
+failure removes only that temporary file and preserves the last durable record.
+Checkpoint payload copies similarly remove partial destinations on failure.
 
 The daemon publishes its private identity immediately before FUSE
 initialisation. The kernel mount remains authoritative, so this record cannot
