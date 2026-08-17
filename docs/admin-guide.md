@@ -29,6 +29,13 @@ Persistent directories are private to the user. Back up preferences and state
 together before a release-candidate upgrade. A checkpoint is not a general
 backup: it exists to resolve one interrupted writable session.
 
+Private JSON state is updated through a synced temporary file and atomic
+replacement. If memory or disk space runs out before replacement, AcornFS keeps
+the previous complete preference, mount record, manifest or audit and removes
+the temporary file. A failed checkpoint payload copy is removed and the image
+pair is not modified. Treat any reported state-write failure as actionable:
+free space without deleting recovery data, then retry the original operation.
+
 ## Service lifecycle
 
 Desktop mounts use collected transient systemd user services when available.

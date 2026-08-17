@@ -11,7 +11,7 @@ import shutil
 import stat
 import uuid
 from collections.abc import Callable
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,7 +21,7 @@ from acornfs.core.beebscsi import BeebSCSIPair, discover_pair
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 from acornfs.operations import CancellationCheck, cancellation_point
-from acornfs.safe_paths import ensure_private_directory
+from acornfs.safe_paths import atomic_write_private_text, ensure_private_directory
 
 FICLONE = 0x40049409
 
@@ -61,13 +61,9 @@ def _ensure_checkpoint_directory(directory: Path) -> None:
 
 
 def _write_manifest(path: Path, info: RecoveryInfo) -> None:
-    temporary = path.with_suffix(".tmp")
-    with temporary.open("w", encoding="utf-8") as handle:
-        handle.write(json.dumps(asdict(info), indent=2) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
-    _fsync_directory(path.parent)
+    content = json.dumps(asdict(info), indent=2) + "\n"
+    root = state_root()
+    atomic_write_private_text(path, content, anchor=root.parent.parent)
 
 
 def _fsync_directory(path: Path) -> None:
@@ -104,9 +100,11 @@ def _checkpoint_copy(
     handle = opened_here if opened_here is not None else source_handle
     if handle is None:
         raise AcornFSError(_("Could not open the checkpoint source."))
+    destination_created = False
     try:
         metadata = os.fstat(handle.fileno())
         with destination.open("xb") as destination_handle:
+            destination_created = True
             try:
                 fcntl.ioctl(destination_handle.fileno(), FICLONE, handle.fileno())
                 reflinked = True
@@ -121,12 +119,17 @@ def _checkpoint_copy(
                     copied(metadata.st_size)
             destination_handle.flush()
             os.fsync(destination_handle.fileno())
+        os.chmod(destination, stat.S_IMODE(metadata.st_mode))
+        os.utime(destination, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+        return reflinked
+    except BaseException:
+        if destination_created:
+            with suppress(OSError):
+                destination.unlink(missing_ok=True)
+        raise
     finally:
         if opened_here is not None:
             opened_here.close()
-    os.chmod(destination, stat.S_IMODE(metadata.st_mode))
-    os.utime(destination, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
-    return reflinked
 
 
 @contextmanager
@@ -183,8 +186,8 @@ class RecoveryCheckpoint:
             state="creating",
             reflinked=False,
         )
-        _write_manifest(manifest, info)
         try:
+            _write_manifest(manifest, info)
             if source_handles is None:
                 total_bytes = pair.dat_path.stat().st_size + pair.dsc_path.stat().st_size
             else:
@@ -221,7 +224,8 @@ class RecoveryCheckpoint:
             )
             _write_manifest(manifest, info)
         except Exception as exc:
-            cls(pair, directory, info).complete()
+            with suppress(OSError):
+                cls(pair, directory, info).complete()
             raise AcornFSError(
                 _("Could not create the writable recovery checkpoint: {error}").format(error=exc)
             ) from exc

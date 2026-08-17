@@ -26,7 +26,7 @@ compromised kernel or desktop session are outside the supported boundary.
 | Malicious FUSE caller input | namespace escape, invalid metadata or memory growth | inode-based operations, strict filename encoding/length rules, bounded buffers, kernel mount options `nodev,nosuid,noexec` and accurate unsupported-operation errors |
 | Desktop URI or command injection | remote-file access or command execution | local `file:`/`acornfs:` schemes only, rejected authorities/query/fragment/NUL, argv-only subprocesses, escaped generated desktop fields and an allowlisted detached-child environment |
 | Disclosure through diagnostics or UI | leak image data, unrelated paths or credentials | diagnostics export bounded basenames and allowlisted mount flags; desktop errors, notifications and log excerpts redact absolute paths/control characters and are length-bounded; detached children do not inherit unrelated environment secrets |
-| Recovery/state tampering | rollback to attacker-controlled data or overwrite unrelated files | private per-user state roots, hashed image identities, create-only checkpoint files, atomic manifests and exact known-file cleanup |
+| Recovery/state tampering or resource exhaustion | rollback to attacker-controlled data, overwrite unrelated files or publish partial state | private per-user roots, hashed identities, descriptor-relative create-only temporary files, full-write and fsync boundaries, atomic replacement, last-good-state preservation and exact partial-checkpoint cleanup |
 
 Read-only mounting is the default. A writable mount is allowed only for the
 narrow BeebSCSI old-map ADFS profile and only after validation succeeds. Safe
@@ -37,7 +37,8 @@ repair operations are separately allowlisted and always checkpointed.
 - Native hardware interoperability, shutdown during active writes and desktop
   drag/drop/accessibility scenarios require manual acceptance testing.
 - Oaknut is in-process and shares AcornFS privileges. Dependency pinning,
-  vulnerability review and fuzzing are therefore part of the release process.
+  the [private API upgrade gate](oaknut-compatibility.md), vulnerability review
+  and fuzzing are therefore part of the release process.
 
 ## Security test expectations
 
