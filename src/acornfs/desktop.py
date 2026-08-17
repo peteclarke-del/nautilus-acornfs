@@ -34,6 +34,7 @@ from acornfs.core import (
 )
 from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.file_forge import open_in_file_forge
+from acornfs.greaseweazle import DRIVE_CHOICES, detected_command, write_floppy
 from acornfs.i18n import _
 from acornfs.mounts import (
     is_mounted,
@@ -43,7 +44,7 @@ from acornfs.mounts import (
     wait_for_mount_shutdown,
 )
 from acornfs.preferences import ensure_mount_root, mount_location, mount_root, set_mount_location
-from acornfs.privacy import safe_user_message
+from acornfs.privacy import safe_name, safe_user_message
 from acornfs.recovery import pending_recovery, recover_image
 from acornfs.retention import cleanup_retained_state
 from acornfs.safe_paths import ensure_private_directory
@@ -554,6 +555,82 @@ def desktop_open_file_forge(image_path: str | Path) -> int:
     return 0
 
 
+def desktop_write_floppy(image_path: str | Path) -> int:
+    """Collect a drive, confirm destruction, then write and verify a physical floppy."""
+
+    image = Path(image_path).expanduser()
+    name = safe_name(image.name)
+    if detected_command(image) is None:
+        detail = _("No responsive Greaseweazle device is currently connected.")
+        _show_desktop_message(_("Greaseweazle unavailable"), detail, error=True)
+        raise AcornFSError(detail)
+    dialog = shutil.which("zenity")
+    if dialog is None:
+        raise AcornFSError(_("Zenity is required to confirm a physical floppy write safely."))
+
+    selection = subprocess.run(
+        [
+            dialog,
+            "--forms",
+            f"--title={_('Write physical floppy')}",
+            f"--text={_('Select the Greaseweazle drive containing the destination floppy.')}",
+            f"--add-combo={_('Physical drive')}",
+            f"--combo-values={'|'.join(DRIVE_CHOICES)}",
+            f"--ok-label={_('Continue')}",
+            f"--cancel-label={_('Cancel')}",
+            "--width=560",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if selection.returncode != 0:
+        return 0
+    drive = selection.stdout.strip()
+    if drive not in DRIVE_CHOICES:
+        raise AcornFSError(_("The drive-selection dialog returned an invalid response."))
+
+    confirmation_text = _(
+        "All existing data on the floppy in drive {drive} will be overwritten.\n\n"
+        "Write and verify {image}?"
+    ).format(drive=drive, image=name)
+    confirmation = subprocess.run(
+        [
+            dialog,
+            "--question",
+            f"--title={_('Confirm physical floppy write')}",
+            f"--text={confirmation_text}",
+            f"--ok-label={_('Overwrite and verify')}",
+            f"--cancel-label={_('Cancel')}",
+            "--width=600",
+        ],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if confirmation.returncode != 0:
+        return 0
+    try:
+        result = _run_with_reported_progress(
+            _("Writing physical floppy"),
+            _("Preparing {image}…").format(image=name),
+            lambda progress: write_floppy(image, drive, progress=progress),
+        )
+    except (AcornFSError, OSError) as exc:
+        detail = _(
+            "{error}\n\nIf writing started, the destination floppy may be incomplete."
+        ).format(error=safe_user_message(exc))
+        _show_desktop_message(_("Physical floppy write failed"), detail, error=True)
+        raise AcornFSError(detail) from exc
+    _show_desktop_message(
+        _("Physical floppy complete"),
+        _("Greaseweazle wrote and verified {image} in drive {drive}.").format(
+            image=name, drive=result.drive
+        ),
+    )
+    return 0
+
+
 def desktop_create(directory: str | Path) -> int:
     """Collect image settings and create a validated DAT/DSC pair in a folder."""
 
@@ -963,6 +1040,7 @@ __all__ = [
     "desktop_recover",
     "desktop_unmount",
     "desktop_validate",
+    "desktop_write_floppy",
     "mountpoint_for_image",
     "mount_root",
     "local_image_reference",

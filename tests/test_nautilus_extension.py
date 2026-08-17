@@ -58,7 +58,9 @@ def _load_extension(monkeypatch: Any) -> Any:
     monkeypatch.setitem(sys.modules, "gi", gi)
     monkeypatch.setitem(sys.modules, "gi.repository", repository)
     sys.modules.pop("acornfs_nautilus.extension", None)
-    return importlib.import_module("acornfs_nautilus.extension")
+    extension = importlib.import_module("acornfs_nautilus.extension")
+    monkeypatch.setattr(extension, "physical_write_available", lambda _path: False)
+    return extension
 
 
 def _capabilities(**overrides: bool) -> Any:
@@ -200,3 +202,31 @@ def test_adfs_floppy_menu_offers_only_supported_actions(tmp_path: Path, monkeypa
         "Open read-only",
         "Mount location…",
     ]
+
+
+def test_physical_write_is_offered_only_when_greaseweazle_is_detected(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    extension = _load_extension(monkeypatch)
+    image = tmp_path / "disc.ssd"
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: None)
+
+    assert extension.AcornFSMenuProvider().get_file_items([_FileInfo(image)]) == []
+
+    monkeypatch.setattr(extension, "physical_write_available", lambda _path: True)
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(image)])
+    assert [item.label for item in items[0].submenu.items] == ["Write to physical floppy…"]
+
+
+def test_physical_write_action_launches_desktop_workflow(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    image = tmp_path / "disc.adf"
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: None)
+    monkeypatch.setattr(extension, "physical_write_available", lambda _path: True)
+    launched: list[tuple[str, ...]] = []
+    monkeypatch.setattr(extension, "_launch", lambda *arguments: launched.append(arguments))
+
+    item = extension.AcornFSMenuProvider().get_file_items([_FileInfo(image)])[0].submenu.items[0]
+    item.callback(None, *item.arguments)
+
+    assert launched == [("desktop-write-floppy", str(image))]

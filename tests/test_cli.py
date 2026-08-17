@@ -198,6 +198,12 @@ def test_desktop_file_forge_forwards_image() -> None:
     open_file_forge.assert_called_once_with("/image.dat")
 
 
+def test_desktop_write_floppy_forwards_image() -> None:
+    with patch("acornfs.desktop.desktop_write_floppy", return_value=0) as write_floppy:
+        assert main(["desktop-write-floppy", "/image.ssd"]) == 0
+    write_floppy.assert_called_once_with("/image.ssd")
+
+
 def test_desktop_create_forwards_directory() -> None:
     with patch("acornfs.desktop.desktop_create", return_value=0) as desktop_create:
         assert main(["desktop-create", "/images"]) == 0
