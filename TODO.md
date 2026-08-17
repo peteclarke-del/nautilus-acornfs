@@ -289,10 +289,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] amd64 performance remains within the published release budgets.
 - [ ] Security review and fuzzing find no unresolved release-blocking issue.
 
-## Deferred until last: Acorn File Forge integration
+## Acorn File Forge integration
 
-- [ ] Add `Open in Acorn File Forge` end to end.
-- [ ] Add the corresponding browser-session hand-off endpoint/helper to Acorn File Forge.
+- [x] Add `Open in Acorn File Forge` end to end through the native application.
+- [x] Detect the installed native launcher and hide the action when it is unavailable.
+- [x] Use File Forge's native local-path hand-off, which copies source images into a private session.
 - [ ] Reuse Acorn File Forge compatibility checks for BBC, Master, Electron and BeebSCSI targets.
 
 ## Decisions to record before implementation

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-17 17:26+0100\n"
+"POT-Creation-Date: 2026-08-17 19:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -60,7 +60,7 @@ msgstr ""
 msgid "511 × 200 KiB SSD slots"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:155
+#: src/acornfs/core/beebscsi.py:172
 msgid "A BeebSCSI image member must use the DAT or DSC extension."
 msgstr ""
 
@@ -148,13 +148,8 @@ msgstr ""
 msgid "Acorn DFS"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:65
+#: src/acornfs_nautilus/extension.py:66
 msgid "Acorn FS Support"
-msgstr ""
-
-#: src/acornfs/file_forge.py:48
-#, python-brace-format
-msgid "Acorn File Forge has no desktop launcher installed. Install an '{executable}' command, or set {variable} to its safe argv command. The browser-only service cannot securely receive a local image without a desktop hand-off helper."
 msgstr ""
 
 #: src/acornfs_nautilus/logic.py:47
@@ -165,11 +160,11 @@ msgstr ""
 msgid "Acorn ROMFS image"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:303
+#: src/acornfs_nautilus/extension.py:305
 msgid "Acorn disk image"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:305
+#: src/acornfs_nautilus/extension.py:307
 msgid "Acorn metadata"
 msgstr ""
 
@@ -290,7 +285,7 @@ msgstr ""
 msgid "Allocated extent covers sectors {start}..{end}, outside ADFS sectors 0..{adfs_end}."
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:107 src/acornfs/core/beebscsi.py:114
+#: src/acornfs/core/beebscsi.py:124 src/acornfs/core/beebscsi.py:131
 #, python-brace-format
 msgid "An image member changed while AcornFS was opening it: {path}"
 msgstr ""
@@ -345,7 +340,7 @@ msgstr ""
 msgid "Boot slots"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:138
+#: src/acornfs/core/beebscsi.py:155
 #, python-brace-format
 msgid "Cannot inspect image directory {directory}: {error}"
 msgstr ""
@@ -360,12 +355,12 @@ msgstr ""
 msgid "Cannot read mount status: {error}"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:209
+#: src/acornfs/core/beebscsi.py:226
 #, python-brace-format
 msgid "Cannot read the BeebSCSI pair: {error}"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:81
+#: src/acornfs/core/beebscsi.py:82
 #, python-brace-format
 msgid "Cannot safely map the locked image member through /proc/self/fd: {error}"
 msgstr ""
@@ -374,7 +369,7 @@ msgstr ""
 msgid "Capacity"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:132
+#: src/acornfs_nautilus/extension.py:133
 #, python-brace-format
 msgid "Check {image} without modifying it"
 msgstr ""
@@ -391,7 +386,7 @@ msgstr ""
 msgid "Choose either --restore or --discard, not both."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:106
+#: src/acornfs_nautilus/extension.py:107
 msgid "Choose where future AcornFS desktop mounts appear"
 msgstr ""
 
@@ -510,7 +505,7 @@ msgstr ""
 msgid "Could not save AcornFS preferences: {error}"
 msgstr ""
 
-#: src/acornfs/file_forge.py:88
+#: src/acornfs/file_forge.py:120
 #, python-brace-format
 msgid "Could not start Acorn File Forge: {error}"
 msgstr ""
@@ -530,11 +525,11 @@ msgstr ""
 msgid "Could not unmount {mountpoint}: {detail}"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:115
+#: src/acornfs_nautilus/extension.py:116
 msgid "Create BeebSCSI image…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:116
+#: src/acornfs_nautilus/extension.py:117
 #, python-brace-format
 msgid "Create an empty ADFS DAT/DSC pair in {directory}"
 msgstr ""
@@ -652,7 +647,7 @@ msgstr ""
 msgid "Execute address"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:163
+#: src/acornfs/core/beebscsi.py:180
 #, python-brace-format
 msgid "Expected exactly one matching DAT/DSC pair for {name}; found {dat_count} DAT and {dsc_count} DSC candidates."
 msgstr ""
@@ -759,7 +754,7 @@ msgstr ""
 msgid "Image does not exist or is not a regular file: {path}"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:150
+#: src/acornfs/core/beebscsi.py:167
 #, python-brace-format
 msgid "Image member does not exist or is not a file: {path}"
 msgstr ""
@@ -801,7 +796,7 @@ msgstr ""
 msgid "MiB"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:105
+#: src/acornfs_nautilus/extension.py:106
 msgid "Mount location…"
 msgstr ""
 
@@ -810,21 +805,21 @@ msgstr ""
 msgid "Mount process exited with status {status}."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:300
+#: src/acornfs_nautilus/extension.py:302
 msgid "Mount state"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:249
+#: src/acornfs_nautilus/extension.py:251
 #, python-brace-format
 msgid "Mount {image} read-write with a recovery checkpoint"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:142
+#: src/acornfs_nautilus/extension.py:143
 #, python-brace-format
 msgid "Mount {image} without allowing changes"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:298
+#: src/acornfs_nautilus/extension.py:300
 msgid "Mounted"
 msgstr ""
 
@@ -866,7 +861,7 @@ msgstr ""
 msgid "Normalise directory entry lengths"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:298
+#: src/acornfs_nautilus/extension.py:300
 msgid "Not mounted"
 msgstr ""
 
@@ -878,23 +873,23 @@ msgstr ""
 msgid "Old directory (Hugo)"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:66
+#: src/acornfs_nautilus/extension.py:67
 msgid "Open AcornFS image and filesystem actions"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:171
+#: src/acornfs_nautilus/extension.py:172
 msgid "Open in Acorn File Forge…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:141
+#: src/acornfs_nautilus/extension.py:142
 msgid "Open read-only"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:248
+#: src/acornfs_nautilus/extension.py:250
 msgid "Open read-write"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:172
+#: src/acornfs_nautilus/extension.py:173
 #, python-brace-format
 msgid "Open {image} in Acorn File Forge"
 msgstr ""
@@ -1021,7 +1016,7 @@ msgstr ""
 msgid "Repair failed; the checkpoint was retained. Audit: {audit}: {error}"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:151
+#: src/acornfs_nautilus/extension.py:152
 msgid "Repair image…"
 msgstr ""
 
@@ -1076,7 +1071,7 @@ msgstr ""
 msgid "Resolve conflicting catalogue extents"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:226
+#: src/acornfs_nautilus/extension.py:228
 msgid "Resolve interrupted read-write mount…"
 msgstr ""
 
@@ -1092,7 +1087,7 @@ msgstr ""
 msgid "Restore the correct pair or explicitly choose which trusted geometry and capacity is valid."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:227
+#: src/acornfs_nautilus/extension.py:229
 msgid "Restore the pre-mount checkpoint or keep the current image"
 msgstr ""
 
@@ -1112,7 +1107,7 @@ msgstr ""
 msgid "Revalidating image before checkpoint creation…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:152
+#: src/acornfs_nautilus/extension.py:153
 #, python-brace-format
 msgid "Review eligible low-risk repairs for {image}"
 msgstr ""
@@ -1198,7 +1193,7 @@ msgstr ""
 msgid "Starting Greaseweazle…"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:302
+#: src/acornfs_nautilus/extension.py:304
 msgid "Status"
 msgstr ""
 
@@ -1266,9 +1261,13 @@ msgstr ""
 msgid "The DAT image changed outside AcornFS; further writes are blocked."
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:215
+#: src/acornfs/core/beebscsi.py:232
 #, python-brace-format
 msgid "The DAT is {actual} bytes but its DSC geometry allows only {capacity}."
+msgstr ""
+
+#: src/acornfs/core/beebscsi.py:107
+msgid "The DAT/DSC pair is on read-only storage or is not writable by this user. Open it read-only, or copy both members to writable local storage."
 msgstr ""
 
 #: src/acornfs/core/properties.py:301
@@ -1276,11 +1275,11 @@ msgstr ""
 msgid "The DFS floppy properties could not be read safely: {error}"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:188
+#: src/acornfs/core/beebscsi.py:205
 msgid "The DSC descriptor declares zero cylinders."
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:190
+#: src/acornfs/core/beebscsi.py:207
 msgid "The DSC descriptor declares zero heads."
 msgstr ""
 
@@ -1289,12 +1288,12 @@ msgstr ""
 msgid "The DSC descriptor is invalid: {error}"
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:180
+#: src/acornfs/core/beebscsi.py:197
 #, python-brace-format
 msgid "The DSC descriptor must be exactly {expected} bytes; got {actual}."
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:195
+#: src/acornfs/core/beebscsi.py:212
 msgid "The DSC geometry exceeds the 21-bit sector limit of old-format ADFS."
 msgstr ""
 
@@ -1376,7 +1375,7 @@ msgstr ""
 msgid "The image detached but its writable daemon has not confirmed a safe flush. Do not reuse the image until the daemon has exited."
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:67
+#: src/acornfs/core/beebscsi.py:68
 msgid "The image is already open with an incompatible AcornFS lock."
 msgstr ""
 
@@ -1416,12 +1415,17 @@ msgstr ""
 msgid "The interrupted checkpoint was not completed and cannot be restored."
 msgstr ""
 
-#: src/acornfs/core/beebscsi.py:87
+#: src/acornfs/core/beebscsi.py:88
 msgid "The locked image member changed while it was mapped."
 msgstr ""
 
 #: src/acornfs/preferences.py:58
 msgid "The mount location must be 'sidebar', 'runtime', or an absolute path."
+msgstr ""
+
+#: src/acornfs/file_forge.py:81
+#, python-brace-format
+msgid "The native Acorn File Forge application is not installed. Install its '{executable}' launcher, or set {variable} to another installed argv command."
 msgstr ""
 
 #: src/acornfs/operations.py:62
@@ -1524,16 +1528,16 @@ msgstr ""
 msgid "Two entries in {path} map to the same Linux filename."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:302
+#: src/acornfs_nautilus/extension.py:304
 #, python-brace-format
 msgid "Unavailable: {error}"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:161
+#: src/acornfs_nautilus/extension.py:162
 msgid "Unmount"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:162
+#: src/acornfs_nautilus/extension.py:163
 #, python-brace-format
 msgid "Unmount {mountpoint}"
 msgstr ""
@@ -1551,7 +1555,7 @@ msgstr ""
 msgid "Used"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:131
+#: src/acornfs_nautilus/extension.py:132
 msgid "Validate image"
 msgstr ""
 
@@ -1604,17 +1608,17 @@ msgid_plural "Writable mount refused: validation found {count} fatal problems. {
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/acornfs/core/beebscsi.py:119
+#: src/acornfs/core/beebscsi.py:136
 #, python-brace-format
 msgid "Writable mounting refuses an image member with hard links: {path}. Copy the pair to uniquely owned files first."
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:182
+#: src/acornfs_nautilus/extension.py:183
 #, python-brace-format
 msgid "Write and verify {image} using Greaseweazle"
 msgstr ""
 
-#: src/acornfs_nautilus/extension.py:181
+#: src/acornfs_nautilus/extension.py:182
 msgid "Write to physical floppy…"
 msgstr ""
 
@@ -1858,12 +1862,12 @@ msgstr ""
 msgid "{tracks} tracks × {sides} × {sectors} sectors/track"
 msgstr ""
 
-#: src/acornfs/file_forge.py:35
+#: src/acornfs/file_forge.py:27
 #, python-brace-format
 msgid "{variable} is not valid command syntax: {error}"
 msgstr ""
 
-#: src/acornfs/file_forge.py:41
+#: src/acornfs/file_forge.py:33
 #, python-brace-format
 msgid "{variable} must name an executable."
 msgstr ""

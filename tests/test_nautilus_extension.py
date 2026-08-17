@@ -60,6 +60,7 @@ def _load_extension(monkeypatch: Any) -> Any:
     sys.modules.pop("acornfs_nautilus.extension", None)
     extension = importlib.import_module("acornfs_nautilus.extension")
     monkeypatch.setattr(extension, "physical_write_available", lambda _path: False)
+    monkeypatch.setattr(extension, "file_forge_available", lambda: True)
     return extension
 
 
@@ -161,6 +162,21 @@ def test_file_forge_action_launches_desktop_handoff(tmp_path: Path, monkeypatch:
     item.callback(None, *item.arguments)
 
     assert launched == [("desktop-open-file-forge", str(image))]
+
+
+def test_file_forge_action_is_hidden_when_native_app_is_not_installed(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "file_forge_available", lambda: False)
+    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
+
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "scsi0.dat")])
+
+    labels = [item.label for item in items[0].submenu.items]
+    assert "Open in Acorn File Forge…" not in labels
 
 
 def test_mounted_image_keeps_file_forge_action(tmp_path: Path, monkeypatch: Any) -> None:
