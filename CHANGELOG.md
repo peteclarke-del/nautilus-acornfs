@@ -7,6 +7,8 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ### Added
 
+- Deterministic amd64 Debian staging for separate core, FUSE and Nautilus
+  package roots, with disjoint ownership, dependency and desktop-asset checks.
 - Read-only mounting and properties for ADFS D/E/E+/F/F+/G/G+ floppies and
   standalone FileCore/unpaired raw hard discs, including content-refined
   same-size variants and Big-directory long names.

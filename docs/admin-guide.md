@@ -12,6 +12,11 @@ Host and Python dependencies are listed in
 Debian packages exist, install into a dedicated user virtual environment rather
 than the system interpreter.
 
+`make debian-staging` is a maintainer validation command, not an installation
+method. Its three amd64 roots prove package ownership and dependencies but omit
+the unresolved licence/copyright material and depend on Oaknut Debian packages
+that do not yet exist. Do not copy those roots into `/usr` or distribute them.
+
 ## Data and ownership
 
 AcornFS writes only to an explicitly opened image and these per-user locations:
