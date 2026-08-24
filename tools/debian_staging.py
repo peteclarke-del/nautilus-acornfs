@@ -134,6 +134,12 @@ def _stage_wheel(wheel: Path, output: Path) -> dict[str, list[str]]:
         )
         owned["nautilus-acornfs-core"].append("/" + installed.as_posix())
 
+    copyright_source = PROJECT_ROOT / "packaging/debian/copyright"
+    for package in PACKAGE_NAMES:
+        installed = PurePosixPath("usr/share/doc") / package / "copyright"
+        _write(output / package / installed.as_posix(), copyright_source.read_bytes())
+        owned[package].append("/" + installed.as_posix())
+
     desktop_files = {
         PurePosixPath("usr/share/nautilus-python/extensions") / EXTENSION_NAME: (
             extension_loader_content(["/usr/bin/acornfs"]).encode()
@@ -196,7 +202,6 @@ def stage(output: Path, *, wheel: Path | None = None) -> Path:
             {
                 "architecture": "amd64",
                 "blocked_by": [
-                    "project licence and Debian copyright metadata",
                     f"Oaknut {oaknut_version} Debian packages or an approved vendoring plan",
                 ],
                 "packages": {
@@ -225,7 +230,7 @@ def main() -> int:
     arguments = parser.parse_args()
     manifest = stage(arguments.output, wheel=arguments.wheel)
     print(f"Staged three amd64 package roots: {manifest}")
-    print("Not publishable: resolve the licence/copyright and Oaknut packaging blockers first.")
+    print("Not publishable: resolve the Oaknut packaging blocker first.")
     return 0
 
 

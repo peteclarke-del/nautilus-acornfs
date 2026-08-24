@@ -34,14 +34,15 @@ during package builds.
 7. Keep the previous release and recovery documentation available so users can
    restore images and checkpoints before attempting an incompatible upgrade.
 
-The project must have an explicit licence before its first public release.
-Signed archives and Debian artefact production remain separate acceptance items
-until a licence and release-key policy exist. Debian staging remains
+The project is distributed under the MIT licence. Signed archives and Debian
+artefact production remain separate acceptance items until a release-key policy
+exists. Debian staging remains
 non-publishable until the pinned Oaknut family has a Debian package
 or an approved vendoring plan. The automated release job builds the wheel and
 source archive twice with one commit-derived timestamp, compares
 their SHA-256 digests, emits a reproducible CycloneDX 1.6 SBOM and writes an
-unsigned checksum manifest. The automated wheel lifecycle test covers managed
+unsigned checksum manifest covering the source, wheel, SBOM and standalone
+add-on archive. The automated wheel lifecycle test covers managed
 installation, atomic upgrade and uninstall while preserving preferences,
 checkpoint-shaped state and repair audits. Do not mark these gates complete
 without the required evidence.

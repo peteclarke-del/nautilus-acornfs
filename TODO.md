@@ -27,7 +27,7 @@ acceptance items stay open until they have been exercised in that environment.
 ## Phase 1: project foundation
 
 - [x] Choose an implementation language and maintained FUSE 3 binding.
-- [ ] Add the project licence.
+- [x] Add the project licence.
 - [x] Add the contribution guide and code style configuration.
 - [x] Create packages for the filesystem core, FUSE adapter, command-line tools
   and Nautilus extension.
