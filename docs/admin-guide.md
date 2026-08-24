@@ -7,15 +7,16 @@ FUSE 3 and amd64. AcornFS runs entirely as the logged-in user. Do not install
 setuid helpers, run Nautilus as root, grant broad `allow_other` access, or make
 global `/etc/fuse.conf` changes for an ordinary deployment.
 
-Host and Python dependencies are listed in
-the root [installation guide](../README.md#installation). Until compliant
-Debian packages exist, deploy the release add-on, which creates a dedicated
-per-user virtual environment rather than modifying the system interpreter.
+The release `.deb` documented in the root
+[installation guide](../README.md#installation) is the preferred deployment.
+It installs the command and Files integration system-wide through `apt`, uses
+Ubuntu packages for platform dependencies, and vendors only the audited
+pure-Python runtime unavailable from Ubuntu. It does not invoke `pip` or access
+user home directories during package installation.
 
-`make debian-staging` is a maintainer validation command, not an installation
-method. Its three amd64 roots prove package ownership and dependencies but omit
-installable Oaknut Debian packages, which do not yet exist. Do not copy those
-roots into `/usr` or distribute them.
+Remove an older per-user add-on before deploying the system package. A loader
+under `~/.local/share/nautilus-python/extensions` takes precedence over the
+system loader and can keep an old private environment active.
 
 ## Data and ownership
 
@@ -28,7 +29,7 @@ AcornFS writes only to the image opened by the user and these per-user locations
 | Repair audits | `${XDG_STATE_HOME:-~/.local/state}/acornfs/repair-audits` | Preserve; completed disposable audits age out after 90 days |
 | Runtime records/logs | `${XDG_RUNTIME_DIR}/acornfs` | Session-scoped; inactive logs age out after 7 days |
 | Default mounts | `~/AcornFS Mounts` | Unmount before removal; do not recursively delete active roots |
-| Desktop integration | `${XDG_DATA_HOME:-~/.local/share}` | Remove only through `uninstall-nautilus` |
+| Desktop integration | `/usr/share` for `.deb`; `${XDG_DATA_HOME:-~/.local/share}` for add-on | Remove with its matching package or add-on uninstaller |
 
 Persistent directories are private to the user. Back up preferences and state
 together before a release-candidate upgrade. A checkpoint is not a general
@@ -63,12 +64,10 @@ documented recovery flow at the next login.
 2. Resolve every pending recovery checkpoint; never discard one merely to make
    an upgrade proceed.
 3. Back up the XDG configuration and state directories.
-4. Extract the new release add-on and run
-   `python3 install.py --restart upgrade` from that directory. The tool uses
-   the bundled wheel, stages a separate environment and switches to it only
-   after installation succeeds.
-5. If desktop activation fails, the tool restores the previous release pointer
-   and generated Nautilus bootstrap.
+4. Install the new release with
+   `sudo apt install ./nautilus-acornfs_VERSION_amd64.deb`.
+5. Run `nautilus --quit`, open Files again and confirm `acornfs --help` and
+   `acornfs status` succeed.
 6. Validate a disposable known-good image read-only before enabling writes.
 
 The automated package lifecycle smoke test force-reinstalls the wheel and proves
@@ -77,10 +76,9 @@ unchanged.
 
 ## Uninstall procedure
 
-Unmount all images first, then run `python3 install.py --restart uninstall`
-from a retained extracted add-on directory. The tool refuses active mounts and
-removes only its marked install root, managed launcher and generated desktop
-integration. It retains user state. If the user later requests complete
+Unmount all images first, confirm `acornfs status` is empty, then run
+`sudo apt remove nautilus-acornfs` and restart Files. Package removal deletes
+the system command and desktop integration but retains user state. If the user later requests complete
 erasure, first confirm that there is no pending recovery and identify the exact
 per-user AcornFS directories; never use a broad recursive deletion rooted at
 `$HOME`, an XDG root, or the mount parent.

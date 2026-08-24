@@ -82,26 +82,51 @@ retained-state guidance in
 
 ## Installation
 
-### Supported host and prerequisites
+### Install the Debian package
 
 The v0.1.0 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
-FUSE 3, and GNOME Files (Nautilus) 46 or later. Install the operating-system
-packages before running the AcornFS installer:
+FUSE 3, and GNOME Files (Nautilus) 46 or later. The Debian package is the
+recommended installation method for releases that provide it. Download
+`nautilus-acornfs_VERSION_amd64.deb` and `SHA256SUMS` from the matching
+[GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases),
+then run:
 
 ```shell
+cd ~/Downloads
+sha256sum --ignore-missing --check SHA256SUMS
 sudo apt update
-sudo apt install --no-install-recommends \
-  python3-venv python3-dev build-essential pkg-config \
-  fuse3 libfuse3-dev \
-  python3-nautilus gir1.2-nautilus-4.0 \
-  shared-mime-info desktop-file-utils libnotify-bin zenity unzip
+sudo apt install ./nautilus-acornfs_VERSION_amd64.deb
+nautilus --quit
 ```
 
-`python3-dev`, `build-essential`, `pkg-config` and `libfuse3-dev` are needed
-when pip builds pyfuse3 for the private AcornFS environment. The installer does
-not install anything into Ubuntu's system Python.
+`apt` installs the required Ubuntu packages and the package installs the
+command and Files integration system-wide. It does not use `pip`, compile code
+or access the network except through `apt` for declared Ubuntu dependencies.
+If `apt` cannot find `python3-pyfuse3`, enable Ubuntu's Universe component and
+repeat the installation:
 
-### Install the release add-on
+```shell
+sudo add-apt-repository universe
+sudo apt update
+```
+
+Open Files again after `nautilus --quit`.
+
+Verify the installation with:
+
+```shell
+acornfs --help
+acornfs status
+test -f /usr/share/nautilus-python/extensions/nautilus_acornfs.py
+```
+
+If the per-user add-on was installed previously, unmount all images and use
+its retained `install.py` to uninstall it before installing the `.deb`. This
+removes the older per-user desktop loader, which otherwise takes precedence
+over the system copy. Images, preferences, recovery checkpoints and repair
+audits are retained.
+
+### Alternative per-user add-on
 
 Download `nautilus-acornfs-addon-0.1.0.zip` from the
 [v0.1.0 GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases/tag/v0.1.0).
@@ -117,8 +142,8 @@ cd nautilus-acornfs-addon-0.1.0
 python3 install.py --restart install
 ```
 
-The installation needs internet access to download the pinned Oaknut and FUSE
-Python dependencies. It creates a managed environment below
+The add-on installation needs internet access to download the pinned Oaknut and
+FUSE Python dependencies. It creates a managed environment below
 `~/.local/share/nautilus-acornfs`, installs the command as
 `~/.local/bin/acornfs`, and writes the generated Nautilus extension, MIME and
 desktop-handler files below `~/.local/share`. It does not need root privileges
@@ -145,8 +170,19 @@ current desktop session, run `nautilus --quit` and open Files again.
 
 ### Upgrade or uninstall
 
-Unmount every AcornFS image before either operation. To upgrade, download and
-extract the new add-on, enter its directory, and run:
+Unmount every AcornFS image before either operation. Upgrade a Debian package
+by downloading its replacement and running:
+
+```shell
+sudo apt install ./nautilus-acornfs_VERSION_amd64.deb
+nautilus --quit
+```
+
+Remove the system package with `sudo apt remove nautilus-acornfs`. Package
+upgrade and removal do not delete images or per-user AcornFS state.
+
+To upgrade the alternative add-on, download and extract the new archive, enter
+its directory, and run:
 
 ```shell
 python3 install.py --restart upgrade
@@ -204,8 +240,10 @@ For a release build, install `.[release]` and run `make release` from a clean
 tagged checkout. The command derives `SOURCE_DATE_EPOCH` from the commit, builds
 the wheel and source archive twice, refuses differing output, generates a
 validated reproducible CycloneDX SBOM for the full FUSE installation and
-writes `build/release/SHA256SUMS`. Release signing remains a separate manual
-gate until the project has an approved signing-key policy.
+writes `build/release/SHA256SUMS`. The release set also contains the reproducible
+Ubuntu 24.04 amd64 `.deb`, its dependency and vendoring manifest, and the
+standalone add-on. Release signing remains a separate manual gate until the
+project has an approved signing-key policy.
 
 Maintainers can build the standalone per-user add-on with:
 
@@ -336,9 +374,9 @@ desktop handler with:
 acornfs uninstall-nautilus --restart
 ```
 
-For a managed release installation, use
-`python3 install.py --restart uninstall` as documented above so the private
-environment and launcher are also removed safely.
+For a Debian installation, use `sudo apt remove nautilus-acornfs` and restart
+Files. For the alternative per-user add-on, use
+`python3 install.py --restart uninstall` from its extracted directory.
 
 Transfer a file without losing its Acorn catalogue metadata:
 
@@ -458,13 +496,11 @@ Private state updates use one durable create-sync-replace-sync implementation:
 short or interrupted writes are retried, while disk or memory exhaustion leaves
 the last complete record intact and removes partial checkpoint data.
 
-Debian package boundaries and exact Ubuntu runtime package names are documented
-in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`
-production remains blocked until Oaknut has a reviewed Debian packaging or
-vendoring route; AcornFS will not disguise that requirement with a root-time
-`pip` download. Maintainers can run
-`make debian-staging` to produce three disjoint, non-distributable amd64 package
-roots and an ownership/dependency manifest under `build/debian-staging`.
+The Debian package boundary, exact Ubuntu dependencies, audited vendoring and
+reproducible build are documented in
+[packaging/debian/README.md](packaging/debian/README.md). Maintainers can run
+`make deb` to produce the amd64 package and machine-readable manifest under
+`build/debian`. Package installation never runs `pip` as root.
 The exact Oaknut pin and private-adapter upgrade gate are documented in
 [docs/oaknut-compatibility.md](docs/oaknut-compatibility.md).
 

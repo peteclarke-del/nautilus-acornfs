@@ -16,55 +16,55 @@ write path. ROMFS never offers writable access.
 
 ## Install and enable Files integration
 
-The release add-on is the recommended installation method. On the supported
-Ubuntu 24.04 amd64 host, install its prerequisites first:
-
-```shell
-sudo apt update
-sudo apt install --no-install-recommends \
-  python3-venv python3-dev build-essential pkg-config \
-  fuse3 libfuse3-dev \
-  python3-nautilus gir1.2-nautilus-4.0 \
-  shared-mime-info desktop-file-utils libnotify-bin zenity unzip
-```
-
-Download the add-on ZIP and `SHA256SUMS` from the matching
+The Debian package is the recommended installation method on Ubuntu 24.04
+amd64. Download the `.deb` and `SHA256SUMS` from the matching
 [GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases).
-Keep both files in the same directory, then verify, extract and install the
-add-on. Replace `VERSION` with the downloaded release number:
+Replace `VERSION` with the downloaded release number:
 
 ```shell
 cd ~/Downloads
 sha256sum --ignore-missing --check SHA256SUMS
-mkdir -p nautilus-acornfs-addon-VERSION
-unzip nautilus-acornfs-addon-VERSION.zip -d nautilus-acornfs-addon-VERSION
-cd nautilus-acornfs-addon-VERSION
-python3 install.py --restart install
+sudo apt update
+sudo apt install ./nautilus-acornfs_VERSION_amd64.deb
+nautilus --quit
 ```
 
-The installer uses the single wheel shipped beside it and downloads pinned
-Python dependencies into a private versioned environment. It creates
-`~/.local/bin/acornfs` and generated desktop files below `~/.local/share`; it
-does not modify Ubuntu's system Python. Internet access is required during
-installation. If the command is not found in a new terminal, add
-`~/.local/bin` to `PATH` or use its absolute path.
-
-Verify the installation before opening an image:
+Open Files again, then verify the command and desktop integration:
 
 ```shell
-~/.local/bin/acornfs --help
-~/.local/bin/acornfs status
-test -f ~/.local/share/nautilus-python/extensions/nautilus_acornfs.py
+acornfs --help
+acornfs status
+test -f /usr/share/nautilus-python/extensions/nautilus_acornfs.py
 ```
 
-Open Files and right-click a supported image. One **Acorn FS Support** submenu
-should appear. If Files was not restarted, run `nautilus --quit` and open it
-again.
+The package uses normal Ubuntu dependencies and does not run `pip` during
+installation. If `apt` cannot find `python3-pyfuse3`, enable Ubuntu's Universe
+component, update the package lists and repeat the install:
 
-For an upgrade, first unmount every image, extract the new add-on release and
-run `python3 install.py --restart upgrade` from its directory. The installer
-stages the replacement separately and changes the active release only after it
-has installed and validated successfully.
+```shell
+sudo add-apt-repository universe
+sudo apt update
+```
+
+Before migrating from the per-user add-on, unmount all images and run this from
+its retained extracted directory:
+
+```shell
+python3 install.py --restart uninstall
+```
+
+This removes its per-user loader before the system package is installed and
+retains images, preferences, checkpoints and repair audits. A release add-on
+remains available for users who cannot install a system package; its bundled
+`INSTALL.txt` contains the install, upgrade and removal procedure.
+
+For an upgrade, first unmount every image and install the new `.deb` with the
+same `sudo apt install ./nautilus-acornfs_VERSION_amd64.deb` command. Remove
+AcornFS with `sudo apt remove nautilus-acornfs`. Both operations retain user
+data. Restart Files after an upgrade or removal.
+
+Open Files and right-click a supported image. One **Acorn FS Support** submenu
+should appear.
 
 For source development, clone the repository and follow the root README's
 development section. Do not use an editable source install as the normal
@@ -173,16 +173,19 @@ survive a host round trip. The precise mapping and filename limits are in
 
 ## Remove AcornFS
 
-Unmount every image, enter any retained extracted add-on directory, then run:
+Unmount every image, confirm `acornfs status` is empty, then run:
 
 ```shell
-python3 install.py --restart uninstall
+sudo apt remove nautilus-acornfs
+nautilus --quit
 ```
 
-This refuses to proceed while a mount is active and removes only managed code,
-its command, and generated extension, MIME and desktop-handler files. It does
-not remove images, mount-location preferences, recovery checkpoints or repair
-audits. Do not manually delete recovery state for an unresolved writable mount.
+This removes only packaged code, its command, and the system extension, MIME
+and desktop-handler files. For the alternative add-on, run
+`python3 install.py --restart uninstall` from its extracted directory instead.
+Neither method removes images, mount-location preferences, recovery checkpoints
+or repair audits. Do not manually delete recovery state for an unresolved
+writable mount.
 
 ## Get support safely
 

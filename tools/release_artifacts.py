@@ -304,6 +304,25 @@ def build_release(output: Path, *, epoch: int | None = None) -> list[Path]:
         if len(add_ons) != 1:
             raise RuntimeError(f"expected exactly one add-on archive, found {len(add_ons)}")
         staged_artefacts.extend(add_ons)
+        debian_output = root / "debian"
+        _run(
+            [
+                sys.executable,
+                str(PROJECT_ROOT / "tools/debian_package.py"),
+                "--output",
+                str(debian_output),
+                "--source-date-epoch",
+                str(resolved_epoch),
+            ],
+            environment=os.environ.copy(),
+        )
+        debian_files = sorted(debian_output.iterdir())
+        if len(list(debian_output.glob("*.deb"))) != 1 or len(debian_files) != 2:
+            raise RuntimeError("expected one Debian package and one Debian manifest")
+        for source in debian_files:
+            target = staged / source.name
+            shutil.copyfile(source, target)
+            staged_artefacts.append(target)
         sbom = staged / SBOM_NAME
         _build_sbom(wheels[0], sbom)
         staged_artefacts.append(sbom)

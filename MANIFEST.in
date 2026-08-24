@@ -9,6 +9,7 @@ recursive-include containers *
 recursive-include docs *.md
 recursive-include packaging *.md
 include packaging/debian/copyright
+include packaging/debian/vendor-requirements.txt
 graft po
 recursive-include tests *.py
 recursive-include tools *.py

@@ -23,3 +23,18 @@ License: MIT
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  SOFTWARE.
+
+Files: usr/lib/python3/dist-packages/oaknut/*
+ usr/lib/python3/dist-packages/oaknut_*.dist-info/*
+Copyright: 2026 Robert Smallshire
+License: MIT
+
+Files: usr/lib/python3/dist-packages/exit_codes/*
+ usr/lib/python3/dist-packages/exit_codes-*.dist-info/*
+Copyright: 2018 Sixty North AS
+License: MIT
+
+Files: usr/lib/python3/dist-packages/typename/*
+ usr/lib/python3/dist-packages/typename-*.dist-info/*
+Copyright: Sixty North
+License: MIT

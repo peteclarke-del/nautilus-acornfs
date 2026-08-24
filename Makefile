@@ -1,4 +1,4 @@
-.PHONY: addon benchmark check debian-staging format fuzz-smoke lint messages package-smoke release test test-live typecheck
+.PHONY: addon benchmark check deb format fuzz-smoke lint messages package-smoke release test test-live typecheck
 
 PYTHON ?= python3
 
@@ -7,8 +7,8 @@ check: lint typecheck test
 addon:
 	$(PYTHON) tools/build_addon.py --output dist
 
-debian-staging:
-	python tools/debian_staging.py --output build/debian-staging
+deb:
+	$(PYTHON) tools/debian_package.py --output build/debian
 
 benchmark:
 	python -m acornfs.benchmark --output build/performance/amd64.json --check-budgets
