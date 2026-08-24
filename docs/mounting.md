@@ -8,17 +8,15 @@ S/M/L/D/E/E+/F/F+/G/G+ floppy, an Acorn/Watford DFS SSD/DSD image, a standard
 or extended MMB container, a standalone FileCore/unpaired raw ADFS hard disc, or
 an Acorn ROMFS paged-ROM image. All disk formats may be mounted read-write;
 ROMFS remains read-only.
-On Ubuntu 24.04 or later, install the host packages with:
+For ordinary desktop use, install the `.deb` as described in the root README's
+[installation guide](../README.md#installation). It resolves the host packages
+through `apt`.
+
+For source development on Ubuntu 24.04, install the build dependencies and
+AcornFS from a repository checkout:
 
 ```shell
 sudo apt install python3-venv python3-dev build-essential fuse3 libfuse3-dev pkg-config
-```
-
-For ordinary desktop use, follow the root README's
-[release add-on installation](../README.md#installation). For source
-development, install AcornFS from a repository checkout:
-
-```shell
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -e '.[fuse]'

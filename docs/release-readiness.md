@@ -31,7 +31,8 @@ claim into a completed item.
 - [x] In-process FUSE and core tests cover writable ADFS Old/New/Big directory,
   FileCore, DFS SSD/DSD and MMB file lifecycles with rollback and recovery.
 - [x] Wheel and source archive builds are reproducible and have an SBOM.
-- [ ] The Ubuntu 24.04 amd64 package lifecycle smoke test passes.
+- [x] The Ubuntu 24.04 amd64 Debian package builds reproducibly and its clean
+  install, runtime import and removal smoke test passes in an Ubuntu container.
 - [ ] A clean GNOME session passes keyboard, screen-reader, light/dark, narrow
   window, 200 percent scaling and Nautilus file-operation workflows using the
   [desktop acceptance matrix](desktop-acceptance.md).
