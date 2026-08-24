@@ -18,34 +18,31 @@ during package builds.
    environment, Nautilus, FUSE and hardware checks must not be replaced by unit
    tests or assumptions.
 2. Run `make check`, `make benchmark`, `make test-live` on a permitted amd64
-   FUSE host, install `.[release]`, and run `make release` and `make addon`.
-3. Run `make package-smoke` and `make debian-staging`, then inspect the three
-   disjoint package roots and their non-publishable manifest. Install the built
-   wheel into a clean supported Ubuntu environment and run the documented mount,
-   writable-edit and recovery acceptance tests.
+   FUSE host, install `.[release]`, and run `make release`.
+3. Run `make package-smoke` and `make deb`. Inspect the Debian manifest, install
+   the `.deb` into a clean Ubuntu 24.04 amd64 environment, exercise the command
+   and Files loader, remove it, then run the documented mount, writable-edit
+   and recovery acceptance tests on a GNOME host.
 4. Set the version, date the changelog section, and review the full diff.
 5. Merge the release commit, create the matching annotated tag, then publish
    release notes derived from the changelog.
 6. Verify `build/release/SHA256SUMS`, inspect the validated CycloneDX SBOM, sign
    the source archive and checksum manifest under the approved release-key
-   policy, and attach only those artefacts built from the tag. The add-on ZIP is
-   a user-installable convenience artefact and must come from the same reviewed
-   tag.
+   policy, and attach only those artefacts built from the tag. The `.deb` and
+   add-on ZIP are user-installable convenience artefacts and must come from the
+   same reviewed tag.
 7. Keep the previous release and recovery documentation available so users can
    restore images and checkpoints before attempting an incompatible upgrade.
 
-The project is distributed under the MIT licence. Signed archives and Debian
-artefact production remain separate acceptance items until a release-key policy
-exists. Debian staging remains
-non-publishable until the pinned Oaknut family has a Debian package
-or an approved vendoring plan. The automated release job builds the wheel and
-source archive twice with one commit-derived timestamp, compares
-their SHA-256 digests, emits a reproducible CycloneDX 1.6 SBOM and writes an
-unsigned checksum manifest covering the source, wheel, SBOM and standalone
-add-on archive. The automated wheel lifecycle test covers managed
-installation, atomic upgrade and uninstall while preserving preferences,
-checkpoint-shaped state and repair audits. Do not mark these gates complete
-without the required evidence.
+The project is distributed under the MIT licence. Release signing remains a
+separate acceptance item until a release-key policy exists. The automated
+release job builds the wheel, source archive, add-on and amd64 Debian package
+with one commit-derived timestamp, verifies reproducibility, emits a
+CycloneDX 1.6 SBOM and writes an unsigned checksum manifest covering every
+artifact. The Debian build accepts only the audited hash-pinned Oaknut runtime
+and its MIT-licensed helpers. Automated lifecycle tests cover system-package
+install and removal plus managed add-on installation, atomic upgrade and
+uninstall. Do not mark these gates complete without the required evidence.
 
 ## Compatibility and support
 

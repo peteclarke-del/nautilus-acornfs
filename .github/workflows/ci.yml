@@ -95,12 +95,31 @@ jobs:
       - run: python -m pip install '.[dev]'
       - name: Exercise clean install, forced upgrade and uninstall
         run: python tools/package_smoke.py --build
-      - name: Validate split Debian package staging
-        run: make debian-staging
+
+  debian-package-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install '.[release]'
+      - name: Build the reproducible Debian package
+        run: make deb
+      - name: Exercise system install and uninstall
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./build/debian/nautilus-acornfs_*_amd64.deb
+          acornfs --help >/dev/null
+          python3 -c 'import acornfs, acornfs_nautilus, oaknut.adfs, oaknut.dfs, pyfuse3, trio'
+          test -f /usr/share/nautilus-python/extensions/nautilus_acornfs.py
+          sudo apt-get remove -y nautilus-acornfs
+          test ! -e /usr/bin/acornfs
       - uses: actions/upload-artifact@v6
         with:
-          name: debian-staging-amd64
-          path: build/debian-staging/manifest.json
+          name: debian-package-amd64
+          path: build/debian/
           if-no-files-found: error
 
   release-artifacts-amd64:
