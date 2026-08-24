@@ -84,7 +84,7 @@ retained-state guidance in
 
 ### Install the Debian package
 
-The v0.1.0 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
+The v0.1.1 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
 FUSE 3, and GNOME Files (Nautilus) 46 or later. The Debian package is the
 recommended installation method for releases that provide it. Download
 `nautilus-acornfs_VERSION_amd64.deb` and `SHA256SUMS` from the matching
@@ -128,17 +128,17 @@ audits are retained.
 
 ### Alternative per-user add-on
 
-Download `nautilus-acornfs-addon-0.1.0.zip` from the
-[v0.1.0 GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases/tag/v0.1.0).
+Download `nautilus-acornfs-addon-0.1.1.zip` from the
+[v0.1.1 GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases/tag/v0.1.1).
 Download `SHA256SUMS` from the same page if you want to verify the archive
 before installing:
 
 ```shell
 cd ~/Downloads
 sha256sum --ignore-missing --check SHA256SUMS
-mkdir -p nautilus-acornfs-addon-0.1.0
-unzip nautilus-acornfs-addon-0.1.0.zip -d nautilus-acornfs-addon-0.1.0
-cd nautilus-acornfs-addon-0.1.0
+mkdir -p nautilus-acornfs-addon-0.1.1
+unzip nautilus-acornfs-addon-0.1.1.zip -d nautilus-acornfs-addon-0.1.1
+cd nautilus-acornfs-addon-0.1.1
 python3 install.py --restart install
 ```
 
