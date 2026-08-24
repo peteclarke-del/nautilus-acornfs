@@ -2,7 +2,7 @@
 
 from .beebscsi import BeebSCSIGeometry, BeebSCSIPair, discover_pair, inspect_pair
 from .create import CreatedImage, create_beebscsi_image
-from .formats import ImageCapabilities, ResolvedImage, resolve_image
+from .formats import ImageCapabilities, ResolvedImage, image_capabilities_hint, resolve_image
 from .image import ImageNode, ReadOnlyImage, validate_image
 from .properties import ImageProperties, read_image_properties
 from .repair import (
@@ -52,6 +52,7 @@ __all__ = [
     "apply_repairs",
     "inspect_pair",
     "import_file",
+    "image_capabilities_hint",
     "read_image_properties",
     "resolve_image",
     "plan_repairs",

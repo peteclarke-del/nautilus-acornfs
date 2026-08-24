@@ -10,15 +10,14 @@ from typing import Any
 
 import gi
 
-from acornfs.core import read_image_properties
+from acornfs.core import image_capabilities_hint, read_image_properties
 from acornfs.errors import AcornFSError
 from acornfs.file_forge import file_forge_available
 from acornfs.greaseweazle import physical_write_available
 from acornfs.i18n import _
-from acornfs.mounts import is_mounted, mount_for_image
+from acornfs.mounts import is_mounted, mount_for_image, mount_for_image_path
 from acornfs.recovery import pending_recovery
 from acornfs_nautilus.logic import (
-    image_capabilities,
     image_property_rows,
     is_supported_image,
     mounted_file_property_rows,
@@ -200,14 +199,14 @@ class AcornFSMenuProvider(GObject.GObject, Nautilus.MenuProvider):
                 return [self._support_menu([self._create_item(path), self._configuration_item()])]
             return []
         offer_physical_write = physical_write_available(path)
-        capabilities = image_capabilities(path)
+        capabilities = image_capabilities_hint(path)
         if capabilities is None:
             if offer_physical_write:
                 return [self._support_menu([self._write_floppy_item(path)])]
             return []
         offer_file_forge = capabilities.file_forge and file_forge_available()
         try:
-            mounted = mount_for_image(path)
+            mounted = mount_for_image_path(path)
         except AcornFSError:
             return []
         if mounted is not None:
