@@ -6,6 +6,7 @@ import pytest
 
 from tools.user_install import (
     _active_mounts,
+    _bundled_source,
     _current_release,
     _ensure_launcher,
     _launcher_target,
@@ -14,6 +15,17 @@ from tools.user_install import (
     _verify_marker,
     install,
 )
+
+
+def test_bundled_installer_finds_exactly_one_adjacent_wheel(tmp_path: Path) -> None:
+    wheel = tmp_path / "nautilus_acornfs-0.1.0-py3-none-any.whl"
+    wheel.touch()
+
+    assert _bundled_source(tmp_path) == wheel
+
+    (tmp_path / "nautilus_acornfs-0.2.0-py3-none-any.whl").touch()
+    with pytest.raises(RuntimeError, match="exactly one"):
+        _bundled_source(tmp_path)
 
 
 def test_install_root_must_be_specific_absolute_directory(tmp_path: Path) -> None:

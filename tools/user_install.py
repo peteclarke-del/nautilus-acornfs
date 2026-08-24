@@ -31,6 +31,18 @@ def _default_bin_dir() -> Path:
     return Path(pwd.getpwuid(os.getuid()).pw_dir) / ".local" / "bin"
 
 
+def _bundled_source(directory: Path) -> Path:
+    """Find the single wheel shipped beside a standalone add-on installer."""
+
+    wheels = sorted(directory.glob("nautilus_acornfs-*.whl"))
+    if len(wheels) != 1:
+        raise RuntimeError(
+            "no source was supplied and the installer directory does not contain exactly one "
+            "nautilus_acornfs wheel"
+        )
+    return wheels[0]
+
+
 def _run(
     command: list[str],
     *,
@@ -255,7 +267,12 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="action", required=True)
     for action in ("install", "upgrade"):
         action_parser = subparsers.add_parser(action)
-        action_parser.add_argument("source", type=Path, help="source tree, archive or wheel")
+        action_parser.add_argument(
+            "source",
+            type=Path,
+            nargs="?",
+            help="source tree, archive or wheel; defaults to the wheel beside this installer",
+        )
     subparsers.add_parser("uninstall")
     arguments = parser.parse_args()
     environment = os.environ.copy()
@@ -271,8 +288,9 @@ def main() -> int:
         )
         print("Removed AcornFS code and desktop integration; user data was retained.")
     else:
+        source = arguments.source or _bundled_source(Path(__file__).resolve().parent)
         launcher = install(
-            arguments.source,
+            source,
             prefix=prefix,
             bin_dir=bin_dir,
             upgrade=arguments.action == "upgrade",

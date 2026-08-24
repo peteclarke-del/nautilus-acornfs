@@ -18,7 +18,7 @@ during package builds.
    environment, Nautilus, FUSE and hardware checks must not be replaced by unit
    tests or assumptions.
 2. Run `make check`, `make benchmark`, `make test-live` on a permitted amd64
-   FUSE host, install `.[release]`, and run `make release`.
+   FUSE host, install `.[release]`, and run `make release` and `make addon`.
 3. Run `make package-smoke` and `make debian-staging`, then inspect the three
    disjoint package roots and their non-publishable manifest. Install the built
    wheel into a clean supported Ubuntu environment and run the documented mount,
@@ -28,7 +28,9 @@ during package builds.
    release notes derived from the changelog.
 6. Verify `build/release/SHA256SUMS`, inspect the validated CycloneDX SBOM, sign
    the source archive and checksum manifest under the approved release-key
-   policy, and attach only those artefacts built from the tag.
+   policy, and attach only those artefacts built from the tag. The add-on ZIP is
+   a user-installable convenience artefact and must come from the same reviewed
+   tag.
 7. Keep the previous release and recovery documentation available so users can
    restore images and checkpoints before attempting an incompatible upgrade.
 

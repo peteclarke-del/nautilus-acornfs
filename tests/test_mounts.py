@@ -5,6 +5,7 @@ from acornfs.mounts import (
     MountRecord,
     active_mounts,
     mount_for_image,
+    mount_for_image_path,
     parse_mountinfo,
     register_mount,
     registered_mount_at,
@@ -65,6 +66,26 @@ def test_registry_enriches_only_kernel_confirmed_mounts(
     assert registered_mount_at(mountpoint) == registered
     unregister_mount(mountpoint)
     assert registered_mount_at(mountpoint) is None
+
+
+def test_menu_mount_lookup_does_not_resolve_image_content(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))  # type: ignore[attr-defined]
+    dat_path, dsc_path = create_beebscsi_image(tmp_path)
+    mountpoint = tmp_path / "mounted"
+    mountpoint.mkdir()
+    register_mount(dat_path, mountpoint, read_write=False)
+    kernel = MountRecord(str(mountpoint), dat_path.name, "ro")
+
+    with (
+        patch("acornfs.mounts._kernel_mounts", return_value=[kernel]),
+        patch("acornfs.mounts.resolve_image", side_effect=AssertionError("content inspected")),
+    ):
+        record = mount_for_image_path(dsc_path)
+
+    assert record is not None
+    assert record.mountpoint == str(mountpoint)
 
 
 def test_replaced_pair_does_not_match_active_image_identity(

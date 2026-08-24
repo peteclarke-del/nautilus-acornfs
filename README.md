@@ -136,6 +136,21 @@ switches the current release, refuses to uninstall active mounts, and never
 removes images, preferences, checkpoints or repair audits. Add `--restart`
 before the action only when Files should restart immediately.
 
+For a distributable per-user Nautilus add-on, build the standalone archive:
+
+```shell
+make addon
+unzip dist/nautilus-acornfs-addon-0.1.0.zip -d nautilus-acornfs-addon
+cd nautilus-acornfs-addon
+python3 install.py --restart install
+```
+
+The archive contains the application wheel, lifecycle installer and an
+`INSTALL.txt` quick-start guide. It supports managed install, atomic upgrade
+and uninstall without requiring a Git checkout. Runtime dependencies are
+installed into its private per-user virtual environment. Use `upgrade` or
+`uninstall` in place of `install` for those lifecycle operations.
+
 Install the per-user Nautilus extension, MIME types and desktop handler, then restart Files:
 
 ```shell
@@ -147,9 +162,12 @@ or a ROMFS image and open **Acorn FS Support**. Writable formats offer **Open
 read-only**, **Open read-write** and **Validate image**. BeebSCSI pairs may also
 offer **Repair image…** and **Open in Acorn File Forge…** when those actions are
 available. ROMFS offers read-only opening and properties only.
-When the `gw` command and a connected Greaseweazle both respond, compatible
+When the `gw` command and a connected Greaseweazle are detected, compatible
 `.ssd`, `.dsd`, `.adf`, `.ads`, `.adm` and `.adl` files additionally offer
 **Write to physical floppy…**. The action is hidden otherwise.
+AcornFS resolves the filesystem and physical geometry before writing, then
+passes an explicit Acorn format to Greaseweazle. In particular, an Acorn `.adf`
+is never handed to Greaseweazle's unrelated Amiga ADF handler.
 The mounted image opens in Nautilus and appears in its sidebar. The same submenu
 offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
@@ -179,6 +197,17 @@ only after Greaseweazle says all tracks verified; cancellation is available
 before the physical write starts, but not while a disk could be half-written.
 Disconnects, command failures and verification failures produce an explicit
 warning that the destination disk must not be trusted.
+
+Files never runs `gw info` while constructing a context menu. It checks for the
+installed command and an accessible Greaseweazle udev serial identity, so a
+connected device is available on the first right-click. The write workflow then
+runs `gw info` before asking for a drive or touching the destination media.
+
+Before presenting the drive selector, AcornFS uses `gw rpm` to detect drives
+that are powered and reporting index pulses. Insert the destination floppy
+first. The progress dialog checks PC-bus drives A/B, then checks Shugart units
+0-3 only when no PC-bus drive responds. The selector contains only detected
+drives; probing does not read or write disk data.
 
 The software workflow is covered automatically, but real-device acceptance is
 still open in [TODO.md](TODO.md). Use expendable media for initial testing and

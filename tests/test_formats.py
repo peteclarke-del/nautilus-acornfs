@@ -339,11 +339,27 @@ def test_unrecognised_and_unsupported_images_are_rejected(tmp_path: Path) -> Non
         resolve_image(unknown)
 
 
+def test_adf_detection_probes_only_adfs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    image = tmp_path / "ambiguous.adf"
+    image.write_bytes(bytes(800 * 1024))
+    probed: list[set[str]] = []
+
+    def identify(_path: Path, *, filesystems: dict[str, object] | None = None) -> list[object]:
+        probed.append(set(filesystems or {}))
+        return []
+
+    monkeypatch.setattr("acornfs.core.formats.identify", identify)
+
+    with pytest.raises(UnsupportedImageError):
+        resolve_image(image)
+    assert probed == [{"adfs"}]
+
+
 def test_detection_failures_do_not_escape_into_nautilus(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     image_path = tmp_path / "hostile.img"
     image_path.write_bytes(b"input")
-    monkeypatch.setattr("acornfs.core.formats.identify", lambda _path: 1 / 0)
+    monkeypatch.setattr("acornfs.core.formats.identify", lambda _path, **_kwargs: 1 / 0)
 
     assert image_capabilities(image_path) is None

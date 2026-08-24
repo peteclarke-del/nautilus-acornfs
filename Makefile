@@ -1,6 +1,11 @@
-.PHONY: benchmark check debian-staging format fuzz-smoke lint messages package-smoke release test test-live typecheck
+.PHONY: addon benchmark check debian-staging format fuzz-smoke lint messages package-smoke release test test-live typecheck
+
+PYTHON ?= python3
 
 check: lint typecheck test
+
+addon:
+	$(PYTHON) tools/build_addon.py --output dist
 
 debian-staging:
 	python tools/debian_staging.py --output build/debian-staging

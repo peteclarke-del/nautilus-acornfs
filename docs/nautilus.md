@@ -34,7 +34,8 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 2. Open **Acorn FS Support** and select **Open read-only**, or choose **Open
    read-write** for any supported ADFS, DFS or MMB image when changes should be
    possible. ROMFS remains read-only.
-3. Wait for the completion notification; the mounted root opens automatically.
+3. Follow the mount progress dialog. A finite success or error dialog is shown,
+   and a successful mounted root opens automatically.
 4. Browse directories and open files normally. The image appears in the Files
    sidebar while it remains mounted.
 5. Right-click the DAT/DSC and select **Acorn FS Support → Unmount**, or use the
@@ -197,6 +198,24 @@ acornfs inspect /path/to/image.dat
 Nautilus cannot reload Python extensions in place. After reinstalling or
 updating the bootstrap, run `nautilus --quit` and reopen Files. Mount logs are
 stored beside the runtime mountpoint under `$XDG_RUNTIME_DIR/acornfs`.
+
+Greaseweazle detection never blocks menu construction. Files checks for the
+installed command and an accessible Greaseweazle identity under
+`/dev/serial/by-id`; it does not start `gw info` from the menu provider. The
+write workflow performs the authoritative `gw info` check before it presents
+destructive controls.
+
+The physical-write workflow detects usable drives before showing its selector.
+It reports progress while `gw rpm` checks for index pulses from the inserted
+destination floppy, using PC-bus identifiers first and Shugart identifiers only
+when necessary. Only responding drives are listed. A timed-out probe triggers a
+controller reset to deselect the drive and stop its motor.
+
+Context-menu discovery uses registered image filename extensions and does not
+open the image. The selected mount, validation, repair or physical-write command
+performs full content checks before it can modify anything. Content-recognisable
+images with unrelated extensions remain available through the `acornfs` CLI but
+do not receive a Nautilus context menu.
 
 ## Uninstall
 

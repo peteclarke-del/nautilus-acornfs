@@ -252,6 +252,8 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Package the FUSE daemon, command-line tools and Nautilus extension separately where useful.
 - [x] Declare FUSE 3, Python/runtime and Nautilus extension dependencies accurately.
 - [x] Add installation, upgrade and uninstall scripts that preserve user data.
+- [x] Produce a standalone per-user Nautilus add-on bundle containing the wheel,
+  lifecycle installer and install instructions.
 - [x] Restart Nautilus only when explicitly requested and otherwise explain the required action.
 - [x] Generate reproducible source archives and unsigned SHA-256 checksums.
 - [ ] Sign release archives after the release-key and fingerprint policy is approved.
