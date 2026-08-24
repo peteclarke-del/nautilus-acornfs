@@ -112,7 +112,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ./build/debian/nautilus-acornfs_*_amd64.deb
           acornfs --help >/dev/null
-          python3 -c 'import acornfs, acornfs_nautilus, oaknut.adfs, oaknut.dfs, pyfuse3, trio'
+          /usr/bin/python3 -c 'import acornfs, acornfs_nautilus, oaknut.adfs, oaknut.dfs, pyfuse3, trio'
           test -f /usr/share/nautilus-python/extensions/nautilus_acornfs.py
           sudo apt-get remove -y nautilus-acornfs
           test ! -e /usr/bin/acornfs
