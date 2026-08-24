@@ -17,6 +17,7 @@ from acornfs.desktop import (
     cleanup_stale_mountpoint,
     desktop_configure_mount_location,
     desktop_create,
+    desktop_mount,
     desktop_open,
     desktop_open_file_forge,
     desktop_recover,
@@ -126,6 +127,37 @@ def test_desktop_open_notifies_for_refused_uri() -> None:
     )
 
 
+def test_desktop_mount_reports_progress_opens_folder_and_confirms_success() -> None:
+    mountpoint = Path("/mounts/Example")
+    with (
+        patch("acornfs.desktop.background_mount", return_value=mountpoint) as mount,
+        patch("acornfs.desktop._open_folder") as open_folder,
+        patch("acornfs.desktop._show_desktop_message") as show,
+    ):
+        assert desktop_mount("/images/Example.adf", read_write=False) == 0
+
+    assert mount.call_args.kwargs["open_folder"] is False
+    assert mount.call_args.kwargs["notify"] is False
+    assert mount.call_args.kwargs["read_write"] is False
+    assert callable(mount.call_args.kwargs["progress"])
+    open_folder.assert_called_once_with(mountpoint)
+    show.assert_called_once_with(
+        "AcornFS image mounted",
+        "Example.adf is available in Files at /mounts/Example (read-only).",
+    )
+
+
+def test_desktop_mount_shows_actionable_failure_dialog() -> None:
+    with (
+        patch("acornfs.desktop.background_mount", side_effect=AcornFSError("bad image")),
+        patch("acornfs.desktop._show_desktop_message") as show,
+        pytest.raises(AcornFSError, match="bad image"),
+    ):
+        desktop_mount("/images/Example.adf")
+
+    show.assert_called_once_with("AcornFS mount failed", "bad image", error=True)
+
+
 def test_desktop_file_forge_handoff_reports_launcher_failure() -> None:
     with (
         patch("acornfs.desktop.open_in_file_forge", side_effect=AcornFSError("not installed")),
@@ -139,6 +171,7 @@ def test_desktop_file_forge_handoff_reports_launcher_failure() -> None:
 def test_desktop_floppy_write_selects_confirms_writes_and_reports_success() -> None:
     with (
         patch("acornfs.desktop.detected_command", return_value="/usr/bin/gw"),
+        patch("acornfs.desktop.detected_drives", return_value=("B",)),
         patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
         patch(
             "acornfs.desktop.subprocess.run",
@@ -157,6 +190,8 @@ def test_desktop_floppy_write_selects_confirms_writes_and_reports_success() -> N
 
     write.assert_called_once_with(Path("/images/private-name.ssd"), "B", progress=ANY)
     confirmation_arguments = run.call_args_list[1].args[0]
+    selection_arguments = run.call_args_list[0].args[0]
+    assert "--combo-values=B" in selection_arguments
     assert "--no-markup" in confirmation_arguments
     assert "--ok-label=Overwrite and verify" in confirmation_arguments
     assert "--cancel-label=Cancel" in confirmation_arguments
@@ -169,6 +204,7 @@ def test_desktop_floppy_write_selects_confirms_writes_and_reports_success() -> N
 def test_desktop_floppy_write_confirmation_can_be_cancelled() -> None:
     with (
         patch("acornfs.desktop.detected_command", return_value="/usr/bin/gw"),
+        patch("acornfs.desktop.detected_drives", return_value=("A",)),
         patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
         patch(
             "acornfs.desktop.subprocess.run",
@@ -182,6 +218,21 @@ def test_desktop_floppy_write_confirmation_can_be_cancelled() -> None:
         assert desktop_write_floppy("disc.ssd") == 0
 
     write.assert_not_called()
+
+
+def test_desktop_floppy_write_stops_when_no_drive_is_detected() -> None:
+    with (
+        patch("acornfs.desktop.detected_command", return_value="/usr/bin/gw"),
+        patch("acornfs.desktop.detected_drives", return_value=()),
+        patch("acornfs.desktop.shutil.which", return_value="/usr/bin/zenity"),
+        patch("acornfs.desktop._show_desktop_message") as show,
+        patch("acornfs.desktop.write_floppy") as write,
+        pytest.raises(AcornFSError, match="No physical drive"),
+    ):
+        desktop_write_floppy("disc.ssd")
+
+    write.assert_not_called()
+    show.assert_called_once()
 
 
 def test_desktop_create_collects_settings_and_reports_success(tmp_path: Path) -> None:

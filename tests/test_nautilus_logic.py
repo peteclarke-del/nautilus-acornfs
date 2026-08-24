@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from acornfs.core import image_capabilities_hint
 from acornfs_nautilus.logic import (
     image_capabilities,
     is_supported_image,
@@ -22,6 +23,16 @@ def test_only_complete_pair_is_supported(tmp_path: Path) -> None:
     dat_path, dsc_path = create_beebscsi_image(tmp_path, stem="complete")
     assert is_supported_image(dat_path)
     assert is_supported_image(dsc_path)
+
+
+def test_menu_capability_hint_does_not_open_the_image(tmp_path: Path) -> None:
+    missing = tmp_path / "offline.adl"
+
+    capabilities = image_capabilities_hint(missing)
+
+    assert capabilities is not None
+    assert capabilities.mount_read_write
+    assert image_capabilities_hint(tmp_path / "ordinary.txt") is None
 
 
 def test_adfs_floppy_support_exposes_protected_write_actions(tmp_path: Path) -> None:

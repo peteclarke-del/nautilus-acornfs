@@ -85,8 +85,8 @@ def test_image_actions_are_collapsed_under_one_support_menu(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
-    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "mount_for_image_path", lambda _path: None)
     monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
 
     items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "scsi0.dat")])
@@ -107,8 +107,8 @@ def test_every_image_menu_action_has_accessible_model_metadata(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
-    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "mount_for_image_path", lambda _path: None)
     monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
     monkeypatch.setattr(extension, "physical_write_available", lambda _path: True)
 
@@ -172,8 +172,8 @@ def test_mount_location_action_launches_desktop_configuration(
 
 def test_file_forge_action_launches_desktop_handoff(tmp_path: Path, monkeypatch: Any) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
-    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "mount_for_image_path", lambda _path: None)
     monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
     launched: list[tuple[str, ...]] = []
     monkeypatch.setattr(extension, "_launch", lambda *arguments: launched.append(arguments))
@@ -190,9 +190,9 @@ def test_file_forge_action_is_hidden_when_native_app_is_not_installed(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
     monkeypatch.setattr(extension, "file_forge_available", lambda: False)
-    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "mount_for_image_path", lambda _path: None)
     monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
 
     items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "scsi0.dat")])
@@ -203,10 +203,10 @@ def test_file_forge_action_is_hidden_when_native_app_is_not_installed(
 
 def test_mounted_image_keeps_file_forge_action(tmp_path: Path, monkeypatch: Any) -> None:
     extension = _load_extension(monkeypatch)
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
     monkeypatch.setattr(
         extension,
-        "mount_for_image",
+        "mount_for_image_path",
         lambda _path: SimpleNamespace(mountpoint=str(tmp_path / "mounted")),
     )
 
@@ -225,7 +225,7 @@ def test_mutable_image_menu_offers_protected_write_actions(
     extension = _load_extension(monkeypatch)
     monkeypatch.setattr(
         extension,
-        "image_capabilities",
+        "image_capabilities_hint",
         lambda _path: _capabilities(
             mount_read_write=True,
             validate=True,
@@ -234,7 +234,7 @@ def test_mutable_image_menu_offers_protected_write_actions(
             file_forge=False,
         ),
     )
-    monkeypatch.setattr(extension, "mount_for_image", lambda _path: None)
+    monkeypatch.setattr(extension, "mount_for_image_path", lambda _path: None)
 
     image = tmp_path / "disc.adl"
     image.write_bytes(b"")
@@ -253,7 +253,7 @@ def test_physical_write_is_offered_only_when_greaseweazle_is_detected(
 ) -> None:
     extension = _load_extension(monkeypatch)
     image = tmp_path / "disc.ssd"
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: None)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: None)
 
     assert extension.AcornFSMenuProvider().get_file_items([_FileInfo(image)]) == []
 
@@ -262,10 +262,29 @@ def test_physical_write_is_offered_only_when_greaseweazle_is_detected(
     assert [item.label for item in items[0].submenu.items] == ["Write to physical floppy…"]
 
 
+def test_ordinary_file_menu_does_not_run_content_detection(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    extension = _load_extension(monkeypatch)
+    inspected = False
+
+    def inspect(_path: Path) -> Any:
+        nonlocal inspected
+        inspected = True
+        return None
+
+    monkeypatch.setattr("acornfs_nautilus.logic.resolve_image", inspect)
+
+    items = extension.AcornFSMenuProvider().get_file_items([_FileInfo(tmp_path / "notes.txt")])
+
+    assert items == []
+    assert inspected is False
+
+
 def test_physical_write_action_launches_desktop_workflow(tmp_path: Path, monkeypatch: Any) -> None:
     extension = _load_extension(monkeypatch)
     image = tmp_path / "disc.adf"
-    monkeypatch.setattr(extension, "image_capabilities", lambda _path: None)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: None)
     monkeypatch.setattr(extension, "physical_write_available", lambda _path: True)
     launched: list[tuple[str, ...]] = []
     monkeypatch.setattr(extension, "_launch", lambda *arguments: launched.append(arguments))

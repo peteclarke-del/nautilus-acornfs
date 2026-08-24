@@ -33,6 +33,16 @@ the current user's XDG data directory. It never modifies images, preferences,
 checkpoints or repair audits. Ensure `~/.local/bin` is on `PATH`, or invoke that
 command by its full path.
 
+Release add-on archives do not require a source checkout. Extract
+`nautilus-acornfs-addon-VERSION.zip`, enter the extracted directory, then run:
+
+```shell
+python3 install.py --restart install
+```
+
+The same command accepts `upgrade` and `uninstall`. The installer uses the
+single wheel shipped beside it and preserves images and all user state.
+
 ## Mount and browse
 
 Keep a BeebSCSI DAT beside its same-basename DSC. In Files, right-click either
@@ -68,6 +78,23 @@ AcornFS shows **Write to physical floppy…** only for `.ssd`, `.dsd`, `.adf`,
 `.ads`, `.adm` and `.adl` files while that command and device are responsive.
 Installing the Python package without connecting usable hardware does not add a
 dead menu item.
+
+Files checks the installed command and the Greaseweazle udev serial identity
+without starting a process, so the action appears on the first right-click. The
+write workflow runs `gw info` before continuing and refuses to present
+destructive controls if the device does not respond.
+
+Insert the destination floppy before continuing. AcornFS displays progress
+while it checks the configured bus for index pulses, then offers only responding
+drives in the selector. Detection briefly starts each candidate drive's motor
+but does not read or write disk data. A timed-out probe resets Greaseweazle so
+the drive is deselected and its motor is stopped.
+
+Before writing, AcornFS identifies the actual Acorn filesystem and geometry and
+passes the corresponding `acorn.adfs.*` or `acorn.dfs.*` format explicitly.
+This is essential for `.adf`, which other systems also use for unrelated disk
+formats. Files with an unsupported size or non-Acorn content are refused before
+the physical write begins.
 
 Select drive A/B for a PC cable or unit 0-3 for a Shugart bus, then review the
 final overwrite warning. The source is copied to a private stable snapshot

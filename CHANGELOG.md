@@ -66,9 +66,27 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
   SHA-256 manifest and retained amd64 CI artefacts.
 - A transactional per-user install, upgrade and uninstall tool that keeps
   images, preferences, checkpoints and repair audits outside its removal scope.
+- A standalone Nautilus add-on archive containing the wheel, lifecycle
+  installer and concise install, upgrade and uninstall instructions.
 
 ### Changed
 
+- Greaseweazle menu detection now checks the installed command and accessible
+  udev serial identity directly. Menu construction never starts `gw info`, and
+  connected hardware is available on the first right-click.
+- The physical-write workflow now probes for index pulses and lists only drives
+  that are connected, powered and contain an indexed destination floppy. Drive
+  probing is read-only, reports progress and resets the controller on timeout.
+- Physical writes resolve Acorn filesystem geometry and pass an explicit
+  `acorn.adfs.*` or `acorn.dfs.*` format to Greaseweazle using a neutral IMG
+  snapshot. Ambiguous `.adf` names can no longer be treated as Amiga ADF by
+  filename alone, and unsupported image sizes are not offered in Files.
+- Read-only and read-write desktop mounts now show live progress followed by a
+  finite success or error dialog. Known floppy suffixes constrain Oaknut probes,
+  preventing unrelated ROMFS detection from exhausting the mount timeout.
+- Nautilus context menus now use filename-level format hints and path-based
+  mount lookup. Right-clicking no longer parses disk-image content on the Files
+  user-interface thread; each selected operation still validates the image.
 - Reviewed project documentation for consistent terminology, concise
   operational guidance and current support boundaries.
 - Harden desktop accessibility metadata and destructive dialog button

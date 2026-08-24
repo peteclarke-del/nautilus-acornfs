@@ -74,6 +74,32 @@ _ADFS_LOGICAL_SECTOR_BYTES = 256
 _ADFS_BOOT_BLOCK_BYTES = 0xE00
 _ADFS_HDF_HEADER_BYTES = 0x200
 
+_SUFFIX_CAPABILITIES = {
+    ".dat": _BEEBSCSI_CAPABILITIES,
+    ".dsc": _BEEBSCSI_CAPABILITIES,
+    ".adf": _STANDALONE_ADFS_CAPABILITIES,
+    ".ads": _STANDALONE_ADFS_CAPABILITIES,
+    ".adm": _STANDALONE_ADFS_CAPABILITIES,
+    ".adl": _STANDALONE_ADFS_CAPABILITIES,
+    ".hdf": _STANDALONE_ADFS_CAPABILITIES,
+    ".hd4": _STANDALONE_ADFS_CAPABILITIES,
+    ".ssd": _DFS_CAPABILITIES,
+    ".dsd": _DFS_CAPABILITIES,
+    ".mmb": _MMB_CAPABILITIES,
+    ".rom": _ROMFS_CAPABILITIES,
+}
+
+
+def image_capabilities_hint(selected: str | Path) -> ImageCapabilities | None:
+    """Return filename-level capabilities without opening the selected file.
+
+    Desktop integrations use this conservative hint while constructing menus.
+    The invoked operation still performs full content-driven resolution before
+    reading or modifying an image.
+    """
+
+    return _SUFFIX_CAPABILITIES.get(Path(selected).suffix.casefold())
+
 
 def _refine_adfs_floppy_geometry(path: Path, proposed: Geometry) -> Geometry:
     """Resolve same-sized D/E/E+ and F/G plus variants from on-disc state."""
@@ -157,6 +183,22 @@ def _adfs_new_map_state(path: Path) -> bool | None:
         reader.close()
 
 
+def _probe_filesystems(path: Path) -> dict[str, Any] | None:
+    """Constrain expensive probes when the desktop filename is unambiguous."""
+
+    suffix = path.suffix.casefold()
+    names: tuple[str, ...]
+    if suffix == ".rom":
+        names = ("acorn-romfs",)
+    elif suffix in {".ssd", ".dsd"}:
+        names = ("acorn-dfs", "watford-dfs")
+    elif suffix in {".adf", ".ads", ".adm", ".adl", ".hdf", ".hd4"}:
+        names = ("adfs",)
+    else:
+        return None
+    return {name: create_filesystem(name) for name in names}
+
+
 def resolve_image(selected: str | Path) -> ResolvedImage:
     """Resolve a supported image by pairing rules first, then content evidence."""
 
@@ -238,7 +280,7 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
         )
 
     try:
-        candidates = identify(selected_path)
+        candidates = identify(selected_path, filesystems=_probe_filesystems(selected_path))
     except Exception as exc:
         raise UnsupportedImageError(
             _("Could not inspect image {path}: {error}").format(path=selected_path, error=exc)
@@ -311,4 +353,9 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
     )
 
 
-__all__ = ["ImageCapabilities", "ResolvedImage", "resolve_image"]
+__all__ = [
+    "ImageCapabilities",
+    "ResolvedImage",
+    "image_capabilities_hint",
+    "resolve_image",
+]

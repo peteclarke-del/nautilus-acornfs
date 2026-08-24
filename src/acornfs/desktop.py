@@ -34,7 +34,7 @@ from acornfs.core import (
 )
 from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.file_forge import open_in_file_forge
-from acornfs.greaseweazle import DRIVE_CHOICES, detected_command, write_floppy
+from acornfs.greaseweazle import detected_command, detected_drives, write_floppy
 from acornfs.i18n import _
 from acornfs.mounts import (
     is_mounted,
@@ -378,15 +378,19 @@ def background_mount(
     notify: bool = True,
     timeout: float | None = None,
     read_write: bool = False,
+    progress: Callable[[int, str], None] | None = None,
 ) -> Path:
     """Start a detached foreground mount process and wait until it is ready."""
 
+    report = progress or (lambda _percent, _detail: None)
+    report(5, _("Inspecting the selected image…"))
     cleanup_retained_state()
     image = resolve_image(image_path)
     if read_write and not image.capabilities.mount_read_write:
         raise AcornFSError(_("Read-write mounting is not supported for this image format."))
     if timeout is None:
         timeout = WRITABLE_MOUNT_TIMEOUT if read_write else MOUNT_TIMEOUT
+    report(15, _("Preparing the mount location…"))
     mountpoint = mountpoint_for_image(image.primary_path)
     root = runtime_root()
     ensure_private_directory(root, anchor=root.parent)
@@ -413,6 +417,7 @@ def background_mount(
                 )
             )
         if existing is None:
+            report(25, _("Starting the AcornFS mount service…"))
             command = [sys.executable, "-m", "acornfs.cli", "mount"]
             if read_write:
                 command.append("--read-write")
@@ -446,6 +451,8 @@ def background_mount(
                         start_new_session=True,
                     )
             deadline = time.monotonic() + timeout
+            started_at = time.monotonic()
+            last_percent = -1
             while time.monotonic() < deadline:
                 if mount_for_image(image.primary_path) is not None:
                     break
@@ -462,6 +469,14 @@ def background_mount(
                     raise AcornFSError(
                         detail or _("The AcornFS user service exited before mounting.")
                     )
+                elapsed = time.monotonic() - started_at
+                percent = 30 + min(55, int(elapsed / timeout * 55))
+                if percent != last_percent:
+                    report(
+                        percent,
+                        _("Waiting for {image} to mount…").format(image=image.primary_path.name),
+                    )
+                    last_percent = percent
                 time.sleep(0.1)
             else:
                 if process is not None:
@@ -472,6 +487,7 @@ def background_mount(
                     _("Timed out mounting {image}.").format(image=image.primary_path.name)
                 )
 
+    report(90, _("Opening the mounted image in Files…"))
     if open_folder:
         _open_folder(mountpoint)
     if notify:
@@ -482,6 +498,7 @@ def background_mount(
                 image=image.primary_path.name, mode=mode
             ),
         )
+    report(100, _("Mount complete."))
     return mountpoint
 
 
@@ -494,11 +511,33 @@ def _last_log_line(log_path: Path) -> str:
 
 
 def desktop_mount(image_path: str | Path, *, read_write: bool = False) -> int:
+    image = Path(image_path).expanduser()
+    name = safe_name(image.name)
+    mode = _("read-write") if read_write else _("read-only")
     try:
-        background_mount(image_path, read_write=read_write)
+        mountpoint = _run_with_reported_progress(
+            _("Opening AcornFS image"),
+            _("Inspecting {image}…").format(image=name),
+            lambda progress: background_mount(
+                image,
+                open_folder=False,
+                notify=False,
+                read_write=read_write,
+                progress=progress,
+            ),
+        )
     except AcornFSError as exc:
-        _notify(_("AcornFS mount failed"), str(exc), error=True)
+        _show_desktop_message(_("AcornFS mount failed"), str(exc), error=True)
         raise
+    _open_folder(mountpoint)
+    _show_desktop_message(
+        _("AcornFS image mounted"),
+        _("{image} is available in Files at {mountpoint} ({mode}).").format(
+            image=name,
+            mountpoint=mountpoint,
+            mode=mode,
+        ),
+    )
     return 0
 
 
@@ -561,13 +600,27 @@ def desktop_write_floppy(image_path: str | Path) -> int:
 
     image = Path(image_path).expanduser()
     name = safe_name(image.name)
-    if detected_command(image) is None:
+    command = detected_command(image)
+    if command is None:
         detail = _("No responsive Greaseweazle device is currently connected.")
         _show_desktop_message(_("Greaseweazle unavailable"), detail, error=True)
         raise AcornFSError(detail)
     dialog = shutil.which("zenity")
     if dialog is None:
         raise AcornFSError(_("Zenity is required to confirm a physical floppy write safely."))
+
+    drives = _run_with_reported_progress(
+        _("Detecting physical drives"),
+        _("Checking the connected Greaseweazle drives…"),
+        lambda progress: detected_drives(image, command=command, progress=progress),
+    )
+    if not drives:
+        detail = _(
+            "No physical drive with an indexed floppy was detected. Insert the destination "
+            "disk, check the drive cable and power, then try again."
+        )
+        _show_desktop_message(_("No physical drive detected"), detail, error=True)
+        raise AcornFSError(detail)
 
     selection = subprocess.run(
         [
@@ -576,7 +629,7 @@ def desktop_write_floppy(image_path: str | Path) -> int:
             f"--title={_('Write physical floppy')}",
             f"--text={_('Select the Greaseweazle drive containing the destination floppy.')}",
             f"--add-combo={_('Physical drive')}",
-            f"--combo-values={'|'.join(DRIVE_CHOICES)}",
+            f"--combo-values={'|'.join(drives)}",
             f"--ok-label={_('Continue')}",
             f"--cancel-label={_('Cancel')}",
             "--width=560",
@@ -588,7 +641,7 @@ def desktop_write_floppy(image_path: str | Path) -> int:
     if selection.returncode != 0:
         return 0
     drive = selection.stdout.strip()
-    if drive not in DRIVE_CHOICES:
+    if drive not in drives:
         raise AcornFSError(_("The drive-selection dialog returned an invalid response."))
 
     confirmation_text = _(

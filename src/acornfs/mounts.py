@@ -267,6 +267,31 @@ def mount_for_image(image_path: str | Path) -> MountRecord | None:
     return None
 
 
+def mount_for_image_path(image_path: str | Path) -> MountRecord | None:
+    """Find a mount by canonical path and inode without parsing image content."""
+
+    selected = Path(image_path).expanduser().resolve()
+    try:
+        selected_stat = selected.stat()
+    except OSError as exc:
+        raise AcornFSError(
+            _("Could not identify the Acorn image: {error}").format(error=exc)
+        ) from exc
+    target = str(selected)
+    for record in active_mounts():
+        if (
+            record.image_path == target
+            and record.image_device == selected_stat.st_dev
+            and record.image_inode == selected_stat.st_ino
+        ) or (
+            record.descriptor_path == target
+            and record.descriptor_device == selected_stat.st_dev
+            and record.descriptor_inode == selected_stat.st_ino
+        ):
+            return record
+    return None
+
+
 def is_mounted(mountpoint: str | Path) -> bool:
     return mount_at(mountpoint) is not None
 
@@ -286,6 +311,7 @@ __all__ = [
     "is_mounted",
     "mount_at",
     "mount_for_image",
+    "mount_for_image_path",
     "parse_mountinfo",
     "register_mount",
     "registered_mount_at",
