@@ -5,13 +5,18 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
-### Changed
+## 0.1.1 - 2026-08-24
 
-- Added a reproducible Ubuntu 24.04 amd64 Debian package containing the command,
+### Added
+
+- A reproducible Ubuntu 24.04 amd64 Debian package containing the command,
   FUSE adapter and Files integration, with normal system dependencies and an
   audited, hash-pinned MIT runtime for packages unavailable from Ubuntu.
-- Added clean Debian install and removal coverage to CI and included the `.deb`
-  and its machine-readable manifest in release artifacts and checksums.
+- Clean Debian install and removal coverage in CI, with the `.deb` and its
+  machine-readable manifest included in release artifacts and checksums.
+
+### Changed
+
 - Made the `.deb` the recommended Ubuntu installation route and documented
   install, add-on migration, upgrade, verification and removal procedures.
 - Removed the unused `oaknut-cli` and `oaknut-disc` direct runtime dependencies.
