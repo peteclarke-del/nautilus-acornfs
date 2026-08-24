@@ -37,18 +37,40 @@ def create_bundle(
     target = destination / f"nautilus-acornfs-addon-{version}.zip"
     instructions = f"""Nautilus AcornFS add-on {version}
 
-Requirements: Ubuntu 24.04 amd64, Python 3.11 or later, FUSE 3, python3-venv,
-python3-nautilus, gir1.2-nautilus-4.0, shared-mime-info, desktop-file-utils,
-libnotify-bin and zenity.
+Supported host: Ubuntu 24.04 LTS amd64 with GNOME Files 46 or later.
+
+Install prerequisites:
+    sudo apt update
+    sudo apt install --no-install-recommends python3-venv python3-dev \\
+        build-essential pkg-config fuse3 libfuse3-dev python3-nautilus \\
+        gir1.2-nautilus-4.0 shared-mime-info desktop-file-utils \\
+        libnotify-bin zenity
+
+Installation downloads pinned Python dependencies into a private environment.
 
 Install for the current user:
     python3 install.py --restart install
 
+Verify:
+    ~/.local/bin/acornfs --help
+    ~/.local/bin/acornfs status
+
 Upgrade an existing managed installation:
+    Unmount every AcornFS image first, then run:
     python3 install.py --restart upgrade
 
 Uninstall while retaining preferences and recovery data:
+    Unmount every AcornFS image first, then run:
     python3 install.py --restart uninstall
+
+Installed locations:
+    Managed environment: ~/.local/share/nautilus-acornfs
+    Command:             ~/.local/bin/acornfs
+    Desktop integration: ~/.local/share
+
+If the command is not found, add ~/.local/bin to PATH. If Files did not restart,
+run "nautilus --quit" and reopen Files. Full instructions and troubleshooting:
+https://github.com/peteclarke-del/nautilus-acornfs#installation
 """
     with tempfile.NamedTemporaryFile(
         prefix=f".{target.name}.", suffix=".tmp", dir=destination, delete=False

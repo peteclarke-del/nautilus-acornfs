@@ -16,32 +16,59 @@ write path. ROMFS never offers writable access.
 
 ## Install and enable Files integration
 
-On the supported Ubuntu 24.04 amd64 host:
+The release add-on is the recommended installation method. On the supported
+Ubuntu 24.04 amd64 host, install its prerequisites first:
 
 ```shell
-sudo apt install python3-venv fuse3 libfuse3-dev pkg-config \
-  python3-nautilus gir1.2-nautilus-4.0 shared-mime-info \
-  desktop-file-utils libnotify-bin zenity
-git clone https://github.com/peteclarke-del/nautilus-acornfs.git
-python3 nautilus-acornfs/tools/user_install.py --restart install ./nautilus-acornfs
+sudo apt update
+sudo apt install --no-install-recommends \
+  python3-venv python3-dev build-essential pkg-config \
+  fuse3 libfuse3-dev \
+  python3-nautilus gir1.2-nautilus-4.0 \
+  shared-mime-info desktop-file-utils libnotify-bin zenity unzip
 ```
 
-Run those commands from the directory containing the checkout, or use the
-development instructions in the README. The installer creates a versioned
-environment and `~/.local/bin/acornfs`, then changes only generated files under
-the current user's XDG data directory. It never modifies images, preferences,
-checkpoints or repair audits. Ensure `~/.local/bin` is on `PATH`, or invoke that
-command by its full path.
-
-Release add-on archives do not require a source checkout. Extract
-`nautilus-acornfs-addon-VERSION.zip`, enter the extracted directory, then run:
+Download the add-on ZIP and `SHA256SUMS` from the matching
+[GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases).
+Keep both files in the same directory, then verify, extract and install the
+add-on. Replace `VERSION` with the downloaded release number:
 
 ```shell
+cd ~/Downloads
+sha256sum --ignore-missing --check SHA256SUMS
+mkdir -p nautilus-acornfs-addon-VERSION
+unzip nautilus-acornfs-addon-VERSION.zip -d nautilus-acornfs-addon-VERSION
+cd nautilus-acornfs-addon-VERSION
 python3 install.py --restart install
 ```
 
-The same command accepts `upgrade` and `uninstall`. The installer uses the
-single wheel shipped beside it and preserves images and all user state.
+The installer uses the single wheel shipped beside it and downloads pinned
+Python dependencies into a private versioned environment. It creates
+`~/.local/bin/acornfs` and generated desktop files below `~/.local/share`; it
+does not modify Ubuntu's system Python. Internet access is required during
+installation. If the command is not found in a new terminal, add
+`~/.local/bin` to `PATH` or use its absolute path.
+
+Verify the installation before opening an image:
+
+```shell
+~/.local/bin/acornfs --help
+~/.local/bin/acornfs status
+test -f ~/.local/share/nautilus-python/extensions/nautilus_acornfs.py
+```
+
+Open Files and right-click a supported image. One **Acorn FS Support** submenu
+should appear. If Files was not restarted, run `nautilus --quit` and open it
+again.
+
+For an upgrade, first unmount every image, extract the new add-on release and
+run `python3 install.py --restart upgrade` from its directory. The installer
+stages the replacement separately and changes the active release only after it
+has installed and validated successfully.
+
+For source development, clone the repository and follow the root README's
+development section. Do not use an editable source install as the normal
+desktop deployment.
 
 ## Mount and browse
 
@@ -146,11 +173,10 @@ survive a host round trip. The precise mapping and filename limits are in
 
 ## Remove AcornFS
 
-Unmount every image, retain the downloaded source archive or checkout containing
-the lifecycle tool, then run:
+Unmount every image, enter any retained extracted add-on directory, then run:
 
 ```shell
-python3 tools/user_install.py --restart uninstall
+python3 install.py --restart uninstall
 ```
 
 This refuses to proceed while a mount is active and removes only managed code,

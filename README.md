@@ -80,15 +80,99 @@ retained-state guidance in
 - Detect an installed, responsive Greaseweazle and offer confirmed, progress-reported,
   verified physical-floppy writes for its supported image suffixes.
 
-## Development
+## Installation
 
-Nautilus AcornFS requires Python 3.11 or later. To create a development
-environment:
+### Supported host and prerequisites
+
+The v0.1.0 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
+FUSE 3, and GNOME Files (Nautilus) 46 or later. Install the operating-system
+packages before running the AcornFS installer:
 
 ```shell
+sudo apt update
+sudo apt install --no-install-recommends \
+  python3-venv python3-dev build-essential pkg-config \
+  fuse3 libfuse3-dev \
+  python3-nautilus gir1.2-nautilus-4.0 \
+  shared-mime-info desktop-file-utils libnotify-bin zenity unzip
+```
+
+`python3-dev`, `build-essential`, `pkg-config` and `libfuse3-dev` are needed
+when pip builds pyfuse3 for the private AcornFS environment. The installer does
+not install anything into Ubuntu's system Python.
+
+### Install the release add-on
+
+Download `nautilus-acornfs-addon-0.1.0.zip` from the
+[v0.1.0 GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases/tag/v0.1.0).
+Download `SHA256SUMS` from the same page if you want to verify the archive
+before installing:
+
+```shell
+cd ~/Downloads
+sha256sum --ignore-missing --check SHA256SUMS
+mkdir -p nautilus-acornfs-addon-0.1.0
+unzip nautilus-acornfs-addon-0.1.0.zip -d nautilus-acornfs-addon-0.1.0
+cd nautilus-acornfs-addon-0.1.0
+python3 install.py --restart install
+```
+
+The installation needs internet access to download the pinned Oaknut and FUSE
+Python dependencies. It creates a managed environment below
+`~/.local/share/nautilus-acornfs`, installs the command as
+`~/.local/bin/acornfs`, and writes the generated Nautilus extension, MIME and
+desktop-handler files below `~/.local/share`. It does not need root privileges
+after the prerequisite packages have been installed.
+
+If `acornfs` is not found in a new terminal, add the standard per-user command
+directory to `PATH`, then start a new shell:
+
+```shell
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Verify the command and desktop integration:
+
+```shell
+~/.local/bin/acornfs --help
+~/.local/bin/acornfs status
+test -f ~/.local/share/nautilus-python/extensions/nautilus_acornfs.py
+```
+
+Open Files and right-click a supported image. The context menu should contain
+one **Acorn FS Support** submenu. If `--restart` could not restart Files in the
+current desktop session, run `nautilus --quit` and open Files again.
+
+### Upgrade or uninstall
+
+Unmount every AcornFS image before either operation. To upgrade, download and
+extract the new add-on, enter its directory, and run:
+
+```shell
+python3 install.py --restart upgrade
+```
+
+To uninstall using any retained add-on directory, run:
+
+```shell
+python3 install.py --restart uninstall
+```
+
+Upgrade switches atomically to a newly staged environment. Uninstall removes
+only managed code and desktop integration. Images, mount-location preferences,
+recovery checkpoints and repair audits are retained. See the
+[user guide](docs/user-guide.md) for first use and troubleshooting, and the
+[administrator guide](docs/admin-guide.md) for managed locations and recovery
+state.
+
+## Development
+
+To create a development environment:
+
+```shell
+sudo apt install python3-venv python3-dev build-essential fuse3 libfuse3-dev pkg-config
 python3 -m venv .venv
 . .venv/bin/activate
-sudo apt install fuse3 libfuse3-dev pkg-config
 python -m pip install -e '.[dev,fuse]'
 pytest
 ```
@@ -123,35 +207,20 @@ validated reproducible CycloneDX SBOM for the full FUSE installation and
 writes `build/release/SHA256SUMS`. Release signing remains a separate manual
 gate until the project has an approved signing-key policy.
 
-The source archive also contains a preservation-aware per-user lifecycle tool:
-
-```shell
-python3 tools/user_install.py install dist/nautilus_acornfs-0.1.0-py3-none-any.whl
-python3 tools/user_install.py upgrade dist/nautilus_acornfs-0.1.0-py3-none-any.whl
-python3 tools/user_install.py uninstall
-```
-
-It uses versioned environments below the user's XDG data directory, atomically
-switches the current release, refuses to uninstall active mounts, and never
-removes images, preferences, checkpoints or repair audits. Add `--restart`
-before the action only when Files should restart immediately.
-
-For a distributable per-user Nautilus add-on, build the standalone archive:
+Maintainers can build the standalone per-user add-on with:
 
 ```shell
 make addon
-unzip dist/nautilus-acornfs-addon-0.1.0.zip -d nautilus-acornfs-addon
-cd nautilus-acornfs-addon
-python3 install.py --restart install
 ```
 
 The archive contains the application wheel, lifecycle installer and an
-`INSTALL.txt` quick-start guide. It supports managed install, atomic upgrade
-and uninstall without requiring a Git checkout. Runtime dependencies are
-installed into its private per-user virtual environment. Use `upgrade` or
-`uninstall` in place of `install` for those lifecycle operations.
+`INSTALL.txt` quick-start guide. The release builder includes the same archive
+in its reproducible artifact set and checksum manifest.
 
-Install the per-user Nautilus extension, MIME types and desktop handler, then restart Files:
+## Use in Files
+
+The managed release installer sets up the Nautilus extension, MIME types and
+desktop handler automatically. For an editable development environment, run:
 
 ```shell
 acornfs install-nautilus --restart
@@ -260,11 +329,16 @@ equivalent terminal command is:
 acornfs create-beebscsi /path/to/folder --name scsi0 --title BLANK --capacity 20MB
 ```
 
-To remove the extension, MIME types and desktop handler:
+For a development installation, remove only the extension, MIME types and
+desktop handler with:
 
 ```shell
 acornfs uninstall-nautilus --restart
 ```
+
+For a managed release installation, use
+`python3 install.py --restart uninstall` as documented above so the private
+environment and launcher are also removed safely.
 
 Transfer a file without losing its Acorn catalogue metadata:
 
