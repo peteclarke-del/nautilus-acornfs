@@ -16,7 +16,11 @@ def test_addon_bundle_contains_wheel_installer_and_instructions(tmp_path: Path) 
 
     with zipfile.ZipFile(bundle) as archive:
         assert set(archive.namelist()) == {wheel.name, "install.py", "INSTALL.txt"}
-        assert "python3 install.py --restart install" in archive.read("INSTALL.txt").decode()
+        instructions = archive.read("INSTALL.txt").decode()
+        assert "python3 install.py --restart install" in instructions
+        assert "python3-dev" in instructions
+        assert "Unmount every AcornFS image first" in instructions
+        assert "~/.local/share/nautilus-acornfs" in instructions
 
     assert create_bundle(wheel, installer, output, version="0.1.0", epoch=1_700_000_000) == bundle
     assert bundle.read_bytes() == first

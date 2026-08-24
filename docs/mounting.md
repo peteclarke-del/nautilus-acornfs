@@ -11,10 +11,12 @@ ROMFS remains read-only.
 On Ubuntu 24.04 or later, install the host packages with:
 
 ```shell
-sudo apt install python3-venv fuse3 libfuse3-dev pkg-config
+sudo apt install python3-venv python3-dev build-essential fuse3 libfuse3-dev pkg-config
 ```
 
-Then install AcornFS from the repository checkout:
+For ordinary desktop use, follow the root README's
+[release add-on installation](../README.md#installation). For source
+development, install AcornFS from a repository checkout:
 
 ```shell
 python3 -m venv .venv

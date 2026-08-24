@@ -5,6 +5,12 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+### Changed
+
+- Expanded release add-on installation, verification, upgrade, uninstall and
+  troubleshooting guidance across the README, user guide, Nautilus guide and
+  bundled quick-start.
+
 ## 0.1.0 - 2026-08-24
 
 ### Added

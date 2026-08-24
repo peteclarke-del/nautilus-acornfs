@@ -8,9 +8,9 @@ setuid helpers, run Nautilus as root, grant broad `allow_other` access, or make
 global `/etc/fuse.conf` changes for an ordinary deployment.
 
 Host and Python dependencies are listed in
-[`packaging/debian/README.md`](../packaging/debian/README.md). Until compliant
-Debian packages exist, install into a dedicated user virtual environment rather
-than the system interpreter.
+the root [installation guide](../README.md#installation). Until compliant
+Debian packages exist, deploy the release add-on, which creates a dedicated
+per-user virtual environment rather than modifying the system interpreter.
 
 `make debian-staging` is a maintainer validation command, not an installation
 method. Its three amd64 roots prove package ownership and dependencies but omit
@@ -63,9 +63,10 @@ documented recovery flow at the next login.
 2. Resolve every pending recovery checkpoint; never discard one merely to make
    an upgrade proceed.
 3. Back up the XDG configuration and state directories.
-4. From the new source archive, run `python3 tools/user_install.py --restart
-   upgrade PATH_TO_WHEEL`. The tool stages a separate environment and switches
-   to it only after installation succeeds.
+4. Extract the new release add-on and run
+   `python3 install.py --restart upgrade` from that directory. The tool uses
+   the bundled wheel, stages a separate environment and switches to it only
+   after installation succeeds.
 5. If desktop activation fails, the tool restores the previous release pointer
    and generated Nautilus bootstrap.
 6. Validate a disposable known-good image read-only before enabling writes.
@@ -76,10 +77,10 @@ unchanged.
 
 ## Uninstall procedure
 
-Unmount all images first, then run `python3 tools/user_install.py --restart
-uninstall` from a retained source archive or checkout. The tool refuses active
-mounts and removes only its marked install root, managed launcher and generated
-desktop integration. It retains user state. If the user later requests complete
+Unmount all images first, then run `python3 install.py --restart uninstall`
+from a retained extracted add-on directory. The tool refuses active mounts and
+removes only its marked install root, managed launcher and generated desktop
+integration. It retains user state. If the user later requests complete
 erasure, first confirm that there is no pending recovery and identify the exact
 per-user AcornFS directories; never use a broad recursive deletion rooted at
 `$HOME`, an XDG root, or the mount parent.
