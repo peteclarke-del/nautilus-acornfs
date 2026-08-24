@@ -21,7 +21,7 @@ claim into a completed item.
 
 ## Candidate gate
 
-- [ ] A project licence and Debian copyright metadata exist.
+- [x] A project licence and Debian copyright metadata exist.
 - [ ] Every required TODO acceptance item is checked with recorded evidence.
 - [ ] `make check`, `make benchmark` and permitted live-FUSE tests pass on the
   tagged source.

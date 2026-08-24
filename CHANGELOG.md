@@ -5,8 +5,11 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+## 0.1.0 - 2026-08-24
+
 ### Added
 
+- The MIT licence and matching Python and Debian package metadata.
 - Protected read-write mounting for standalone ADFS Old/New/Big directory
   floppies, FileCore and raw ADFS hard discs, DFS SSD/DSD images, and files
   inside read-write MMB slots. ROMFS remains read-only.
@@ -120,6 +123,3 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 - Writable shutdown flushes dirty multi-handle buffers before final validation.
 - Failed private-state and checkpoint copies preserve the last complete record
   and remove partial temporary data.
-
-No public release has been cut yet. The first release will move these entries
-under a dated version heading.

@@ -14,8 +14,8 @@ than the system interpreter.
 
 `make debian-staging` is a maintainer validation command, not an installation
 method. Its three amd64 roots prove package ownership and dependencies but omit
-the unresolved licence/copyright material and depend on Oaknut Debian packages
-that do not yet exist. Do not copy those roots into `/usr` or distribute them.
+installable Oaknut Debian packages, which do not yet exist. Do not copy those
+roots into `/usr` or distribute them.
 
 ## Data and ownership
 

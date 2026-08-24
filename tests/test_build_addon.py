@@ -11,10 +11,12 @@ def test_addon_bundle_contains_wheel_installer_and_instructions(tmp_path: Path) 
     installer.write_text("# installer\n", encoding="utf-8")
     output = tmp_path / "output"
 
-    bundle = create_bundle(wheel, installer, output, version="0.1.0")
+    bundle = create_bundle(wheel, installer, output, version="0.1.0", epoch=1_700_000_000)
+    first = bundle.read_bytes()
 
     with zipfile.ZipFile(bundle) as archive:
         assert set(archive.namelist()) == {wheel.name, "install.py", "INSTALL.txt"}
         assert "python3 install.py --restart install" in archive.read("INSTALL.txt").decode()
 
-    assert create_bundle(wheel, installer, output, version="0.1.0") == bundle
+    assert create_bundle(wheel, installer, output, version="0.1.0", epoch=1_700_000_000) == bundle
+    assert bundle.read_bytes() == first

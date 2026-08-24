@@ -287,6 +287,23 @@ def build_release(output: Path, *, epoch: int | None = None) -> list[Path]:
         wheels = [path for path in staged_artefacts if path.suffix == ".whl"]
         if len(wheels) != 1:
             raise RuntimeError(f"expected exactly one wheel, found {len(wheels)}")
+        _run(
+            [
+                sys.executable,
+                str(PROJECT_ROOT / "tools/build_addon.py"),
+                "--output",
+                str(staged),
+                "--wheel",
+                str(wheels[0]),
+                "--source-date-epoch",
+                str(resolved_epoch),
+            ],
+            environment=os.environ.copy(),
+        )
+        add_ons = list(staged.glob("nautilus-acornfs-addon-*.zip"))
+        if len(add_ons) != 1:
+            raise RuntimeError(f"expected exactly one add-on archive, found {len(add_ons)}")
+        staged_artefacts.extend(add_ons)
         sbom = staged / SBOM_NAME
         _build_sbom(wheels[0], sbom)
         staged_artefacts.append(sbom)

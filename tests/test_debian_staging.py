@@ -28,6 +28,7 @@ def test_staging_splits_core_fuse_and_nautilus_without_overlap(tmp_path: Path) -
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert payload["architecture"] == "amd64"
     assert payload["publishable"] is False
+    assert payload["blocked_by"] == ["Oaknut 12.15.1 Debian packages or an approved vendoring plan"]
     packages = payload["packages"]
     assert set(packages) == {
         "nautilus-acornfs-core",
@@ -57,6 +58,10 @@ def test_staging_splits_core_fuse_and_nautilus_without_overlap(tmp_path: Path) -
         "nautilus-acornfs-nautilus/usr/share/applications/org.acornfs.NautilusAcornFS.desktop"
     )
     assert 'Exec="/usr/bin/acornfs" desktop-open %U' in desktop.read_text(encoding="utf-8")
+    for package in packages:
+        copyright_path = output / package / "usr/share/doc" / package / "copyright"
+        assert "License: MIT" in copyright_path.read_text(encoding="utf-8")
+        assert f"/usr/share/doc/{package}/copyright" in packages[package]["files"]
 
 
 def test_staging_records_exact_oaknut_family_and_desktop_dependencies(tmp_path: Path) -> None:

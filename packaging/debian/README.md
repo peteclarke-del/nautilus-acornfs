@@ -8,7 +8,7 @@ system desktop integration from the same source as the per-user installer, and
 writes `build/debian-staging/manifest.json`.
 
 The staging output is not a `.deb` and is not distributable. Its
-manifest records `publishable: false` and the unresolved blockers. CI retains
+manifest records `publishable: false` and the unresolved blocker. CI retains
 the manifest so file ownership and dependencies cannot drift unnoticed while
 the legal and dependency decisions remain open.
 
@@ -57,14 +57,11 @@ vendoring plan.
 
 ## Blockers before producing `.deb` files
 
-1. Add the project distribution licence and its verbatim Debian copyright
-   metadata. Debian Policy requires every binary package to ship it as
-   `/usr/share/doc/PACKAGE/copyright`.
-2. Package the pinned Oaknut dependency independently, or approve and audit a
+1. Package the pinned Oaknut dependency independently, or approve and audit a
    reproducible vendoring design including every transitive licence.
 
-Do not work around either blocker with a placeholder licence, an unpinned
-network download during package assembly, or a maintainer script that invokes
+Do not work around this blocker with an unpinned network download during
+package assembly or a maintainer script that invokes
 `pip` as root. Staging does not weaken these gates. Once resolved, turn the
 tested manifest into one Debian source package, declare
 `Rules-Requires-Root: no`, build all three binary packages, and run the lifecycle

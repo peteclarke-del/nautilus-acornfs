@@ -15,6 +15,6 @@ need tests for malformed, truncated and boundary-value input. Filesystem writes
 must not be added without an explicit recovery design and failure-injection
 tests.
 
-The project licence has not yet been selected. Contributions cannot be accepted
-until that repository decision has been recorded.
-
+Contributions are accepted under the project's MIT licence. By submitting a
+change, contributors confirm that they have the right to provide it under those
+terms.
