@@ -386,9 +386,9 @@ the last complete record intact and removes partial checkpoint data.
 
 Debian package boundaries and exact Ubuntu runtime package names are documented
 in [packaging/debian/README.md](packaging/debian/README.md). Actual `.deb`
-production remains blocked until the project licence is selected and Oaknut has
-a reviewed Debian packaging or vendoring route; AcornFS will not disguise those
-requirements with a root-time `pip` download. Maintainers can run
+production remains blocked until Oaknut has a reviewed Debian packaging or
+vendoring route; AcornFS will not disguise that requirement with a root-time
+`pip` download. Maintainers can run
 `make debian-staging` to produce three disjoint, non-distributable amd64 package
 roots and an ownership/dependency manifest under `build/debian-staging`.
 The exact Oaknut pin and private-adapter upgrade gate are documented in
@@ -417,3 +417,7 @@ Acorn ROMFS images are identified from their CRC-valid block chain rather than
 their filename extension. Their flat catalogue is presented at the mount root;
 names remain case-sensitive, and an on-disc `/` is displayed as `∕`. ROMFS is
 read-only, and its distinct run-only flag is exposed as `user.acorn.run_only`.
+
+## Licence
+
+Nautilus AcornFS is distributed under the [MIT Licence](LICENSE).
