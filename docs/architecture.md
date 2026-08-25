@@ -13,7 +13,9 @@ precedence because its descriptor supplies hard-disc geometry that content
 cannot recover. Otherwise Oaknut ranks content evidence; suffixes only break
 equal-confidence ties. AcornFS accepts the detected ADFS S/M/L/D/E/E+/F/F+/G/G+
 and DFS SSD/DSD floppy families and CRC-validated 8/16 KiB Acorn ROMFS images
-as capability-backed profiles. ADFS and DFS are writable; ROMFS remains
+as capability-backed profiles. Complete HFE v1/HFEv3 containers carrying those
+floppy layouts are also capability-backed profiles. ADFS, DFS and standard HFE
+containers are writable; ROMFS remains
 read-only. Same-sized D/E/E+ and plus variants are refined from the
 on-disc map and directory records rather than their suffix. DFS catalogue
 prefixes use Oaknut's virtual directory model; DSD mounts add a
@@ -39,7 +41,8 @@ Indexing uses Oaknut's core `Mount` protocol and feature-detects Acorn
 metadata, filetype, size and free-space capabilities. Private ADFS access is
 confined to `acornfs.core`: format refinement, properties, old-map sector
 transactions and ranged reads inspect pinned map/directory objects. Normal
-ADFS, DFS and MMB mutations use Oaknut's mount capabilities.
+ADFS, DFS and MMB mutations use Oaknut's mount capabilities. HFE mounts apply
+the same mutations to a private decoded sector image before guarded write-back.
 
 The initial host baseline is Ubuntu 24.04 LTS or later, FUSE 3, and Nautilus 46
 or later using the Nautilus 4 GObject-introspection API. CI also exercises
@@ -77,6 +80,10 @@ otherwise. Failure restores the appropriate before-image, validates and flushes
 the filesystem, and allows the session to continue only when rollback is
 verified. A rollback that cannot be verified retains the session checkpoint and
 blocks further writes.
+
+An HFE session checkpoints and locks the source container while these same DFS
+or ADFS transactions operate on the decoded workspace. The container is not
+replaced until the workspace passes final validation and re-encoding succeeds.
 
 Immediately after one logical mutation succeeds, AcornFS increments the 16-bit
 old-map disc cycle ID modulo 65536 and asks Oaknut to regenerate both map
@@ -132,6 +139,17 @@ filename glob; ADFS floppy suffixes provide desktop discovery, while the core
 still verifies content and geometry. DSC selection is extension-based but must
 pass pair and descriptor validation. MIME, double-click and `acornfs:` URI opens
 all converge on the same read-only desktop-mount path.
+
+HFE v1 and HFEv3 are track containers, not Oaknut sector readers. AcornFS first
+checks the HFE signature and geometry, uses the installed `gw` command to decode
+an exact supported Acorn layout into a private directory, and requires a 100
+percent sector result before mounting. The source container remains locked and
+is the identity and recovery object. Filesystem transactions affect only the
+decoded mapping. After final validation, a writable close re-encodes the same
+HFE version into the source directory and uses `os.replace` plus directory
+`fsync` for atomic publication. A failed conversion leaves the source and its
+checkpoint intact. Native Greaseweazle physical writes bypass sector conversion
+and therefore preserve track-level data that is outside the mount model.
 
 UEF is sequential tape media rather than a mounted random-access filesystem,
 while general archive traversal introduces nested decompression and resource

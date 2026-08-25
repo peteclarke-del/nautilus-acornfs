@@ -100,6 +100,19 @@ def test_menu_availability_requires_command_and_accessible_device(
     monkeypatch.setattr("acornfs.greaseweazle.shutil.which", lambda _name: "/usr/bin/gw")
     assert physical_write_available(image) is False
 
+
+def test_hfe_menu_availability_requires_a_container_signature(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("acornfs.greaseweazle.shutil.which", lambda _name: "/usr/bin/gw")
+    monkeypatch.setattr("acornfs.greaseweazle._device_available", lambda: True)
+    image = tmp_path / "disc.hfe"
+    image.write_bytes(b"not an hfe")
+    assert physical_write_available(image) is False
+
+    image.write_bytes(b"HXCHFEV3" + bytes(1024))
+    assert physical_write_available(image) is True
+
     monkeypatch.setattr("acornfs.greaseweazle.shutil.which", lambda _name: None)
     assert physical_write_available(image) is False
 
@@ -205,7 +218,7 @@ def test_drive_probe_timeout_resets_controller(monkeypatch: pytest.MonkeyPatch) 
     assert [command[1] for command in commands].count("reset") == 6
 
 
-@pytest.mark.parametrize("suffix", ["ssd", "DSD", "adf", "ads", "adm", "adl"])
+@pytest.mark.parametrize("suffix", ["ssd", "DSD", "adf", "ads", "adm", "adl", "hfe"])
 def test_supported_greaseweazle_image_suffixes(suffix: str) -> None:
     assert supports_physical_write(f"disc.{suffix}") is True
 
@@ -243,10 +256,31 @@ def test_write_uses_snapshot_drive_and_default_verification(
     assert result.verified is True
     assert launched[0][:3] == ["/usr/bin/gw", "write", "--drive=A"]
     assert launched[0][3] == "--format=acorn.dfs.ss"
-    assert launched[0][-1].endswith(".img")
+    assert launched[0][-1].endswith(".ssd")
     assert "--no-verify" not in launched[0]
     assert launched[0][-1] != str(image)
     assert updates[-1] == (100, "All tracks written and verified.")
+
+
+def test_hfe_write_preserves_native_container_and_omits_sector_format(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = tmp_path / "protected.hfe"
+    image.write_bytes(b"HXCHFEV3" + bytes(1024))
+    launched: list[list[str]] = []
+    monkeypatch.setattr("acornfs.greaseweazle.detected_command", lambda _path: "/usr/bin/gw")
+
+    def popen(command: list[str], **_kwargs: Any) -> _Process:
+        launched.append(command)
+        assert Path(command[-1]).read_bytes() == image.read_bytes()
+        return _Process("Writing c=0-0:h=0\nT0.0: Writing Track\nAll tracks verified\n")
+
+    monkeypatch.setattr("acornfs.greaseweazle.subprocess.Popen", popen)
+
+    assert write_floppy(image, "A").verified is True
+    assert launched[0][:3] == ["/usr/bin/gw", "write", "--drive=A"]
+    assert not any(argument.startswith("--format=") for argument in launched[0])
+    assert launched[0][-1].endswith(".hfe")
 
 
 def test_write_failure_warns_that_physical_floppy_is_incomplete(

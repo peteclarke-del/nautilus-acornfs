@@ -15,11 +15,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from acornfs.core import ResolvedImage, resolve_image
+from acornfs.core.hfe import is_hfe
 from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 from acornfs.privacy import safe_user_message
 
-SUPPORTED_SUFFIXES = frozenset({".adf", ".adl", ".adm", ".ads", ".dsd", ".ssd"})
+SUPPORTED_SUFFIXES = frozenset({".adf", ".adl", ".adm", ".ads", ".dsd", ".hfe", ".ssd"})
 SUPPORTED_IMAGE_SIZES = frozenset(
     {
         100 * 1024,
@@ -112,28 +113,31 @@ def greaseweazle_format(path: str | Path) -> str:
                 error=exc
             )
         ) from exc
-    dfs_by_container = {
-        (".ssd", 100 * 1024): "acorn.dfs.ss",
-        (".ssd", 200 * 1024): "acorn.dfs.ss80",
-        (".dsd", 200 * 1024): "acorn.dfs.ds",
-        (".dsd", 400 * 1024): "acorn.dfs.ds80",
-    }
-    if image.filesystem in {"acorn-dfs", "watford-dfs"}:
-        try:
-            container_format = dfs_by_container.get(
-                (selected.suffix.casefold(), selected.stat().st_size)
+    try:
+        dfs_by_container = {
+            (".ssd", 100 * 1024): "acorn.dfs.ss",
+            (".ssd", 200 * 1024): "acorn.dfs.ss80",
+            (".dsd", 200 * 1024): "acorn.dfs.ds",
+            (".dsd", 400 * 1024): "acorn.dfs.ds80",
+        }
+        if image.filesystem in {"acorn-dfs", "watford-dfs"}:
+            try:
+                container_format = dfs_by_container.get(
+                    (selected.suffix.casefold(), selected.stat().st_size)
+                )
+            except OSError:
+                container_format = None
+            if container_format is not None:
+                return container_format
+        signature = _geometry_signature(image)
+        format_name = _GREASEWEAZLE_FORMATS.get(signature) if signature is not None else None
+        if format_name is None:
+            raise AcornFSError(
+                _("The detected Acorn floppy geometry is not writable by this Greaseweazle setup.")
             )
-        except OSError:
-            container_format = None
-        if container_format is not None:
-            return container_format
-    signature = _geometry_signature(image)
-    format_name = _GREASEWEAZLE_FORMATS.get(signature) if signature is not None else None
-    if format_name is None:
-        raise AcornFSError(
-            _("The detected Acorn floppy geometry is not writable by this Greaseweazle setup.")
-        )
-    return format_name
+        return format_name
+    finally:
+        image.close()
 
 
 def _environment() -> dict[str, str]:
@@ -196,7 +200,11 @@ def physical_write_available(path: str | Path) -> bool:
 
     if not supports_physical_write(path):
         return False
-    if not _supported_image_size(path):
+    selected = Path(path)
+    if selected.suffix.casefold() == ".hfe":
+        if not is_hfe(selected):
+            return False
+    elif not _supported_image_size(selected):
         return False
     return shutil.which("gw") is not None and _device_available()
 
@@ -319,7 +327,10 @@ def write_floppy(
         ) from exc
     if not supports_physical_write(image):
         raise AcornFSError(_("Greaseweazle does not support this floppy-image filename."))
-    format_name = greaseweazle_format(image)
+    native_hfe = image.suffix.casefold() == ".hfe"
+    if native_hfe and not is_hfe(image):
+        raise AcornFSError(_("The selected file is not an HFE v1 or HFEv3 floppy image."))
+    format_name = None if native_hfe else greaseweazle_format(image)
     command = detected_command(image)
     if command is None:
         raise AcornFSError(
@@ -328,7 +339,7 @@ def write_floppy(
 
     report(1, _("Preparing a stable image snapshot…"))
     with tempfile.TemporaryDirectory(prefix="acornfs-gw-") as temporary:
-        snapshot = Path(temporary) / "image.img"
+        snapshot = Path(temporary) / f"image{image.suffix.casefold()}"
         try:
             _snapshot(image, snapshot)
         except OSError as exc:
@@ -339,14 +350,12 @@ def write_floppy(
             ) from exc
         report(5, _("Starting Greaseweazle…"))
         try:
+            arguments = [command, "write", f"--drive={selected_drive}"]
+            if format_name is not None:
+                arguments.append(f"--format={format_name}")
+            arguments.append(str(snapshot))
             process = subprocess.Popen(
-                [
-                    command,
-                    "write",
-                    f"--drive={selected_drive}",
-                    f"--format={format_name}",
-                    str(snapshot),
-                ],
+                arguments,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,

@@ -49,7 +49,9 @@ uninstall. Do not mark these gates complete without the required evidence.
 The first release line supports amd64 on the Ubuntu, GNOME and Nautilus versions
 documented in the README. BeebSCSI DAT/DSC, standalone ADFS
 S/M/L/D/E/E+/F/F+/G/G+, FileCore/unpaired raw ADFS hard discs, DFS SSD/DSD and
-standard/extended MMB images support protected writable mounts. ROMFS remains
+standard/extended MMB images support protected writable mounts. Complete
+standard Acorn HFE v1/HFEv3 containers have the same protection when the
+Greaseweazle host tools are installed. ROMFS remains
 read-only. Other architectures, image formats and physical-hardware claims
 remain unsupported until their specific TODO and test-matrix entries close.
 

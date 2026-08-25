@@ -10,7 +10,8 @@ claim into a completed item.
 - FUSE 3 with unprivileged mounts owned by the current user.
 - Read-write for validated BeebSCSI DAT/DSC, standalone ADFS
   S/M/L/D/E/E+/F/F+/G/G+, FileCore/unpaired raw ADFS hard-disc, DFS SSD/DSD and
-  standard/extended MMB images.
+  standard/extended MMB images, plus complete standard Acorn HFE v1/HFEv3
+  containers when the Greaseweazle host tools are installed.
 - ROMFS remains read-only. MMB writes are confined to existing slots marked
   read-write; whole-slot catalogue operations remain outside the release scope.
 - Local regular image files. Unit coverage proves read-only backing storage
@@ -29,7 +30,10 @@ claim into a completed item.
   terminal tools and preserves retained data plus Acorn metadata across the
   full writable mutation, validation and remount lifecycle.
 - [x] In-process FUSE and core tests cover writable ADFS Old/New/Big directory,
-  FileCore, DFS SSD/DSD and MMB file lifecycles with rollback and recovery.
+  FileCore, DFS SSD/DSD, HFE v1/HFEv3 and MMB file lifecycles with rollback and
+  recovery.
+- [ ] Real Greaseweazle media tests cover native HFE v1/HFEv3 writes and
+  verification on representative Acorn drives.
 - [x] Wheel and source archive builds are reproducible and have an SBOM.
 - [x] The Ubuntu 24.04 amd64 Debian package builds reproducibly and its clean
   install, runtime import and removal smoke test passes in an Ubuntu container.

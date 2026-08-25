@@ -569,7 +569,7 @@ def validate_image_report(
         generic_closeables: tuple[Any, ...] = ()
         try:
             generic_reader, generic_closeables = open_locked_image(
-                source.primary_path,
+                source.backing_path,
                 writable=False,
                 companion=source.companion_path,
             )
@@ -623,6 +623,7 @@ def validate_image_report(
                 with suppress(Exception):
                     if closeable is not None:
                         closeable.close()
+            source.close()
     pair = discover_pair(selected)
     dat_bytes = pair.dat_path.stat().st_size
     reader: ImageReader | None = None
