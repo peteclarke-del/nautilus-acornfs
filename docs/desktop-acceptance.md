@@ -16,9 +16,11 @@ contents in public evidence.
    Files.
 2. Create a generated BeebSCSI fixture with `acornfs create-beebscsi`; do not
    use irreplaceable media or private images.
-3. Keep a terminal open and record `acornfs status --json` before and after the
+3. Create disposable HFE v1 and HFEv3 DFS/ADFS fixtures with `gw convert`, and
+   retain their raw sources for byte-level comparison after testing.
+4. Keep a terminal open and record `acornfs status --json` before and after the
    session.
-4. Run `make test-live` on the same host first. This must pass the copy, move,
+5. Run `make test-live` on the same host first. This must pass the copy, move,
    delete, atomic-save, writable-unmount and recovery cases.
 
 ## Keyboard and assistive technology
@@ -62,6 +64,9 @@ On a writable mount, use Files rather than terminal commands to verify:
    must either complete coherently or fail with an accurate, non-destructive
    message. Do not claim trash support merely from permanent-delete coverage.
 6. Open image and mounted-file properties and compare them with `acornfs inspect`.
+7. Repeat create, edit, unmount and remount on HFE v1 and HFEv3 fixtures. Confirm
+   that each container version is retained and that `gw convert` recovers the
+   expected edited sector image.
 
 Unmount from the grouped menu, verify that the sidebar entry disappears, then
 run `acornfs validate` and confirm there is no pending recovery. Any crash,

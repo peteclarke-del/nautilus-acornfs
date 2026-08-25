@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,7 @@ from oaknut.filesystem import (
 )
 
 from acornfs.core.beebscsi import BeebSCSIPair, discover_pair, parse_descriptor
+from acornfs.core.hfe import HFEWorkspace, decode_hfe
 from acornfs.core.mmb import (
     MMBFormatError,
     MMBLayout,
@@ -55,6 +56,8 @@ class ResolvedImage:
     pair: BeebSCSIPair | None = None
     mmb_layout: MMBLayout | None = None
     case_sensitive_names: bool = False
+    storage_path: Path | None = None
+    container: HFEWorkspace | None = None
 
     @property
     def identity_paths(self) -> tuple[Path, ...]:
@@ -64,12 +67,25 @@ class ResolvedImage:
             else (self.primary_path,)
         )
 
+    @property
+    def backing_path(self) -> Path:
+        """Path containing the sector image opened by Oaknut."""
+
+        return self.storage_path or self.primary_path
+
+    def close(self) -> None:
+        """Release any private decoded container workspace."""
+
+        if self.container is not None:
+            self.container.close()
+
 
 _BEEBSCSI_CAPABILITIES = ImageCapabilities(True, True, True, True, True, True, True)
 _STANDALONE_ADFS_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
 _DFS_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
 _MMB_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
 _ROMFS_CAPABILITIES = ImageCapabilities(True, False, False, False, False, True, False)
+_HFE_CAPABILITIES = ImageCapabilities(True, True, True, False, True, True, False)
 _ADFS_LOGICAL_SECTOR_BYTES = 256
 _ADFS_BOOT_BLOCK_BYTES = 0xE00
 _ADFS_HDF_HEADER_BYTES = 0x200
@@ -87,6 +103,7 @@ _SUFFIX_CAPABILITIES = {
     ".dsd": _DFS_CAPABILITIES,
     ".mmb": _MMB_CAPABILITIES,
     ".rom": _ROMFS_CAPABILITIES,
+    ".hfe": _HFE_CAPABILITIES,
 }
 
 
@@ -206,6 +223,21 @@ def resolve_image(selected: str | Path) -> ResolvedImage:
     if not selected_path.is_file():
         raise UnsupportedImageError(
             _("Image does not exist or is not a regular file: {path}").format(path=selected_path)
+        )
+
+    if selected_path.suffix.casefold() == ".hfe":
+        workspace = decode_hfe(selected_path)
+        try:
+            decoded = resolve_image(workspace.raw_path)
+        except BaseException:
+            workspace.close()
+            raise
+        return replace(
+            decoded,
+            primary_path=selected_path.resolve(),
+            capabilities=_HFE_CAPABILITIES,
+            storage_path=workspace.raw_path,
+            container=workspace,
         )
 
     pair_error: PairDiscoveryError | None = None

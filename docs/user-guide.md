@@ -6,6 +6,7 @@ AcornFS exposes supported Acorn images as ordinary Linux folders. It currently
 mounts paired BeebSCSI DAT/DSC images, ADFS S/M/L/D/E/E+/F/F+/G/G+ floppies,
 standalone FileCore and unpaired raw ADFS hard discs, Acorn and Watford DFS
 SSD/DSD images, and standard or extended MMB containers read-only or read-write.
+Complete standard Acorn HFE v1 and HFEv3 DFS/ADFS floppies are also read-write.
 Acorn ROMFS paged-ROM images remain read-only. An installed native
 Acorn File Forge app can open supported source pairs through
 the same submenu.
@@ -77,7 +78,7 @@ member and choose **Acorn FS Support → Open read-only** or **Open read-write**
 The writable action validates the image and creates a checkpoint before
 accepting changes. The mount opens in Files and appears in the sidebar.
 
-Right-click an ADFS floppy, DFS image, MMB or ROMFS image in the same way.
+Right-click an ADFS floppy, DFS image, HFE image, MMB or ROMFS image in the same way.
 Capability-driven menus show only safe actions. MMB slots appear as numbered
 directories; DFS catalogue prefixes are presentation directories and do not
 change the image. Extended MMB slots retain one global number across all
@@ -91,6 +92,14 @@ without a DSC are also writable. Their Properties show logical map details and
 state that physical CHS is unavailable. They offer validation and recovery but
 not descriptor-specific repair or File Forge actions.
 
+HFE mounting requires `gw` from the Greaseweazle host tools in the graphical
+session's `PATH`. AcornFS accepts HFE v1 and HFEv3 only when every sector maps
+to one supported standard Acorn DFS or ADFS geometry. Read-write mounts edit a
+private raw workspace and atomically re-encode the same HFE version after final
+validation. A recovery checkpoint protects the original container. Images with
+missing sectors, copy protection or nonstandard tracks are deliberately not
+mounted because a sector-level edit could not preserve those tracks.
+
 DFS writes remain inside the selected catalogue prefix and DSD side. MMB writes
 remain inside one slot marked read-write by its catalogue; locked slots are
 readable but protected. AcornFS does not currently insert, eject, replace or
@@ -100,9 +109,20 @@ change the access status of whole MMB slots.
 
 Physical-floppy writing is an optional integration. Install Greaseweazle from
 its [official Linux instructions](https://github.com/keirf/greaseweazle/wiki/Software-Installation),
-connect it, and check `gw info` succeeds in the same graphical login session.
+using `pipx` on the supported Ubuntu host:
+
+```shell
+sudo apt install gcc python3-pip python3-dev pipx
+pipx ensurepath
+pipx install git+https://github.com/keirf/greaseweazle@latest
+```
+
+Install the official udev rules, log out and back in if the login `PATH`
+changed, connect the device, and check `gw info` succeeds in the same graphical
+login session.
 AcornFS shows **Write to physical floppy…** only for `.ssd`, `.dsd`, `.adf`,
-`.ads`, `.adm` and `.adl` files while that command and device are responsive.
+`.ads`, `.adm`, `.adl` and signature-valid `.hfe` files while that command and
+device are responsive.
 Installing the Python package without connecting usable hardware does not add a
 dead menu item.
 
@@ -122,6 +142,11 @@ passes the corresponding `acorn.adfs.*` or `acorn.dfs.*` format explicitly.
 This is essential for `.adf`, which other systems also use for unrelated disk
 formats. Files with an unsupported size or non-Acorn content are refused before
 the physical write begins.
+
+For HFE v1 and HFEv3, AcornFS keeps the `.hfe` suffix on its stable snapshot and
+lets Greaseweazle write the native track stream without a sector-format
+override. This also permits a copy-protected or nonstandard HFE to be written
+even though it cannot safely be exposed as a read-write filesystem.
 
 Select drive A/B for a PC cable or unit 0-3 for a Shugart bus, then review the
 final overwrite warning. The source is copied to a private stable snapshot
@@ -144,7 +169,7 @@ acornfs status
 acornfs unmount "$HOME/AcornFS/scsi0"
 ```
 
-Add `--read-write` for any supported ADFS, DFS or MMB image. ROMFS rejects the
+Add `--read-write` for any supported ADFS, DFS, HFE or MMB image. ROMFS rejects the
 option.
 
 ## Validate, repair and recover

@@ -6,8 +6,9 @@ The current implementation supports Linux on amd64 with Python 3.11 or later,
 FUSE 3, and either a valid paired BeebSCSI DAT/DSC image, a standalone ADFS
 S/M/L/D/E/E+/F/F+/G/G+ floppy, an Acorn/Watford DFS SSD/DSD image, a standard
 or extended MMB container, a standalone FileCore/unpaired raw ADFS hard disc, or
-an Acorn ROMFS paged-ROM image. All disk formats may be mounted read-write;
-ROMFS remains read-only.
+an Acorn ROMFS paged-ROM image. Complete standard Acorn HFE v1/HFEv3 DFS and
+ADFS floppies are supported when the Greaseweazle host tools are installed. All
+disk formats may be mounted read-write; ROMFS remains read-only.
 For ordinary desktop use, install the `.deb` as described in the root README's
 [installation guide](../README.md#installation). It resolves the host packages
 through `apt`.
@@ -75,6 +76,19 @@ acornfs mount /path/to/disc.adl "$HOME/AcornFS/floppy"
 Add `--read-write` to edit the floppy. Old, New and Big directory formats retain
 their native filename and directory limits; Big-directory long names are
 preserved and may be created or changed.
+
+HFE images use the same command:
+
+```shell
+acornfs mount /path/to/disc.hfe "$HOME/AcornFS/hfe"
+```
+
+The `gw` command must be available. AcornFS recognises HFE v1 and HFEv3 by
+signature, decodes only a 100 percent complete standard Acorn sector geometry,
+and mounts the private decoded image. A clean writable unmount re-encodes the
+same HFE version and atomically replaces the container. The original HFE is the
+recovery checkpoint source. Track-protected, nonstandard and incomplete HFE
+images remain unmountable so sector write-back cannot silently flatten them.
 
 Content-valid FileCore `.hdf`/`.hd4` images and raw ADFS hard discs without a
 DSC use the same command. AcornFS reports their logical map geometry
@@ -196,7 +210,8 @@ acornfs recover /path/to/scsi0.dat --restore  # undo the interrupted session
 acornfs recover /path/to/scsi0.dat --discard  # accept the current image
 ```
 
-The same commands accept a standalone ADFS, DFS or MMB image. For a New Map
+The same commands accept a standalone ADFS, DFS, HFE or MMB image. HFE recovery
+restores the original complete track container. For a New Map
 DAT/DSC pair, either member identifies the checkpoint; recovery restores the DAT
 and preserves the descriptor because writable filesystem operations do not
 change it.

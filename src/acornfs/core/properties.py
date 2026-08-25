@@ -194,7 +194,7 @@ def _read_standalone_properties(
     closeables: tuple[Any, ...] = ()
     try:
         reader, closeables = open_locked_image(
-            source.primary_path,
+            source.backing_path,
             writable=False,
             companion=source.companion_path,
         )
@@ -251,7 +251,9 @@ def _read_standalone_properties(
             dat_path=str(source.primary_path),
             dsc_path=str(source.companion_path) if source.companion_path is not None else "",
             image_type=(
-                "ADFS DAT/DSC pair (New Map)"
+                f"HxC HFEv{source.container.version} ADFS floppy image"
+                if source.container is not None
+                else "ADFS DAT/DSC pair (New Map)"
                 if hard_disc and source.companion_path is not None
                 else "Standalone ADFS hard-disc image"
                 if hard_disc
@@ -296,6 +298,7 @@ def _read_standalone_properties(
     finally:
         _close_mount(mount)
         _close_reader(reader, closeables)
+        source.close()
 
 
 def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
@@ -305,7 +308,7 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
     mounts: list[Any] = []
     closeables: tuple[Any, ...] = ()
     try:
-        reader, closeables = open_locked_image(source.primary_path, writable=False)
+        reader, closeables = open_locked_image(source.backing_path, writable=False)
         filesystem = create_filesystem(source.filesystem)
         side_count = len(source.geometry.surface_specs)
         for side in range(side_count):
@@ -329,7 +332,11 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         return ImageProperties(
             dat_path=str(source.primary_path),
             dsc_path="",
-            image_type="DFS floppy image",
+            image_type=(
+                f"HxC HFEv{source.container.version} DFS floppy image"
+                if source.container is not None
+                else "DFS floppy image"
+            ),
             filesystem_format=filesystem_name,
             directory_format="Flat catalogue prefixes",
             hardware_profile="BBC Micro DFS floppy",
@@ -367,6 +374,7 @@ def _read_dfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> I
         for mount in mounts:
             _close_mount(mount)
         _close_reader(reader, closeables)
+        source.close()
 
 
 def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:
@@ -426,6 +434,7 @@ def _read_romfs_properties(source: ResolvedImage, *, budget: OperationBudget) ->
     finally:
         _close_mount(mount)
         _close_reader(reader, closeables)
+        source.close()
 
 
 def _read_mmb_properties(source: ResolvedImage, *, budget: OperationBudget) -> ImageProperties:

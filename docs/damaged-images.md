@@ -27,7 +27,7 @@ JSON validation reports include a top-level `schema_version` and a versioned
 `compatibility_profile`. The initial profile is
 `beebscsi-adfs-old-map` version 1. Consumers must use those machine fields rather
 than parsing translated messages; finding codes remain stable within the report
-schema. Standalone ADFS, DFS and MMB reports use format-specific compatibility
+schema. Standalone ADFS, DFS, HFE and MMB reports use format-specific compatibility
 profile identifiers.
 
 ## Repair-plan interpretation
@@ -59,5 +59,13 @@ An interrupted writable mount is different from pre-existing image damage. If
 accept the current image with `--discard` after independent
 validation. Never delete recovery state manually; the recovery command locks
 every image member and completes the operation durably. Standalone ADFS, DFS and
-MMB checkpoints restore the complete image. A New Map DAT/DSC checkpoint
+MMB checkpoints restore the complete image. An HFE checkpoint restores the
+complete original track container, not its temporary decoded workspace. A New
+Map DAT/DSC checkpoint
 restores the DAT while locking and preserving its unchanged descriptor.
+
+An HFE that does not decode every sector of one standard Acorn DFS or ADFS
+geometry is not eligible for filesystem repair or mounting. Do not convert it
+to a raw sector image as a repair attempt because this can discard weak bits,
+deliberate sector anomalies and other track-level protection. Preserve it as
+HFE and use the native Greaseweazle physical-write path when appropriate.

@@ -49,6 +49,12 @@ not modify `fuse.conf`, create setuid helpers or enumerate home directories.
 Preferences, checkpoints, audit records, images and mount directories remain
 user-owned and survive upgrades and package removal.
 
+Greaseweazle is an optional external integration and is not bundled into the
+Debian package. Install its current host tools separately when HFE v1/HFEv3
+mounting or physical-floppy writing is required, and ensure `gw` is available
+in the graphical session's `PATH`. Raw ADFS, DFS, MMB, FileCore, BeebSCSI and
+ROMFS operation does not require Greaseweazle.
+
 ## Reproducible build
 
 Create the package from an amd64 checkout with the release dependencies

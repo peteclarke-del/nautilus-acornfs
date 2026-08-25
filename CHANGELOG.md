@@ -5,6 +5,23 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-25
+
+### Added
+
+- Read-only and protected read-write mounting for complete standard Acorn DFS
+  and ADFS HFE v1/HFEv3 images through the installed Greaseweazle host tools.
+- HFE MIME registration, Nautilus actions, validation, properties and atomic
+  version-preserving HFE write-back with the original container checkpointed.
+- Native Greaseweazle physical writes for HFE v1/HFEv3 snapshots, including
+  track progress and normal post-write verification.
+
+### Security
+
+- Refuse sector mounting when an HFE has missing sectors, copy protection or a
+  nonstandard track layout that sector re-encoding could not preserve. Such an
+  image may still be written natively to physical media without conversion.
+
 ## 0.1.1 - 2026-08-24
 
 ### Added

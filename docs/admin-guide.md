@@ -14,6 +14,12 @@ Ubuntu packages for platform dependencies, and vendors only the audited
 pure-Python runtime unavailable from Ubuntu. It does not invoke `pip` or access
 user home directories during package installation.
 
+HFE v1/HFEv3 mounting and physical-floppy writing use an optional external
+`gw` command. Install current Greaseweazle host tools separately and make the
+command visible in the graphical session's `PATH`. The Debian package does not
+bundle or update Greaseweazle. No connected hardware is required for HFE
+mounting; the physical-write action additionally requires an accessible device.
+
 Remove an older per-user add-on before deploying the system package. A loader
 under `~/.local/share/nautilus-python/extensions` takes precedence over the
 system loader and can keep an old private environment active.

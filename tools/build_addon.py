@@ -48,6 +48,9 @@ Install prerequisites:
 
 Installation downloads pinned Python dependencies into a private environment.
 
+Optional HFE mounting and physical-floppy writing require the separately
+installed Greaseweazle host tools, with gw available in the graphical PATH.
+
 Install for the current user:
     python3 install.py --restart install
 

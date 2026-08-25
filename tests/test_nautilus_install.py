@@ -43,6 +43,10 @@ def test_installs_and_removes_complete_desktop_integration(
     assert 'pattern="*.dsd"' in mime_content
     assert 'type="application/x-acorn-mmb"' in mime_content
     assert 'pattern="*.mmb"' in mime_content
+    assert 'type="application/x-hxc-hfe"' in mime_content
+    assert 'value="HXCPICFE" offset="0"' in mime_content
+    assert 'value="HXCHFEV3" offset="0"' in mime_content
+    assert 'pattern="*.hfe"' in mime_content
     desktop_content = desktop_file_path().read_text(encoding="utf-8")
     assert desktop_file_path() == tmp_path / "applications" / DESKTOP_FILE_NAME
     assert "desktop-open %U" in desktop_content

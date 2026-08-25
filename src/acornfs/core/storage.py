@@ -6,9 +6,9 @@ import errno
 import fcntl
 import mmap
 import os
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, cast
 
 from oaknut.filesystem.reader import ImageReader
 
@@ -16,20 +16,15 @@ from acornfs.errors import AcornFSError
 from acornfs.i18n import _
 
 
-def open_locked_image(
-    selected: str | Path,
-    *,
-    writable: bool,
-    companion: str | Path | None = None,
-) -> tuple[ImageReader, tuple[Any, ...]]:
-    """Open one regular image once, lock it and map the locked inode."""
+def open_locked_handle(selected: str | Path, *, writable: bool) -> BinaryIO:
+    """Open, lock and identity-check one regular image without mapping it."""
 
     path = Path(selected).expanduser().resolve(strict=True)
     mode = "r+b" if writable else "rb"
     lock_mode = fcntl.LOCK_EX if writable else fcntl.LOCK_SH
-    stack = ExitStack()
+    handle: Any | None = None
     try:
-        handle = stack.enter_context(path.open(mode))
+        handle = path.open(mode)
         fcntl.flock(handle, lock_mode | fcntl.LOCK_NB)
         opened = os.fstat(handle.fileno())
         current = path.stat(follow_symlinks=False)
@@ -44,6 +39,44 @@ def open_locked_image(
                     "Copy it to a uniquely owned file first."
                 ).format(path=path)
             )
+        return cast(BinaryIO, handle)
+    except BlockingIOError as exc:
+        with suppress(Exception):
+            if handle is not None:
+                handle.close()
+        raise AcornFSError(_("The image is mounted or open in another AcornFS process.")) from exc
+    except OSError as exc:
+        with suppress(Exception):
+            if handle is not None:
+                handle.close()
+        if writable and exc.errno in {errno.EACCES, errno.EROFS, errno.EPERM}:
+            raise AcornFSError(
+                _(
+                    "The image is on read-only storage or is not writable by this user. "
+                    "Open it read-only, or copy it to writable local storage."
+                )
+            ) from exc
+        raise
+    except BaseException:
+        with suppress(Exception):
+            if handle is not None:
+                handle.close()
+        raise
+
+
+def open_locked_image(
+    selected: str | Path,
+    *,
+    writable: bool,
+    companion: str | Path | None = None,
+) -> tuple[ImageReader, tuple[Any, ...]]:
+    """Open one regular image once, lock it and map the locked inode."""
+
+    path = Path(selected).expanduser().resolve(strict=True)
+    stack = ExitStack()
+    try:
+        handle = open_locked_handle(path, writable=writable)
+        stack.callback(handle.close)
         access = mmap.ACCESS_WRITE if writable else mmap.ACCESS_COPY
         mapping = mmap.mmap(handle.fileno(), 0, access=access)
         stack.callback(mapping.close)
@@ -51,23 +84,8 @@ def open_locked_image(
         closeables: tuple[Any, ...] = (mapping, handle)
         if companion is not None:
             companion_path = Path(companion).expanduser().resolve(strict=True)
-            companion_handle = stack.enter_context(companion_path.open(mode))
-            fcntl.flock(companion_handle, lock_mode | fcntl.LOCK_NB)
-            companion_opened = os.fstat(companion_handle.fileno())
-            companion_current = companion_path.stat(follow_symlinks=False)
-            if (companion_opened.st_dev, companion_opened.st_ino) != (
-                companion_current.st_dev,
-                companion_current.st_ino,
-            ):
-                raise AcornFSError(
-                    _("The companion image changed while AcornFS was opening it: {path}").format(
-                        path=companion_path
-                    )
-                )
-            if writable and companion_opened.st_nlink != 1:
-                raise AcornFSError(
-                    _("Writable mounting refuses a companion image with hard links.")
-                )
+            companion_handle = open_locked_handle(companion_path, writable=writable)
+            stack.callback(companion_handle.close)
             closeables = (mapping, handle, None, companion_handle)
     except BlockingIOError as exc:
         stack.close()
@@ -89,4 +107,4 @@ def open_locked_image(
     return reader, closeables
 
 
-__all__ = ["open_locked_image"]
+__all__ = ["open_locked_handle", "open_locked_image"]
