@@ -29,7 +29,8 @@ Re-run that command after moving or recreating the environment.
 ADFS DAT files are recognised by their on-disc old-directory signature; AcornFS
 does not register a generic `*.dat` glob. ADFS `.ads`, `.adm`, `.adl`, ambiguous
 `.adf` floppy names and FileCore `.hdf`/`.hd4` names are registered for
-discovery, but core content and geometry detection remains authoritative. DSC
+discovery. HFE v1 and HFEv3 use a dedicated `.hfe` MIME type with both standard
+container signatures. Core content and geometry detection remains authoritative. DSC
 files use their specific extension, and the handler still validates the full
 pair and descriptor before opening anything. Double-click a supported image to
 mount it read-only. Applications may also open a local URI such as
@@ -41,7 +42,7 @@ Keep each DAT beside its matching DSC with the same basename. In Nautilus:
 
 1. Right-click either file.
 2. Open **Acorn FS Support** and select **Open read-only**, or choose **Open
-   read-write** for any supported ADFS, DFS or MMB image when changes should be
+   read-write** for any supported ADFS, DFS, HFE or MMB image when changes should be
    possible. ROMFS remains read-only.
 3. Follow the mount progress dialog. A finite success or error dialog is shown,
    and a successful mounted root opens automatically.
@@ -106,6 +107,13 @@ sides remain visible; cross-side moves are refused. MMB containers expose each
 formatted slot as a globally numbered directory. Only slots marked read-write
 accept changes, and cross-slot moves are refused. Repair and File Forge actions
 remain limited to formats that implement those capabilities.
+
+Standard Acorn HFE v1 and HFEv3 DFS/ADFS images expose the same mount and
+validation actions when `gw` is installed. The mount workflow shows its normal
+progress UI while the HFE is decoded. Images containing incomplete or
+nonstandard track layouts report that they cannot be mounted without losing
+track data. If Greaseweazle hardware is connected, those images can still show
+**Write to physical floppy…**, which uses the native HFE stream.
 
 CRC-validated ROMFS images expose only **Open read-only** and image properties.
 Their flat, case-sensitive catalogue is shown at the mount root.

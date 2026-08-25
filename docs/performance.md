@@ -49,3 +49,10 @@ filesystems. The bounded-copy fallback reads and writes the complete image, so
 large images and MMB containers should be placed on reflink-capable local
 storage when write latency matters. The persistent session checkpoint has the
 same reflink-first policy.
+
+HFE open and close latency is intentionally outside the raw-image benchmark.
+Opening requires one bounded `gw convert` pass after a lightweight first-track
+geometry probe. A writable close requires final filesystem validation followed
+by a second conversion and atomic publication. The 64 MiB HFE input limit and
+five-minute conversion timeout bound hostile inputs, but normal latency still
+depends on the installed Greaseweazle host tools and the floppy geometry.

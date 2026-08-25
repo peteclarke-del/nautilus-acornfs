@@ -34,7 +34,7 @@ from acornfs.core.beebscsi import (
 from acornfs.core.dfs import DoubleSidedDFSMount
 from acornfs.core.formats import ResolvedImage, resolve_image
 from acornfs.core.mmb import MMBMount
-from acornfs.core.storage import open_locked_image
+from acornfs.core.storage import open_locked_handle, open_locked_image
 from acornfs.core.transaction import FileTransaction, SectorTransaction
 from acornfs.errors import AcornFSError, FilenameTooLongError
 from acornfs.i18n import _, ngettext
@@ -110,6 +110,8 @@ class ReadOnlyImage:
         max_depth: int = DEFAULT_MAX_DEPTH,
         writable: bool = False,
         closeables: tuple[Any, ...] = (),
+        identity_members: tuple[tuple[Path, Any], ...] = (),
+        identity_closeables: tuple[Any, ...] = (),
         checkpoint: RecoveryCheckpoint | SingleImageCheckpoint | None = None,
         descriptor_geometry: BeebSCSIGeometry | None = None,
         fault_injector: Callable[[str], None] | None = None,
@@ -126,6 +128,17 @@ class ReadOnlyImage:
         self._max_depth = max_depth
         self.writable = writable
         self._closeables = closeables
+        if identity_members:
+            self._identity_members = identity_members
+        elif source.companion_path is not None:
+            self._identity_members = (
+                (source.primary_path, closeables[1]),
+                (source.companion_path, closeables[3]),
+            )
+        else:
+            self._identity_members = ((source.primary_path, closeables[1]),)
+        self._identity_closeables = identity_closeables
+        self._storage_path = source.backing_path
         self._checkpoint = checkpoint
         self._descriptor_geometry = descriptor_geometry
         self._fault_injector = fault_injector
@@ -166,6 +179,7 @@ class ReadOnlyImage:
         pair = source.pair
         reader: ImageReader | None = None
         mount: Mount | None = None
+        identity_closeables: tuple[Any, ...] = ()
         try:
             descriptor_geometry: BeebSCSIGeometry | None = None
             closeables: tuple[Any, ...] = ()
@@ -174,8 +188,27 @@ class ReadOnlyImage:
                 descriptor_geometry = parse_descriptor(descriptor)
                 geometry = geometry_from_dsc(descriptor)
             else:
+                identity_members: tuple[tuple[Path, Any], ...]
+                if source.container is not None:
+                    identity_handle = open_locked_handle(source.primary_path, writable=writable)
+                    identity_closeables = (identity_handle,)
+                    opened = os.fstat(identity_handle.fileno())
+                    signature = (
+                        opened.st_dev,
+                        opened.st_ino,
+                        opened.st_size,
+                        opened.st_mtime_ns,
+                        opened.st_ctime_ns,
+                    )
+                    if signature != source.container.source_signature:
+                        raise AcornFSError(
+                            _("The HFE image changed while AcornFS was decoding it.")
+                        )
+                    identity_members = ((source.primary_path, identity_handle),)
+                else:
+                    identity_members = ()
                 reader, closeables = open_locked_image(
-                    source.primary_path,
+                    source.backing_path,
                     writable=writable,
                     companion=source.companion_path,
                 )
@@ -218,6 +251,8 @@ class ReadOnlyImage:
                 max_depth=max_depth,
                 writable=writable,
                 closeables=closeables,
+                identity_members=identity_members if pair is None else (),
+                identity_closeables=identity_closeables,
                 descriptor_geometry=descriptor_geometry,
                 fault_injector=fault_injector,
             )
@@ -227,6 +262,7 @@ class ReadOnlyImage:
             reader = None
             mount = None
             closeables = ()
+            identity_closeables = ()
             if writable:
                 try:
                     from acornfs.recovery import RecoveryCheckpoint, SingleImageCheckpoint
@@ -241,7 +277,7 @@ class ReadOnlyImage:
                         image._checkpoint = SingleImageCheckpoint.create(
                             source.primary_path,
                             progress=checkpoint_progress,
-                            source_handle=image._closeables[1],
+                            source_handle=image._identity_members[0][1],
                         )
                     image._prepare_mutation()
                 except Exception:
@@ -256,6 +292,10 @@ class ReadOnlyImage:
             for closeable in closeables if "closeables" in locals() else ():
                 with suppress(Exception):
                     closeable.close()
+            for closeable in identity_closeables:
+                with suppress(Exception):
+                    closeable.close()
+            source.close()
             if isinstance(exc, AcornFSError):
                 raise
             raise AcornFSError(
@@ -976,10 +1016,7 @@ class ReadOnlyImage:
 
     def _current_signature(self) -> tuple[int, ...]:
         signatures: list[int] = []
-        members = [(self.source.primary_path, self._closeables[1])]
-        if self.source.companion_path is not None:
-            members.append((self.source.companion_path, self._closeables[3]))
-        for path, handle in members:
+        for path, handle in self._identity_members:
             open_stat = os.fstat(handle.fileno())
             path_stat = path.stat(follow_symlinks=False)
             signatures.extend(
@@ -1031,7 +1068,7 @@ class ReadOnlyImage:
                 if self._checkpoint is None:
                     raise AcornFSError(_("The writable recovery checkpoint is unavailable."))
                 transaction = FileTransaction(
-                    self.source.primary_path,
+                    self._storage_path,
                     self._closeables[0],
                     self._closeables[1],
                     backup_directory=self._checkpoint.directory,
@@ -1206,6 +1243,29 @@ class ReadOnlyImage:
             with suppress(Exception):
                 closeable.close()
         self._closeables = ()
+        if (
+            self.writable
+            and clean
+            and not self._failed
+            and close_error is None
+            and self.source.container is not None
+        ):
+            try:
+                if self._current_signature() != self._expected_signature:
+                    raise AcornFSError(
+                        _("The HFE image changed outside AcornFS; write-back was blocked.")
+                    )
+                self.source.container.export(self.source.primary_path)
+            except Exception as exc:
+                self._failed = True
+                close_error = AcornFSError(
+                    _("Could not safely write the updated HFE image: {error}").format(error=exc)
+                )
+        for closeable in self._identity_closeables:
+            with suppress(Exception):
+                closeable.close()
+        self._identity_closeables = ()
+        self.source.close()
         self._closed = True
         if self.writable and clean and not self._failed and self._checkpoint is not None:
             self._checkpoint.complete()

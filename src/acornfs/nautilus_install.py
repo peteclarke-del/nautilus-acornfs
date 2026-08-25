@@ -119,6 +119,15 @@ def mime_package_content() -> str:
     <glob pattern="*.mmb" weight="70"/>
     <glob pattern="*.MMB" weight="70"/>
   </mime-type>
+  <mime-type type="application/x-hxc-hfe">
+    <comment>HxC HFE floppy image</comment>
+    <magic priority="90">
+      <match type="string" value="HXCPICFE" offset="0"/>
+      <match type="string" value="HXCHFEV3" offset="0"/>
+    </magic>
+    <glob pattern="*.hfe" weight="70"/>
+    <glob pattern="*.HFE" weight="70"/>
+  </mime-type>
 </mime-info>
 """
 
@@ -138,7 +147,7 @@ Icon=drive-harddisk
 Terminal=false
 NoDisplay=true
 StartupNotify=true
-MimeType=application/x-acorn-adfs;application/x-acorn-dfs;application/x-acorn-mmb;application/x-beebscsi-descriptor;x-scheme-handler/acornfs;
+MimeType=application/x-acorn-adfs;application/x-acorn-dfs;application/x-acorn-mmb;application/x-beebscsi-descriptor;application/x-hxc-hfe;x-scheme-handler/acornfs;
 Categories=System;FileTools;
 """
 

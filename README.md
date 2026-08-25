@@ -3,16 +3,18 @@
 Nautilus AcornFS is a userspace filesystem for Acorn disk images. It mounts
 paired BeebSCSI `DAT`/`DSC` hard discs, standalone ADFS S through G+ floppies,
 FileCore hard-disc images, DFS `SSD`/`DSD` images, standard and extended MMB
-containers, and Acorn ROMFS paged-ROM images through FUSE 3. A small extension
+containers, standard Acorn HFE v1/HFEv3 floppies, and Acorn ROMFS paged-ROM
+images through FUSE 3. A small extension
 integrates the mounted filesystems with Nautilus. Other Linux applications can
 use the mounts without Nautilus.
 
-Mounts are read-only by default. Every writable ADFS, DFS and MMB mount uses
+Mounts are read-only by default. Every writable ADFS, DFS, HFE and MMB mount uses
 exclusive image locks, persistent pre-write checkpoints, external-change
 detection, structural validation before writing and validation again before a
 clean unmount. Fatal findings refuse writable access before a checkpoint is
 created. Each mutation also has a private before-image. Old-map ADFS records
-only the affected sectors; New Map ADFS, DFS and MMB use a reflink of the image
+only the affected sectors; New Map ADFS, DFS, HFE workspaces and MMB use a reflink
+of the image
 when possible and a bounded full copy otherwise. A failed mutation is restored
 and validated before the session may continue. ROMFS is always read-only.
 
@@ -35,6 +37,8 @@ retained-state guidance in
   discs read-only or read-write when physical CHS geometry is unavailable.
 - Mount content-detected Acorn and Watford DFS SSD/DSD images read-only or
   read-write, exposing catalogue prefixes and both DSD sides coherently.
+- Mount complete standard Acorn DFS and ADFS HFE v1/HFEv3 images read-only or
+  read-write, preserving the container version on atomic write-back.
 - Mount standard and extended MMB containers read-only or read-write, with
   formatted slots exposed as globally numbered directories and an eight-mount
   DFS cache. Mutations are confined to slots marked read-write by the MMB.
@@ -78,13 +82,13 @@ retained-state guidance in
 - Import and export individual files with Acorn load, execution and lock metadata sidecars.
 - Translate all desktop UI and desktop-reachable filesystem messages through gettext.
 - Detect an installed, responsive Greaseweazle and offer confirmed, progress-reported,
-  verified physical-floppy writes for its supported image suffixes.
+  verified physical-floppy writes for its supported raw and HFE image suffixes.
 
 ## Installation
 
 ### Install the Debian package
 
-The v0.1.1 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
+The v0.2.0 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
 FUSE 3, and GNOME Files (Nautilus) 46 or later. The Debian package is the
 recommended installation method for releases that provide it. Download
 `nautilus-acornfs_VERSION_amd64.deb` and `SHA256SUMS` from the matching
@@ -128,17 +132,17 @@ audits are retained.
 
 ### Alternative per-user add-on
 
-Download `nautilus-acornfs-addon-0.1.1.zip` from the
-[v0.1.1 GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases/tag/v0.1.1).
+Download `nautilus-acornfs-addon-0.2.0.zip` from the
+[v0.2.0 GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases/tag/v0.2.0).
 Download `SHA256SUMS` from the same page if you want to verify the archive
 before installing:
 
 ```shell
 cd ~/Downloads
 sha256sum --ignore-missing --check SHA256SUMS
-mkdir -p nautilus-acornfs-addon-0.1.1
-unzip nautilus-acornfs-addon-0.1.1.zip -d nautilus-acornfs-addon-0.1.1
-cd nautilus-acornfs-addon-0.1.1
+mkdir -p nautilus-acornfs-addon-0.2.0
+unzip nautilus-acornfs-addon-0.2.0.zip -d nautilus-acornfs-addon-0.2.0
+cd nautilus-acornfs-addon-0.2.0
 python3 install.py --restart install
 ```
 
@@ -264,17 +268,20 @@ desktop handler automatically. For an editable development environment, run:
 acornfs install-nautilus --restart
 ```
 
-Right-click either member of a valid pair, a supported ADFS/DFS floppy, an MMB,
+Right-click either member of a valid pair, a supported ADFS/DFS/HFE floppy, an MMB,
 or a ROMFS image and open **Acorn FS Support**. Writable formats offer **Open
 read-only**, **Open read-write** and **Validate image**. BeebSCSI pairs may also
 offer **Repair image…** and **Open in Acorn File Forge…** when those actions are
 available. ROMFS offers read-only opening and properties only.
 When the `gw` command and a connected Greaseweazle are detected, compatible
-`.ssd`, `.dsd`, `.adf`, `.ads`, `.adm` and `.adl` files additionally offer
+`.ssd`, `.dsd`, `.adf`, `.ads`, `.adm`, `.adl` and `.hfe` files additionally offer
 **Write to physical floppy…**. The action is hidden otherwise.
 AcornFS resolves the filesystem and physical geometry before writing, then
 passes an explicit Acorn format to Greaseweazle. In particular, an Acorn `.adf`
 is never handed to Greaseweazle's unrelated Amiga ADF handler.
+HFE v1 and HFEv3 sources are passed through as native HFE snapshots instead.
+This retains their track-level representation and does not flatten a protected
+or nonstandard image before the physical write.
 The mounted image opens in Nautilus and appears in its sidebar. The same submenu
 offers **Unmount** on the DAT/DSC and from the mounted root's background menu,
 keeping Acorn-specific actions out of Nautilus's top-level context menu.
@@ -288,7 +295,17 @@ handler accepts a local URI such as `acornfs:///path/to/scsi0.dat`.
 Install current Greaseweazle software using its
 [official Linux instructions](https://github.com/keirf/greaseweazle/wiki/Software-Installation),
 ensure `gw` is available in the graphical session's `PATH`, connect the device,
-and confirm it responds before restarting Files:
+and confirm it responds before restarting Files. The current official Ubuntu
+installation uses `pipx`:
+
+```shell
+sudo apt install gcc python3-pip python3-dev pipx
+pipx ensurepath
+pipx install git+https://github.com/keirf/greaseweazle@latest
+```
+
+Log out and back in if `pipx ensurepath` changed the login environment. Install
+the official Greaseweazle udev rules before connecting hardware, then verify:
 
 ```shell
 gw info
@@ -304,6 +321,15 @@ only after Greaseweazle says all tracks verified; cancellation is available
 before the physical write starts, but not while a disk could be half-written.
 Disconnects, command failures and verification failures produce an explicit
 warning that the destination disk must not be trusted.
+
+The same `gw` host tools provide HFE conversion for filesystem mounting. A
+standard Acorn HFE must decode to every sector of exactly one supported DFS or
+ADFS floppy geometry. AcornFS then mounts a private raw workspace. On a clean
+read-write unmount it validates that workspace, re-encodes the original HFE
+version beside the source and atomically replaces the source while retaining
+the normal recovery checkpoint. Incomplete, copy-protected or nonstandard HFE
+tracks are not sector-mounted because re-encoding would discard information.
+They remain available for a native physical-floppy write.
 
 Files never runs `gw info` while constructing a context menu. It checks for the
 installed command and an accessible Greaseweazle udev serial identity, so a
@@ -475,7 +501,7 @@ acornfs diagnostics --json > acornfs-diagnostics.json
 ```
 
 Mounts are read-only by default and use `nodev`, `nosuid`, and `noexec`. Pass
-`--read-write` for file and directory writes on ADFS, DFS and MMB images.
+`--read-write` for file and directory writes on ADFS, DFS, HFE and MMB images.
 ROMFS rejects writable mounting. Selection of either DAT or DSC is supported.
 The mountpoint must already exist and be empty.
 
@@ -506,7 +532,8 @@ The exact Oaknut pin and private-adapter upgrade gate are documented in
 
 Writable mounts support BeebSCSI DAT/DSC pairs, standalone ADFS S through G+
 floppies, FileCore and unpaired raw ADFS hard discs, Acorn and Watford DFS
-SSD/DSD images, and standard or extended MMB containers. On an SSD, DFS
+SSD/DSD images, complete standard Acorn HFE v1/HFEv3 floppies, and standard or
+extended MMB containers. On an SSD, DFS
 catalogue prefixes (`$`, `A`-`Z`)
 appear as directories. On a DSD, drive directories `0` and `2` contain each
 side's catalogue-prefix directories. These are presentation-only namespaces;

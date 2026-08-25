@@ -102,7 +102,7 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Detect incomplete transactions on the next mount and offer recovery
   without modifying the original automatically.
 - [x] Provide a mandatory pre-write checkpoint.
-- [x] Add single-image checkpoints and recovery for ADFS, DFS and MMB images.
+- [x] Add single-image checkpoints and recovery for ADFS, DFS, HFE and MMB images.
 - [x] Add private per-operation whole-image rollback for New Map ADFS, DFS and
   MMB, using reflinks where available and bounded copies otherwise.
 - [x] Use reflinks where available instead of blindly duplicating a complete large DAT file.
@@ -218,6 +218,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [ ] Implement the documented transactional MMB slot mutations after hardware evidence.
 - [x] Add content-detected ROMFS images read-only with case-sensitive names,
   Acorn metadata, run-only state, properties and hostile-CRC coverage.
+- [x] Add HFE v1/HFEv3 DFS and ADFS mounting with exact sector-completeness
+  checks, protected read-write workspace conversion and atomic version-preserving
+  write-back.
+- [x] Refuse sector mounting for incomplete, copy-protected or nonstandard HFE
+  tracks without blocking lossless native physical-floppy writing.
 - [x] Consider read-only UEF and archive traversal; defer both beyond the initial
   disk-filesystem release because they require separate sequential-media and
   bounded nested-container models.
@@ -238,7 +243,11 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Show determinate track progress and verification retries without allowing unsafe cancellation.
 - [x] Retain Greaseweazle's default verification and refuse to report success without it.
 - [x] Report disconnects, write failures and verification failures with incomplete-media guidance.
+- [x] Detect HFE v1/HFEv3 by signature and write the native HFE snapshot without
+  an incorrect raw-sector format override.
 - [ ] Exercise SSD, DSD and ADFS writes through a real Greaseweazle using expendable media.
+- [ ] Exercise HFE v1 and HFEv3 native writes and verification through a real
+  Greaseweazle using expendable media.
 - [ ] Verify written media on representative BBC, Master and RISC OS hardware.
 - [ ] Consider physical-floppy reads only after the write workflow has hardware evidence.
 
@@ -309,6 +318,9 @@ acceptance items stay open until they have been exercised in that environment.
 - [x] Interrupted writes, daemon crashes and forced termination.
 - [ ] Host shutdown during an active writable mount.
 - [ ] Greaseweazle writes and verifies SSD, DSD and ADFS images on real drives and media.
+- [x] Generated HFE v1/HFEv3 DFS and ADFS detection, protected write-back and
+  incomplete-sector refusal.
+- [ ] HFE v1/HFEv3 writes and verification on real Greaseweazle drives and media.
 - [x] Concurrent readers and conflicting writers.
 - [x] External modification while mounted.
 - [x] Files larger than available image space.
