@@ -15,6 +15,7 @@ from acornfs.desktop import (
     _systemd_mount_command,
     background_mount,
     cleanup_stale_mountpoint,
+    desktop_claims,
     desktop_configure_mount_location,
     desktop_create,
     desktop_mount,
@@ -31,7 +32,7 @@ from acornfs.desktop import (
 from acornfs.errors import AcornFSError, OperationCancelled
 from acornfs.mounts import MountRecord
 from acornfs.preferences import mount_location, preferences_path
-from tests.image_fixture import create_beebscsi_image, reserve_adfs_tail
+from tests.image_fixture import create_adfs_floppy, create_beebscsi_image, reserve_adfs_tail
 
 
 @pytest.fixture(autouse=True)
@@ -108,12 +109,66 @@ def test_desktop_uri_handler_accepts_only_local_image_paths() -> None:
 
 
 def test_desktop_open_mounts_mime_references_read_only() -> None:
-    with patch("acornfs.desktop.desktop_mount", return_value=0) as mount:
+    with (
+        patch("acornfs.desktop.desktop_mount", return_value=0) as mount,
+        patch("acornfs.desktop.sibling_claiming", return_value=None),
+    ):
         assert desktop_open(["file:///tmp/scsi0.dat", "acornfs:///tmp/scsi1.dsc"]) == 0
     assert mount.call_args_list == [
         ((Path("/tmp/scsi0.dat"),), {"read_write": False}),
         ((Path("/tmp/scsi1.dsc"),), {"read_write": False}),
     ]
+
+
+def test_an_acorn_image_is_mounted_without_asking_a_sibling(tmp_path: Path) -> None:
+    image = create_adfs_floppy(tmp_path)
+    assert desktop_claims(image) == 0
+    with (
+        patch("acornfs.desktop.desktop_mount", return_value=0) as mount,
+        patch("acornfs.desktop.sibling_claiming") as asked,
+    ):
+        assert desktop_open([str(image)]) == 0
+    asked.assert_not_called()
+    mount.assert_called_once_with(image, read_write=False)
+
+
+def test_a_foreign_image_is_handed_to_the_sibling_that_claims_it(tmp_path: Path) -> None:
+    foreign = tmp_path / "amiga.adf"
+    foreign.write_bytes(b"DOS\0" + bytes(901_120 - 4))
+    assert desktop_claims(foreign) == 1
+    with (
+        patch("acornfs.desktop.desktop_mount", return_value=0) as mount,
+        patch("acornfs.desktop.sibling_claiming", return_value="/usr/bin/amigafs") as asked,
+        patch("acornfs.desktop.hand_off") as handed,
+    ):
+        assert desktop_open([foreign.as_uri()]) == 0
+    mount.assert_not_called()
+    (path, environment), _keywords = asked.call_args
+    assert path == foreign
+    assert "ACORNFS_DESKTOP_MOUNT" not in environment
+    handed.assert_called_once_with("/usr/bin/amigafs", foreign, environment)
+
+
+def test_an_unclaimed_or_handed_over_image_is_never_passed_on(tmp_path: Path) -> None:
+    foreign = tmp_path / "unknown.adf"
+    foreign.write_bytes(b"DOS\0" + bytes(901_120 - 4))
+    with (
+        patch("acornfs.desktop.desktop_mount", return_value=0) as mount,
+        patch("acornfs.desktop.sibling_claiming", return_value=None),
+        patch("acornfs.desktop.hand_off") as handed,
+    ):
+        assert desktop_open([str(foreign)]) == 0
+    handed.assert_not_called()
+    mount.assert_called_once_with(foreign, read_write=False)
+    with (
+        patch("acornfs.desktop.desktop_mount", return_value=0) as mount,
+        patch("acornfs.desktop.sibling_claiming", return_value="/usr/bin/amigafs") as asked,
+        patch("acornfs.desktop.hand_off") as handed,
+    ):
+        assert desktop_open([str(foreign)], handed_off=True) == 0
+    asked.assert_not_called()
+    handed.assert_not_called()
+    mount.assert_called_once_with(foreign, read_write=False)
 
 
 def test_desktop_open_notifies_for_refused_uri() -> None:
