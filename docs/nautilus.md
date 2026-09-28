@@ -26,6 +26,10 @@ acornfs install-nautilus --restart
 
 Re-run that command after moving or recreating the environment.
 
+A file on a network share is offered the same menu, provided the desktop
+makes the share reachable by name, as it does for Windows shares under
+`/run/user/UID/gvfs`.
+
 ADFS DAT files are recognised by their on-disc old-directory signature; AcornFS
 does not register a generic `*.dat` glob. ADFS `.ads`, `.adm`, `.adl`, ambiguous
 `.adf` floppy names and FileCore `.hdf`/`.hd4` names are registered for

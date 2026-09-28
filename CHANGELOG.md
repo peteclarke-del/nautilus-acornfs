@@ -5,6 +5,14 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+## 0.3.1 - 2026-09-28
+
+### Fixed
+
+- Files offers the menu and the Properties page for an image on a network
+  share. The extension used to ignore every file whose address did not begin
+  `file:`.
+
 ## 0.3.0 - 2026-09-28
 
 ### Added

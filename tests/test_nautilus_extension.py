@@ -103,6 +103,30 @@ def test_image_actions_are_collapsed_under_one_support_menu(
     ]
 
 
+def test_an_image_on_a_network_share_is_offered_the_menu(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
+    monkeypatch.setattr(extension, "mount_for_image_path", lambda _path: None)
+    monkeypatch.setattr(extension, "pending_recovery", lambda _path: None)
+    shared = _FileInfo(tmp_path / "disc.ssd")
+    shared.get_uri_scheme = lambda: "smb"  # type: ignore[method-assign]
+
+    items = extension.AcornFSMenuProvider().get_file_items([shared])
+
+    assert [item.label for item in items] == ["Acorn FS Support"]
+
+
+def test_a_file_with_no_path_is_offered_nothing(tmp_path: Path, monkeypatch: Any) -> None:
+    extension = _load_extension(monkeypatch)
+    monkeypatch.setattr(extension, "image_capabilities_hint", lambda _path: _capabilities())
+    remote = _FileInfo(tmp_path / "disc.ssd")
+    remote.get_location = lambda: SimpleNamespace(get_path=lambda: None)  # type: ignore[method-assign]
+    provider = extension.AcornFSMenuProvider()
+    assert provider.get_file_items([remote]) == []
+    remote.get_location = lambda: None  # type: ignore[method-assign]
+    assert provider.get_file_items([remote]) == []
+
+
 def test_every_image_menu_action_has_accessible_model_metadata(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
