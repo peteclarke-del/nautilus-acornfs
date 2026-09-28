@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -5,7 +6,7 @@ from acornfs.cli import main
 from acornfs.core.image import ROOT_INODE, ReadOnlyImage
 from acornfs.errors import AcornFSError
 from acornfs.mounts import MountRecord
-from tests.image_fixture import create_beebscsi_image, set_root_entry_length
+from tests.image_fixture import create_beebscsi_image, create_dfs_floppy, set_root_entry_length
 
 
 def test_inspect_error_is_concise(tmp_path: Path, capsys: object) -> None:
@@ -13,6 +14,27 @@ def test_inspect_error_is_concise(tmp_path: Path, capsys: object) -> None:
     assert result == 2
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     assert "does not exist" in captured.err
+
+
+def test_inspect_describes_an_image_that_is_not_a_beebscsi_pair(
+    tmp_path: Path, capsys: object
+) -> None:
+    image = create_dfs_floppy(tmp_path)
+    assert main(["inspect", str(image)]) == 0
+    text = capsys.readouterr().out  # type: ignore[attr-defined]
+    assert "Format: DFS floppy image" in text
+    assert "Filesystem: Acorn DFS" in text
+    assert "Validation: passed" in text
+    assert main(["inspect", "--json", str(image)]) == 0
+    described = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert described["format"] == "standalone"
+    assert described["filesystem_format"] == "Acorn DFS"
+
+
+def test_inspect_still_describes_a_beebscsi_pair(tmp_path: Path, capsys: object) -> None:
+    dat_path, _dsc_path = create_beebscsi_image(tmp_path)
+    assert main(["inspect", str(dat_path)]) == 0
+    assert "Format: BeebSCSI DAT/DSC" in capsys.readouterr().out  # type: ignore[attr-defined]
 
 
 def test_create_beebscsi_command_creates_pair(tmp_path: Path, capsys: object) -> None:
