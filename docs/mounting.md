@@ -50,6 +50,7 @@ the foreground terminal workflow.
 ```shell
 mkdir -p "$HOME/AcornFS/scsi0"
 acornfs inspect /path/to/scsi0.dsc
+acornfs inspect /path/to/disc.ssd
 acornfs mount /path/to/scsi0.dsc "$HOME/AcornFS/scsi0"
 ```
 

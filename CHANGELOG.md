@@ -5,6 +5,14 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+## 0.3.2 - 2026-09-28
+
+### Fixed
+
+- `acornfs inspect` describes every supported image. It used to accept a
+  BeebSCSI pair only, and refused a DFS, ADFS floppy, MMB, ROM or HFE image
+  that could be validated and mounted.
+
 ## 0.3.1 - 2026-09-28
 
 ### Fixed
