@@ -140,7 +140,9 @@ def _parser() -> argparse.ArgumentParser:
     desktop_write_floppy_parser = subparsers.add_parser("desktop-write-floppy")
     desktop_write_floppy_parser.add_argument("image")
     desktop_open_parser = subparsers.add_parser("desktop-open")
+    desktop_open_parser.add_argument("--handed-off", action="store_true")
     desktop_open_parser.add_argument("images", nargs="+")
+    subparsers.add_parser("desktop-claims").add_argument("image")
     desktop_create_parser = subparsers.add_parser("desktop-create")
     desktop_create_parser.add_argument("directory")
     subparsers.add_parser("desktop-configure-mount-location")
@@ -411,7 +413,13 @@ def _desktop_validate(args: argparse.Namespace) -> int:
 def _desktop_open(args: argparse.Namespace) -> int:
     from acornfs.desktop import desktop_open
 
-    return desktop_open(args.images)
+    return desktop_open(args.images, handed_off=args.handed_off)
+
+
+def _desktop_claims(args: argparse.Namespace) -> int:
+    from acornfs.desktop import desktop_claims
+
+    return desktop_claims(args.image)
 
 
 def _desktop_open_file_forge(args: argparse.Namespace) -> int:
@@ -468,6 +476,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "desktop-open-file-forge": _desktop_open_file_forge,
         "desktop-write-floppy": _desktop_write_floppy,
         "desktop-open": _desktop_open,
+        "desktop-claims": _desktop_claims,
         "desktop-create": _desktop_create,
         "desktop-configure-mount-location": _desktop_configure_mount_location,
         "recover": _recover,

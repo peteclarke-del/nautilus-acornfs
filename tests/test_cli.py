@@ -189,7 +189,18 @@ def test_detached_mount_error_redacts_unrelated_path(
 def test_desktop_open_forwards_uri_list() -> None:
     with patch("acornfs.desktop.desktop_open", return_value=0) as desktop_open:
         assert main(["desktop-open", "file:///image.dat", "acornfs:///image.dsc"]) == 0
-    desktop_open.assert_called_once_with(["file:///image.dat", "acornfs:///image.dsc"])
+    desktop_open.assert_called_once_with(
+        ["file:///image.dat", "acornfs:///image.dsc"], handed_off=False
+    )
+    with patch("acornfs.desktop.desktop_open", return_value=0) as desktop_open:
+        assert main(["desktop-open", "--handed-off", "image.adf"]) == 0
+    desktop_open.assert_called_once_with(["image.adf"], handed_off=True)
+
+
+def test_desktop_claims_answers_with_its_exit_status() -> None:
+    with patch("acornfs.desktop.desktop_claims", return_value=1) as desktop_claims:
+        assert main(["desktop-claims", "image.adf"]) == 1
+    desktop_claims.assert_called_once_with("image.adf")
 
 
 def test_desktop_file_forge_forwards_image() -> None:

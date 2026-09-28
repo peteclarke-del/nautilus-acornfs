@@ -5,6 +5,15 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+## 0.3.0 - 2026-09-28
+
+### Added
+
+- Double-clicking an image that is not Acorn hands it to Nautilus AmigaFS
+  when AmigaFS recognises the content. `desktop-claims` answers the same
+  question for a sibling, so an Acorn image that Files gave to AmigaFS is
+  passed here.
+
 ## 0.2.0 - 2026-08-25
 
 ### Added

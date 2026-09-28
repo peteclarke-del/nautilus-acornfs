@@ -33,7 +33,17 @@ discovery. HFE v1 and HFEv3 use a dedicated `.hfe` MIME type with both standard
 container signatures. Core content and geometry detection remains authoritative. DSC
 files use their specific extension, and the handler still validates the full
 pair and descriptor before opening anything. Double-click a supported image to
-mount it read-only. Applications may also open a local URI such as
+mount it read-only.
+
+Files chooses the application for a double-click from the name of a file when
+it cannot read the content cheaply, as on a network share, so an Amiga `.adf`
+may be given to AcornFS and an Acorn one to Nautilus AmigaFS. Whichever is
+started looks at the content. If the image is not its own, it asks the other
+mounter with `desktop-claims`, and passes the image on when the answer is yes.
+An image that was passed on is never passed back. A sibling that is missing or
+too old to know `desktop-claims` is handed nothing.
+
+Applications may also open a local URI such as
 `acornfs:///path/to/scsi0.dat`; remote hosts and other URI schemes are refused.
 
 ## Mount and unmount
