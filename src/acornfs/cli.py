@@ -19,8 +19,10 @@ from acornfs.core import (
     import_file,
     inspect_pair,
     plan_repairs,
+    resolve_image,
     validate_image_report,
 )
+from acornfs.core.properties import read_image_properties
 from acornfs.errors import AcornFSError
 from acornfs.mounts import active_mounts, mount_at, wait_for_mount_shutdown
 from acornfs.recovery import pending_recovery, recover_image
@@ -59,7 +61,7 @@ def _parser() -> argparse.ArgumentParser:
         "--ignore-sidecar", action="store_true", help="ignore an automatically matching INF"
     )
     inspect_parser = subparsers.add_parser("inspect", help="validate basic image metadata")
-    inspect_parser.add_argument("image", help="a BeebSCSI DAT or DSC file")
+    inspect_parser.add_argument("image", help="any supported Acorn image")
     inspect_parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     validate_parser = subparsers.add_parser(
         "validate", help="validate the ADFS structure without modifying it"
@@ -158,7 +160,45 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _inspect_standalone(args: argparse.Namespace) -> int:
+    """Describe an image that is not a BeebSCSI pair."""
+
+    properties = read_image_properties(args.image)
+    if args.json:
+        print(
+            json.dumps({"format": "standalone", **properties.as_dict()}, indent=2, sort_keys=True)
+        )
+        return 0
+    print(f"Format: {properties.image_type}")
+    print(f"Image: {properties.dat_path}")
+    print(f"Filesystem: {properties.filesystem_format}")
+    if properties.title:
+        print(f"Title: {properties.title}")
+    if properties.slot_count:
+        print(f"Slots: {properties.formatted_slots} formatted of {properties.slot_count}")
+    else:
+        print(
+            f"Geometry: {properties.cylinders} cylinders, {properties.heads} heads, "
+            f"{properties.capacity_bytes} bytes"
+        )
+    if properties.show_space_breakdown:
+        print(f"Used: {properties.used_bytes} bytes; free: {properties.free_bytes} bytes")
+    print(f"Read-write mounting: {'supported' if properties.write_supported else 'read-only'}")
+    findings = properties.fatal_findings + properties.warning_findings
+    print(f"Validation: {'passed' if not findings else f'{findings} problems found'}")
+    return 0
+
+
 def _inspect(args: argparse.Namespace) -> int:
+    try:
+        standalone = resolve_image(args.image).pair is None
+    except AcornFSError:
+        # A pair that cannot be resolved is explained by the pair inspection.
+        if Path(args.image).suffix.casefold() not in {".dat", ".dsc"}:
+            raise
+        standalone = False
+    if standalone:
+        return _inspect_standalone(args)
     result = inspect_pair(args.image)
 
     if args.json:

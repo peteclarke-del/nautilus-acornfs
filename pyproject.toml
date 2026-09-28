@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nautilus-acornfs"
-version = "0.3.1"
+version = "0.3.2"
 description = "A safe userspace filesystem for Acorn disk images"
 readme = "README.md"
 license = "MIT"
