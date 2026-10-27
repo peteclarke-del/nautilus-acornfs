@@ -17,7 +17,7 @@ dependencies = [
     "oaknut-basic==12.15.1",
     "oaknut-codecs==12.15.1",
     "oaknut-discimage==12.15.1",
-    "oaknut-dfs==12.15.1",
+    "oaknut-dfs==13.5.0",
     "oaknut-exception==12.15.1",
     "oaknut-extension==12.15.1",
     "oaknut-file==12.15.1",
