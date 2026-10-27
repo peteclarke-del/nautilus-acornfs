@@ -19,7 +19,7 @@ dependencies = [
     "oaknut-discimage==12.15.1",
     "oaknut-dfs==12.15.1",
     "oaknut-exception==12.15.1",
-    "oaknut-extension==12.15.1",
+    "oaknut-extension==13.5.0",
     "oaknut-file==12.15.1",
     "oaknut-filesystem==12.15.1",
     "oaknut-romfs==12.15.1",
