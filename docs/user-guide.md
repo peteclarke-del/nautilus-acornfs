@@ -17,7 +17,7 @@ write path. ROMFS never offers writable access.
 
 ## Install and enable Files integration
 
-The Debian package is the recommended installation method on Ubuntu 24.04
+The Debian package is the recommended installation method on Ubuntu 24.04 or 26.04
 amd64. Download the `.deb` and `SHA256SUMS` from the matching
 [GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases).
 Replace `VERSION` with the downloaded release number:

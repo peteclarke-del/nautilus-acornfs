@@ -242,6 +242,14 @@ class ReadOnlyImage:
                         )
                 else:
                     cls._require_generic_integrity(mount)
+            elif getattr(mount, "_adfs", None) is not None:
+                problems = tuple(mount.validate())
+                if problems:
+                    raise AcornFSError(
+                        _("The Acorn image could not be opened safely: {error}").format(
+                            error=problems[0]
+                        )
+                    )
             image = cls(
                 source=source,
                 reader=reader,
@@ -399,7 +407,7 @@ class ReadOnlyImage:
                         is_dir=entry.is_dir,
                         size=entry.length,
                         locked=bool(metadata and metadata.access & int(Access.L)),
-                        run_only=bool(metadata and metadata.access & int(Access.X)),
+                        run_only=bool(metadata and metadata.access & int(Access.E)),
                     )
                     self.nodes[inode] = node
                     child_inodes.append(inode)

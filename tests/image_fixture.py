@@ -131,7 +131,10 @@ def create_adfs_floppy(
     mount = filesystem.open(reader, geometry)
     try:
         mount.write_bytes("$.HELLO", b"Hello from floppy\r")
-        mount.make_directory("$.DOCS", title="Documents")  # type: ignore[attr-defined]
+        if format_name.endswith("+"):
+            mount.make_directory("$.DOCS")  # type: ignore[attr-defined]
+        else:
+            mount.make_directory("$.DOCS", title="Documents")  # type: ignore[attr-defined]
         mount.write_bytes("$.DOCS.GUIDE", b"Floppy guide\r")
         if format_name.endswith("+"):
             mount.write_bytes("$.LONG RISC OS FILENAME", b"Big directory filename\r")
@@ -274,7 +277,7 @@ def create_romfs_image(directory: Path, *, filename: str = "utilities.rom") -> P
             AcornMeta(
                 load_address=0xFFFF8000,
                 exec_address=0xFFFF8000,
-                access=int(Access.X),
+                access=int(Access.E),
             ),
         )
     finally:

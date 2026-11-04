@@ -13,7 +13,7 @@ For ordinary desktop use, install the `.deb` as described in the root README's
 [installation guide](../README.md#installation). It resolves the host packages
 through `apt`.
 
-For source development on Ubuntu 24.04, install the build dependencies and
+For source development on Ubuntu 24.04 or 26.04, install the build dependencies and
 AcornFS from a repository checkout:
 
 ```shell

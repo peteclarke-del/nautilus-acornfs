@@ -1,13 +1,13 @@
 # Debian package
 
-AcornFS produces one installable package for Ubuntu 24.04 LTS on amd64:
+AcornFS produces one installable package for Ubuntu 24.04 and 26.04 LTS on amd64:
 
 ```text
 nautilus-acornfs_VERSION_amd64.deb
 ```
 
 The package contains the command, FUSE adapter, Nautilus extension, MIME and
-desktop integration, documentation, and the exact Oaknut 12.15.1 runtime. A
+desktop integration, documentation, and the exact Oaknut 13.5.0 runtime. A
 single package keeps the command and desktop extension on the same version and
 matches the supported desktop product boundary. Headless and other
 architecture packages can be split later if there is a tested use case.
@@ -31,13 +31,12 @@ The package declares these Ubuntu runtime dependencies:
 
 ```text
 python3 (>= 3.11~)
-python3 (<< 3.13)
 fuse3
 python3-pyfuse3 (>= 3.3)
 python3-trio (>= 0.24)
 python3-stevedore (>= 1:5.0)
 python3-nautilus
-gir1.2-nautilus-4.0
+gir1.2-nautilus-4.0 | gir1.2-nautilus-4.1
 shared-mime-info
 desktop-file-utils
 libnotify-bin
@@ -74,7 +73,7 @@ writes the verified package and `nautilus-acornfs-deb-manifest.json` below
 other commits receive a `+gitYYYYMMDD.REVISION` Debian version suffix.
 
 The manifest records every installed file, system dependency, vendored wheel
-version, licence and hash. CI installs the artifact on Ubuntu 24.04, checks the
-command, Python imports and desktop loader, removes the package, and confirms
-the command was removed. The release builder includes the same `.deb` and
+version, licence and hash. CI installs the artifact on Ubuntu 24.04 and 26.04,
+checks the command, Python imports and desktop loader, removes the package, and
+confirms the command was removed. The release builder includes the same `.deb` and
 manifest in `SHA256SUMS`.

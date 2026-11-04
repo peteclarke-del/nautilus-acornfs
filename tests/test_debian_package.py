@@ -83,13 +83,13 @@ def test_staging_builds_one_system_package_with_desktop_assets(
     vendor = _wheel(
         tmp_path / "vendor.whl",
         name="oaknut-filesystem",
-        version="12.15.1",
+        version="13.5.0",
         members={"oaknut/filesystem/__init__.py": b"FILESYSTEM = True\n"},
     )
     digest = hashlib.sha256(vendor.read_bytes()).hexdigest()
     monkeypatch.setattr(
         "tools.debian_package._locked_requirements",
-        lambda: {"oaknut-filesystem": ("12.15.1", digest)},
+        lambda: {"oaknut-filesystem": ("13.5.0", digest)},
     )
     root = tmp_path / "root"
 
@@ -101,11 +101,14 @@ def test_staging_builds_one_system_package_with_desktop_assets(
         epoch=1_700_000_000,
     )
 
-    assert inventory["oaknut-filesystem"]["version"] == "12.15.1"
+    assert inventory["oaknut-filesystem"]["version"] == "13.5.0"
     assert "/usr/bin/acornfs" in files
     assert "/usr/lib/python3/dist-packages/oaknut/filesystem/__init__.py" in files
     assert "/usr/share/nautilus-python/extensions/nautilus_acornfs.py" in files
-    assert "python3-pyfuse3" in (root / "DEBIAN/control").read_text(encoding="utf-8")
+    control = (root / "DEBIAN/control").read_text(encoding="utf-8")
+    assert "python3-pyfuse3" in control
+    assert "python3 (<< 3.13)" not in control
+    assert "gir1.2-nautilus-4.0 | gir1.2-nautilus-4.1" in control
     assert (root / "DEBIAN/postinst").stat().st_mode & 0o111
     assert all(path.stat().st_mode & 0o777 == 0o755 for path in root.rglob("*") if path.is_dir())
     assert all(int(path.stat().st_mtime) == 1_700_000_000 for path in root.rglob("*"))
@@ -123,13 +126,13 @@ def test_staging_refuses_unsafe_or_overlapping_members(
     vendor = _wheel(
         tmp_path / "vendor.whl",
         name="oaknut-filesystem",
-        version="12.15.1",
+        version="13.5.0",
         members={"shared.py": b"vendor"},
     )
     digest = hashlib.sha256(vendor.read_bytes()).hexdigest()
     monkeypatch.setattr(
         "tools.debian_package._locked_requirements",
-        lambda: {"oaknut-filesystem": ("12.15.1", digest)},
+        lambda: {"oaknut-filesystem": ("13.5.0", digest)},
     )
 
     with pytest.raises(RuntimeError, match="overlaps"):

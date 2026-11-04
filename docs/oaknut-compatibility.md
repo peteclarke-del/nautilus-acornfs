@@ -10,8 +10,14 @@ attribute.
 
 All Oaknut distributions must stay on one exact release. The supported set and
 version are declared together in `pyproject.toml`; partial or floating upgrades
-are not accepted. The current supported family is Oaknut 12.15.1, matching
+are not accepted. The current supported family is Oaknut 13.5.0, matching
 Acorn File Forge's filesystem dependencies.
+
+Oaknut 13.5.0 percent-encodes quoted traditional INF names, uses `Access.E` for
+the owner execute bit, and reports Big Directories as lacking directory-title
+fields. AcornFS passes raw paths to Oaknut's INF formatter, keeps its own
+8-bit INF access validation, and treats Oaknut's directory validation errors as
+fatal before opening an ADFS image read-only.
 
 ## Upgrade gate
 

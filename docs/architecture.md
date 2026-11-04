@@ -44,14 +44,14 @@ transactions and ranged reads inspect pinned map/directory objects. Normal
 ADFS, DFS and MMB mutations use Oaknut's mount capabilities. HFE mounts apply
 the same mutations to a private decoded sector image before guarded write-back.
 
-The initial host baseline is Ubuntu 24.04 LTS or later, FUSE 3, and Nautilus 46
+The supported host baselines are Ubuntu 24.04 and 26.04 LTS, FUSE 3, and Nautilus 46
 or later using the Nautilus 4 GObject-introspection API. CI also exercises
 Python 3.11 through 3.14.
 
 ## Shared boundary with Acorn File Forge
 
-Acorn File Forge already consumes `oaknut-disc==12.15.1` and
-`oaknut-romfs==12.15.1` through `oaknut.filesystem`. AcornFS uses the same public
+Acorn File Forge already consumes `oaknut-disc==13.5.0` and
+`oaknut-romfs==13.5.0` through `oaknut.filesystem`. AcornFS uses the same public
 package API for content detection, ROM catalogue traversal and metadata. Generic ADFS
 parsing, geometry, catalogue and mutation logic belongs upstream in Oaknut;
 AcornFS owns pairing, mount policy, caching, POSIX mapping and FUSE lifecycle.

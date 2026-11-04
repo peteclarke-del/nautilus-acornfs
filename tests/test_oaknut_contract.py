@@ -21,8 +21,8 @@ def test_oaknut_family_remains_one_exactly_pinned_release() -> None:
 
     assert oaknut
     assert all(separator == "==" and pinned for _package, separator, pinned in oaknut)
-    assert {pinned for _package, _separator, pinned in oaknut} == {"12.15.1"}
-    assert {version(package) for package, _separator, _pinned in oaknut} == {"12.15.1"}
+    assert {pinned for _package, _separator, pinned in oaknut} == {"13.5.0"}
+    assert {version(package) for package, _separator, _pinned in oaknut} == {"13.5.0"}
     assert "acorn-romfs" in filesystem_names()
 
 
