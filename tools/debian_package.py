@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a reproducible Ubuntu 24.04 amd64 package without install-time downloads."""
+"""Build a reproducible Ubuntu amd64 package without install-time downloads."""
 
 from __future__ import annotations
 
@@ -37,13 +37,12 @@ PYTHON_ROOT = PurePosixPath("usr/lib/python3/dist-packages")
 VENDOR_REQUIREMENTS = PROJECT_ROOT / "packaging/debian/vendor-requirements.txt"
 RUNTIME_DEPENDENCIES = (
     "python3 (>= 3.11~)",
-    "python3 (<< 3.13)",
     "fuse3",
     "python3-pyfuse3 (>= 3.3)",
     "python3-trio (>= 0.24)",
     "python3-stevedore (>= 1:5.0)",
     "python3-nautilus",
-    "gir1.2-nautilus-4.0",
+    "gir1.2-nautilus-4.0 | gir1.2-nautilus-4.1",
     "shared-mime-info",
     "desktop-file-utils",
     "libnotify-bin",

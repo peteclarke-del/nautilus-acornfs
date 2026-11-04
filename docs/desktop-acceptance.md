@@ -1,6 +1,6 @@
 # GNOME desktop acceptance
 
-Run this checklist in a clean Ubuntu 24.04 amd64 session with GNOME/Nautilus
+Run this checklist in clean Ubuntu 24.04 and 26.04 amd64 sessions with GNOME/Nautilus
 46 or later. Automated tests cover the menu model, dialog command contract and
 the kernel FUSE operations beneath common file-manager workflows. They cannot
 establish visual layout, assistive-technology behaviour or Nautilus's own

@@ -2,8 +2,8 @@
 
 ## Supported deployment
 
-The initial support boundary is Ubuntu 24.04 LTS, GNOME/Nautilus 46 or later,
-FUSE 3 and amd64. AcornFS runs entirely as the logged-in user. Do not install
+The supported desktop releases are Ubuntu 24.04 and 26.04 LTS on amd64, with
+GNOME/Nautilus 46 or later and FUSE 3. AcornFS runs entirely as the logged-in user. Do not install
 setuid helpers, run Nautilus as root, grant broad `allow_other` access, or make
 global `/etc/fuse.conf` changes for an ordinary deployment.
 

@@ -2,7 +2,7 @@
 
 ## Install the Files integration
 
-Use the Ubuntu 24.04 amd64 `.deb` described in the root
+Use the Ubuntu 24.04 or 26.04 amd64 `.deb` described in the root
 [installation guide](../README.md#installation). It installs AcornFS and the
 Nautilus integration together through normal system package dependencies:
 

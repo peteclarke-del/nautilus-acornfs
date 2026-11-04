@@ -88,8 +88,8 @@ retained-state guidance in
 
 ### Install the Debian package
 
-The v0.2.0 release supports Ubuntu 24.04 LTS on amd64, Python 3.11 or later,
-FUSE 3, and GNOME Files (Nautilus) 46 or later. The Debian package is the
+The current release supports Ubuntu 24.04 and 26.04 LTS on amd64, Python 3.11
+or later, FUSE 3, and GNOME Files (Nautilus) 46 or later. The Debian package is the
 recommended installation method for releases that provide it. Download
 `nautilus-acornfs_VERSION_amd64.deb` and `SHA256SUMS` from the matching
 [GitHub release](https://github.com/peteclarke-del/nautilus-acornfs/releases),
@@ -238,14 +238,14 @@ in [docs/performance.md](docs/performance.md).
 `make package-smoke` builds a wheel, installs it with FUSE support through the
 managed per-user installer, atomically upgrades it, removes it and verifies
 throughout that preferences, recovery state and repair audits are unchanged.
-CI runs the same lifecycle on the supported Ubuntu 24.04 amd64 host.
+CI runs the same lifecycle on Ubuntu 24.04 and 26.04 amd64 hosts.
 
 For a release build, install `.[release]` and run `make release` from a clean
 tagged checkout. The command derives `SOURCE_DATE_EPOCH` from the commit, builds
 the wheel and source archive twice, refuses differing output, generates a
 validated reproducible CycloneDX SBOM for the full FUSE installation and
 writes `build/release/SHA256SUMS`. The release set also contains the reproducible
-Ubuntu 24.04 amd64 `.deb`, its dependency and vendoring manifest, and the
+Ubuntu 24.04 and 26.04 amd64 `.deb`, its dependency and vendoring manifest, and the
 standalone add-on. Release signing remains a separate manual gate until the
 project has an approved signing-key policy.
 

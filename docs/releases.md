@@ -20,7 +20,7 @@ during package builds.
 2. Run `make check`, `make benchmark`, `make test-live` on a permitted amd64
    FUSE host, install `.[release]`, and run `make release`.
 3. Run `make package-smoke` and `make deb`. Inspect the Debian manifest, install
-   the `.deb` into a clean Ubuntu 24.04 amd64 environment, exercise the command
+   the `.deb` into clean Ubuntu 24.04 and 26.04 amd64 environments, exercise the command
    and Files loader, remove it, then run the documented mount, writable-edit
    and recovery acceptance tests on a GNOME host.
 4. Set the version, date the changelog section, and review the full diff.

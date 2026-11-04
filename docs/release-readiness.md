@@ -5,7 +5,7 @@ claim into a completed item.
 
 ## Supported first-release boundary
 
-- Ubuntu 24.04 LTS on amd64 only.
+- Ubuntu 24.04 and 26.04 LTS on amd64.
 - GNOME/Nautilus 46 or later using the Nautilus 4 extension API.
 - FUSE 3 with unprivileged mounts owned by the current user.
 - Read-write for validated BeebSCSI DAT/DSC, standalone ADFS
@@ -37,6 +37,8 @@ claim into a completed item.
 - [x] Wheel and source archive builds are reproducible and have an SBOM.
 - [x] The Ubuntu 24.04 amd64 Debian package builds reproducibly and its clean
   install, runtime import and removal smoke test passes in an Ubuntu container.
+- [ ] The Ubuntu 26.04 amd64 Debian package passes the same clean install,
+  runtime import and removal smoke test.
 - [ ] A clean GNOME session passes keyboard, screen-reader, light/dark, narrow
   window, 200 percent scaling and Nautilus file-operation workflows using the
   [desktop acceptance matrix](desktop-acceptance.md).

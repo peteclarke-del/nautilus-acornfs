@@ -44,7 +44,7 @@ transactions and ranged reads inspect pinned map/directory objects. Normal
 ADFS, DFS and MMB mutations use Oaknut's mount capabilities. HFE mounts apply
 the same mutations to a private decoded sector image before guarded write-back.
 
-The initial host baseline is Ubuntu 24.04 LTS or later, FUSE 3, and Nautilus 46
+The supported host baselines are Ubuntu 24.04 and 26.04 LTS, FUSE 3, and Nautilus 46
 or later using the Nautilus 4 GObject-introspection API. CI also exercises
 Python 3.11 through 3.14.
 
