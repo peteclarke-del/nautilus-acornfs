@@ -15,6 +15,12 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 ### Fixed
 
 - Keep the package installable with newer system Python versions.
+- Preserve traditional INF filenames and fail-closed directory validation with Oaknut 13.5.0.
+- Adapt execute-bit handling and Big Directory fixtures to the updated Oaknut API.
+
+### Updated
+
+- Upgrade the complete, hash-locked Oaknut runtime from 12.15.1 to 13.5.0.
 
 ## 0.3.2 - 2026-09-28
 

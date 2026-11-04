@@ -118,13 +118,6 @@ def format_inf_record(node: ImageNode, metadata: AcornMeta) -> str:
     """Format the portable traditional INF dialect shared with Acorn File Forge."""
 
     name = node.acorn_path
-    if any(character.isspace() for character in name):
-        if '"' in name:
-            raise AcornFSError(
-                "The Acorn path contains both whitespace and a quote and cannot be represented "
-                "unambiguously in a portable INF sidecar."
-            )
-        name = f'"{name}"'
     line = str(
         format_trad_inf_line(
             name,

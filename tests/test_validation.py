@@ -198,7 +198,10 @@ def test_invalid_map_checksum_and_broken_directory_fail_cleanly(tmp_path: Path) 
         handle.seek(checksum_offset)
         handle.write(bytes([original[0] ^ 0xFF]))
     directory_report = validate_image_report(bad_directory)
-    assert "directory.unreadable" in {item.code for item in directory_report.fatal_findings}
+    assert {item.code for item in directory_report.fatal_findings} & {
+        "directory.unreadable",
+        "adfs.structure",
+    }
     with pytest.raises(AcornFSError, match="could not be opened safely"):
         ReadOnlyImage.open(bad_directory)
 

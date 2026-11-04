@@ -42,7 +42,7 @@ def test_inf_record_accepts_shared_legacy_forms(record: str) -> None:
 
 def test_inf_record_rejects_access_values_wider_than_one_byte() -> None:
     with pytest.raises(AcornFSError, match="8 bits"):
-        parse_inf_record("0 1900 8023 100")
+        parse_inf_record("0 1900 8023 00000001 100")
 
 
 def test_export_then_import_preserves_content_and_metadata(tmp_path: Path) -> None:

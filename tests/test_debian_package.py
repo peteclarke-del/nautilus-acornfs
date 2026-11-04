@@ -83,13 +83,13 @@ def test_staging_builds_one_system_package_with_desktop_assets(
     vendor = _wheel(
         tmp_path / "vendor.whl",
         name="oaknut-filesystem",
-        version="12.15.1",
+        version="13.5.0",
         members={"oaknut/filesystem/__init__.py": b"FILESYSTEM = True\n"},
     )
     digest = hashlib.sha256(vendor.read_bytes()).hexdigest()
     monkeypatch.setattr(
         "tools.debian_package._locked_requirements",
-        lambda: {"oaknut-filesystem": ("12.15.1", digest)},
+        lambda: {"oaknut-filesystem": ("13.5.0", digest)},
     )
     root = tmp_path / "root"
 
@@ -101,7 +101,7 @@ def test_staging_builds_one_system_package_with_desktop_assets(
         epoch=1_700_000_000,
     )
 
-    assert inventory["oaknut-filesystem"]["version"] == "12.15.1"
+    assert inventory["oaknut-filesystem"]["version"] == "13.5.0"
     assert "/usr/bin/acornfs" in files
     assert "/usr/lib/python3/dist-packages/oaknut/filesystem/__init__.py" in files
     assert "/usr/share/nautilus-python/extensions/nautilus_acornfs.py" in files
@@ -126,13 +126,13 @@ def test_staging_refuses_unsafe_or_overlapping_members(
     vendor = _wheel(
         tmp_path / "vendor.whl",
         name="oaknut-filesystem",
-        version="12.15.1",
+        version="13.5.0",
         members={"shared.py": b"vendor"},
     )
     digest = hashlib.sha256(vendor.read_bytes()).hexdigest()
     monkeypatch.setattr(
         "tools.debian_package._locked_requirements",
-        lambda: {"oaknut-filesystem": ("12.15.1", digest)},
+        lambda: {"oaknut-filesystem": ("13.5.0", digest)},
     )
 
     with pytest.raises(RuntimeError, match="overlaps"):

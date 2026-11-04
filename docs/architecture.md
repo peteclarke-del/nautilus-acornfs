@@ -50,8 +50,8 @@ Python 3.11 through 3.14.
 
 ## Shared boundary with Acorn File Forge
 
-Acorn File Forge already consumes `oaknut-disc==12.15.1` and
-`oaknut-romfs==12.15.1` through `oaknut.filesystem`. AcornFS uses the same public
+Acorn File Forge already consumes `oaknut-disc==13.5.0` and
+`oaknut-romfs==13.5.0` through `oaknut.filesystem`. AcornFS uses the same public
 package API for content detection, ROM catalogue traversal and metadata. Generic ADFS
 parsing, geometry, catalogue and mutation logic belongs upstream in Oaknut;
 AcornFS owns pairing, mount policy, caching, POSIX mapping and FUSE lifecycle.

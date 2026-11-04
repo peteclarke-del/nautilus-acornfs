@@ -12,23 +12,23 @@ license-files = ["LICENSE"]
 authors = [{ name = "Pete Clarke" }]
 requires-python = ">=3.11"
 dependencies = [
-    "oaknut-adfs==12.15.1",
-    "oaknut-afs==12.15.1",
-    "oaknut-basic==12.15.1",
-    "oaknut-codecs==12.15.1",
-    "oaknut-discimage==12.15.1",
-    "oaknut-dfs==12.15.1",
-    "oaknut-exception==12.15.1",
-    "oaknut-extension==12.15.1",
-    "oaknut-file==12.15.1",
-    "oaknut-filesystem==12.15.1",
-    "oaknut-romfs==12.15.1",
+    "oaknut-adfs==13.5.0",
+    "oaknut-afs==13.5.0",
+    "oaknut-basic==13.5.0",
+    "oaknut-codecs==13.5.0",
+    "oaknut-discimage==13.5.0",
+    "oaknut-dfs==13.5.0",
+    "oaknut-exception==13.5.0",
+    "oaknut-extension==13.5.0",
+    "oaknut-file==13.5.0",
+    "oaknut-filesystem==13.5.0",
+    "oaknut-romfs==13.5.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "build>=1.2,<2",
-    "mypy>=1.15,<2",
+    "mypy>=1.15,<3",
     "pytest>=8.3,<9",
     "ruff>=0.11,<1",
     "setuptools>=77",

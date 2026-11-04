@@ -402,8 +402,8 @@ def stage_package(
     oaknut_versions = {
         item["version"] for name, item in inventory.items() if name.startswith("oaknut-")
     }
-    if oaknut_versions != {"12.15.1"}:
-        raise RuntimeError("the Debian package must vendor exactly Oaknut 12.15.1")
+    if oaknut_versions != {"13.5.0"}:
+        raise RuntimeError("the Debian package must vendor exactly Oaknut 13.5.0")
     owned: set[str] = set()
     _extract_wheel(project_wheel, root, owned)
     for wheel in vendor_wheels:

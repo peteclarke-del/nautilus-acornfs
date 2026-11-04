@@ -7,7 +7,7 @@ nautilus-acornfs_VERSION_amd64.deb
 ```
 
 The package contains the command, FUSE adapter, Nautilus extension, MIME and
-desktop integration, documentation, and the exact Oaknut 12.15.1 runtime. A
+desktop integration, documentation, and the exact Oaknut 13.5.0 runtime. A
 single package keeps the command and desktop extension on the same version and
 matches the supported desktop product boundary. Headless and other
 architecture packages can be split later if there is a tested use case.
