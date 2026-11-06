@@ -100,7 +100,10 @@ def test_desktop_uri_handler_accepts_only_local_image_paths() -> None:
     assert local_image_reference("relative/scsi0.dat") == Path("relative/scsi0.dat")
     with pytest.raises(AcornFSError, match="only local"):
         local_image_reference("file://server/share/scsi0.dat")
-    with pytest.raises(AcornFSError, match="Unsupported"):
+    with (
+        patch("acornfs.desktop._gvfs_local_path", return_value=None),
+        pytest.raises(AcornFSError, match="Unsupported"),
+    ):
         local_image_reference("https://example.test/scsi0.dat")
     with pytest.raises(AcornFSError, match="invalid path"):
         local_image_reference("file:///tmp/scsi%00.dat")
