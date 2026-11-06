@@ -5,6 +5,19 @@ All notable changes to Nautilus AcornFS are recorded here. The project follows
 
 ## Unreleased
 
+## 0.3.4 - 2026-11-06
+
+### Fixed
+
+- Open disk images on network shares from Files. Double-clicking or using Open
+  With on an image on an SMB or other GVfs share used to fail with
+  "Unsupported image URI scheme"; the image is now opened through its GVfs
+  path, and an image that belongs to the sibling Acorn or Amiga mounter is
+  handed on to it as it is for local files.
+- Keep the managed add-on install on one Oaknut release. `oaknut-basic`
+  requires `oaknut-cli` without an upper bound, so a fresh install took
+  `oaknut-cli` 13.6.0 alongside the 13.5.0 family; it is now pinned to 13.5.0.
+
 ## 0.3.3 - 2026-11-04
 
 ### Added

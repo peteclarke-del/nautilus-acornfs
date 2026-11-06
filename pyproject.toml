@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nautilus-acornfs"
-version = "0.3.3"
+version = "0.3.4"
 description = "A safe userspace filesystem for Acorn disk images"
 readme = "README.md"
 license = "MIT"
@@ -15,6 +15,7 @@ dependencies = [
     "oaknut-adfs==13.5.0",
     "oaknut-afs==13.5.0",
     "oaknut-basic==13.5.0",
+    "oaknut-cli==13.5.0",
     "oaknut-codecs==13.5.0",
     "oaknut-discimage==13.5.0",
     "oaknut-dfs==13.5.0",
